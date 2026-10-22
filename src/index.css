@@ -1,0 +1,116 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Light mode ─────────────────────────────────────────────────────── */
+:root {
+  --bg:             #f8fafc;
+  --bg-top:         #f8fafc;
+  --bg-mid:         #f1f5f9;
+  --bg-btm:         #f1f5f9;
+
+  --surface:        #ffffff;
+  --surface-strong: #ffffff;
+  --surface-muted:  #f8fafc;
+  --surface-hover:  #f1f5f9;
+
+  --ink:    #0f172a;
+  --ink-2:  #334155;
+  --muted:  #64748b;
+  --subtle: #94a3b8;
+
+  --border:        #e2e8f0;
+  --border-strong: #cbd5e1;
+
+  --accent:       #6366f1;
+  --accent-hover: #4f46e5;
+  --accent-dark:  #ffffff;
+  --accent-light: #eef2ff;
+
+  --success:    #059669;
+  --success-bg: #ecfdf5;
+  --danger:     #dc2626;
+  --danger-bg:  #fef2f2;
+  --warning:        #d97706;
+  --warning-bg:     #fffbeb;
+  --warning-border: #fde68a;
+
+  --spectral: linear-gradient(90deg, #6366f1 0%, #8b5cf6 40%, #ec4899 75%, #f97316 100%);
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow:    0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.05), 0 2px 4px rgba(0,0,0,0.04);
+}
+
+/* ── Dark mode ──────────────────────────────────────────────────────── */
+html.dark {
+  --bg:             #0f172a;
+  --bg-top:         #0f172a;
+  --bg-mid:         #0f172a;
+  --bg-btm:         #0f172a;
+
+  --surface:        #1e293b;
+  --surface-strong: #1e293b;
+  --surface-muted:  #0f172a;
+  --surface-hover:  #293548;
+
+  --ink:    #f1f5f9;
+  --ink-2:  #cbd5e1;
+  --muted:  #94a3b8;
+  --subtle: #475569;
+
+  --border:        #1e293b;
+  --border-strong: #334155;
+
+  --accent:       #818cf8;
+  --accent-hover: #6366f1;
+  --accent-dark:  #ffffff;
+  --accent-light: rgba(99,102,241,0.15);
+
+  --success:    #34d399;
+  --success-bg: rgba(52,211,153,0.10);
+  --danger:     #f87171;
+  --danger-bg:  rgba(248,113,113,0.10);
+  --warning:        #fbbf24;
+  --warning-bg:     rgba(251,191,36,0.10);
+  --warning-border: rgba(251,191,36,0.25);
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.40);
+  --shadow:    0 1px 3px rgba(0,0,0,0.50);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.40);
+}
+
+/* ── Base ───────────────────────────────────────────────────────────── */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, sans-serif;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.display { font-family: 'Inter', system-ui, sans-serif; letter-spacing: -0.025em; }
+.mono    { font-family: 'JetBrains Mono', Menlo, monospace; }
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; }
+
+input[type="date"] { color-scheme: light; }
+html.dark input[type="date"] { color-scheme: dark; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

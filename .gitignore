@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Environment secrets — never commit
+.env
+.env.local
+.env.*.local
+
+# Circle credentials
+.circle/
+
+# Foundry build artifacts
+contracts/out/
+contracts/cache/
+
+# Dev logs — not for repo
+console.jsonl
+traces.jsonl
+
+# Bun
+.bun/
+
+# Build output
+dist/
+
+# Editor
+.DS_Store
+*.local
