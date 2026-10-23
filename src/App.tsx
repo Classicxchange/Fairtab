@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { CircleWalletAuth, restoreCircleSession } from '@/CircleWalletAuth'
+import { AccountView, type AccountSession } from '@/AccountView'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   useAccount,
@@ -16,7 +17,7 @@ import {
   CheckCircle2, XCircle, AlertTriangle, Loader2, Receipt,
   Users, RefreshCw, ArrowRight, Wallet,
   Send, Copy, QrCode, Link2, LayoutGrid,
-  Sun, Moon, Share2, Tag,
+  Sun, Moon, Share2, Tag, UserCircle,
 } from 'lucide-react'
 import { TokenUSDC } from '@web3icons/react'
 import { toast } from 'sonner'
@@ -1192,6 +1193,14 @@ export default function App() {
   const { address: wagmiAddress, chainId } = useAccount()
   const wrongChain = chainId !== CHAIN_ID
 
+  // ── Social session (Google / email OTP) ───────────────────────────────────
+  const [socialSession, setSocialSession] = useState<AccountSession | null>(() => {
+    try {
+      const stored = localStorage.getItem('fairtab_session_v2')
+      return stored ? (JSON.parse(stored) as AccountSession) : null
+    } catch { return null }
+  })
+
   // ── Circle Wallet (passkey smart account) ──────────────────────────────────
   const [circleAddress, setCircleAddress] = useState<`0x${string}` | null>(null)
   const [, setCircleBundler] = useState<ReturnType<typeof import('viem/account-abstraction').createBundlerClient> | null>(null)
@@ -1206,8 +1215,8 @@ export default function App() {
     })
   }, [])
 
-  // Unified address: Circle wallet takes precedence, then MetaMask
-  const address = circleAddress ?? wagmiAddress
+  // Unified address: Circle passkey > social (Google/email) > MetaMask
+  const address = circleAddress ?? (socialSession?.address as `0x${string}` | undefined) ?? wagmiAddress
 
   const { data: billCount, refetch: refetchCount } = useReadContract({
     address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'billCount', chainId: CHAIN_ID,
@@ -1222,7 +1231,7 @@ export default function App() {
   const deepLinkBillId = useMemo(() => { const b = urlParams.get('bill'); return b != null ? BigInt(b) : null }, [urlParams])
 
   const { dark, toggle: toggleDark } = useDarkMode()
-  const [tab, setTab] = useState<'bills' | 'send' | 'receive'>(prefilledTo ? 'send' : 'bills')
+  const [tab, setTab] = useState<'bills' | 'send' | 'receive' | 'account'>(prefilledTo ? 'send' : 'bills')
 
   const count = billCount != null ? Number(billCount) : 0
 
@@ -1314,6 +1323,7 @@ export default function App() {
                 { id: 'bills',   label: 'Bills',   icon: LayoutGrid },
                 { id: 'send',    label: 'Send',    icon: Send       },
                 { id: 'receive', label: 'Receive', icon: QrCode     },
+                { id: 'account', label: 'Account', icon: UserCircle },
               ] as const).map(({ id, label, icon: Icon }) => (
                 <button key={id} onClick={() => setTab(id)}
                   className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition-all hover:scale-[1.01] text-left"
@@ -1352,6 +1362,7 @@ export default function App() {
                 { id: 'bills',   label: 'Bills',   icon: LayoutGrid },
                 { id: 'send',    label: 'Send',    icon: Send       },
                 { id: 'receive', label: 'Receive', icon: QrCode     },
+                { id: 'account', label: 'Account', icon: UserCircle },
               ] as const).map(({ id, label, icon: Icon }) => (
                 <button key={id} onClick={() => setTab(id)}
                   className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2.5 text-xs font-semibold transition-all"
@@ -1457,6 +1468,23 @@ export default function App() {
                       ))}
                     </div>
                   )}
+                </motion.div>
+              )}
+              {tab === 'account' && (
+                <motion.div key="account"
+                  initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}
+                  transition={{ duration: 0.18 }}>
+                  <AccountView
+                    session={socialSession}
+                    onSignedIn={s => {
+                      setSocialSession(s)
+                      localStorage.setItem('fairtab_session_v2', JSON.stringify(s))
+                    }}
+                    onSignOut={() => {
+                      setSocialSession(null)
+                      localStorage.removeItem('fairtab_session_v2')
+                    }}
+                  />
                 </motion.div>
               )}
             </AnimatePresence>
