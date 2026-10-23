@@ -799,3 +799,18 @@
 {"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792720180690}
 {"level":"debug","message":"[vite] connected.","timestamp":1792720184643}
 {"level":"debug","message":"[vite] connected.","timestamp":1792720496791}
+{"level":"debug","message":"[vite] connected.","timestamp":1792758002342}
+{"level":"debug","message":"[vite] invalidate /src/CircleWalletAuth.tsx: Could not Fast Refresh (\"clearCredential\" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports","timestamp":1792759477141}
+{"level":"debug","message":"[vite] hot updated: /src/CircleWalletAuth.tsx","timestamp":1792759477141}
+{"level":"debug","message":"[vite] hot updated: /src/index.css","timestamp":1792759477141}
+{"level":"debug","message":"(previous line repeated 1× more)","timestamp":1792759478522}
+{"level":"debug","message":"[vite] hot updated: /src/App.tsx","timestamp":1792759478522}
+{"level":"debug","message":"[vite] connected.","timestamp":1792759484848}
+{"level":"debug","message":"[vite] connected.","timestamp":1792759531119}
+{"level":"debug","message":"[vite] connected.","timestamp":1792759570699}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792759598935}
+{"level":"debug","message":"[vite] connected.","timestamp":1792759603167}
+{"level":"log","message":"[vite] server connection lost. Polling for restart...","timestamp":1792759621819}
+{"level":"debug","message":"[vite] connected.","timestamp":1792759626709}
+{"level":"debug","message":"[vite] connected.","timestamp":1792759674357}
+{"level":"debug","message":"[vite] connected.","timestamp":1792761523428}

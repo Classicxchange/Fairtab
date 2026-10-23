@@ -17,15 +17,18 @@ import { toast } from 'sonner'
 const clientKey = import.meta.env.VITE_CLIENT_KEY as string | undefined
 const clientUrl = import.meta.env.VITE_CLIENT_URL as string | undefined
 
-// ─── Lazy SDK init — only called when both env vars are present ───────────────
+// ─── Lazy SDK init — only called on demand inside button handlers ─────────────
+// VITE_CLIENT_URL = https://modular-sdk.circle.com/v1/rpc/w3s/buidl (fixed for all apps)
+// VITE_CLIENT_KEY = your client key from Circle Console → Keys → Client Keys
+// toModularTransport appends the chain path: ${clientUrl}/arc for Arc mainnet
+// toPasskeyTransport uses clientUrl directly (no chain suffix)
 function getClients() {
   if (!clientKey || !clientUrl) return null
   try {
-    const passkeyTransport = toPasskeyTransport(clientUrl, clientKey)
     const modularTransport = toModularTransport(`${clientUrl}/arc`, clientKey)
     const publicClient = createPublicClient({ chain: arc, transport: modularTransport })
     const bundlerClient = createBundlerClient({ chain: arc, transport: modularTransport })
-    return { passkeyTransport, publicClient, bundlerClient }
+    return { publicClient, bundlerClient }
   } catch {
     return null
   }
@@ -77,14 +80,15 @@ export function CircleWalletAuth({ onConnected, onDisconnected, connectedAddress
 
   const handleRegister = useCallback(async () => {
     const clients = getClients()
-    if (!clients) {
+    if (!clients || !clientKey) {
       toast.error('Circle Wallet not configured')
       return
     }
     setLoading(true)
     try {
+      const passkeyTransport = toPasskeyTransport(clientUrl!, clientKey)
       const credential = await toWebAuthnCredential({
-        transport: clients.passkeyTransport,
+        transport: passkeyTransport,
         mode: WebAuthnMode.Register,
         username: `fairtab-${Date.now()}`,
       })
@@ -109,14 +113,15 @@ export function CircleWalletAuth({ onConnected, onDisconnected, connectedAddress
 
   const handleLogin = useCallback(async () => {
     const clients = getClients()
-    if (!clients) {
+    if (!clients || !clientKey) {
       toast.error('Circle Wallet not configured')
       return
     }
     setLoading(true)
     try {
+      const passkeyTransport = toPasskeyTransport(clientUrl!, clientKey)
       const credential = await toWebAuthnCredential({
-        transport: clients.passkeyTransport,
+        transport: passkeyTransport,
         mode: WebAuthnMode.Login,
       })
       saveCredential(credential)
