@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
+import { CircleWalletAuth, restoreCircleSession } from '@/CircleWalletAuth'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   useAccount,
@@ -14,7 +15,7 @@ import {
   Plus, ChevronDown, ChevronUp, ExternalLink, Clock,
   CheckCircle2, XCircle, AlertTriangle, Loader2, Receipt,
   Users, RefreshCw, ArrowRight, Wallet,
-  Send, Copy, QrCode, Link2, LayoutGrid, Globe, KeyRound,
+  Send, Copy, QrCode, Link2, LayoutGrid,
   Sun, Moon, Share2, Tag,
 } from 'lucide-react'
 import { TokenUSDC } from '@web3icons/react'
@@ -23,8 +24,7 @@ import { getUsdc, buildTxExplorerUrl } from '@/onchain-facts'
 import { formatUsdc, usdcDecimalsFor } from '@/onchain-money'
 import artifact from '../contracts/out/HouseholdBillSplitter.sol/HouseholdBillSplitter.json'
 
-import { BridgeView } from '@/BridgeAndAuth'
-import { AccountView, type AccountSession } from '@/AccountView'
+
 
 // ─── Contract config ──────────────────────────────────────────────────────────
 const CHAIN_ID = arcChain.id
@@ -881,15 +881,20 @@ function BillLoader({ id, refetch, filter, address: walletAddr }: {
   const label = bytes32ToLabel(labelHex)
   const bill: BillSummary = { id, creator, payee, totalAmount, amountPaid, status, deadline, recurring, recurInterval, cancelThreshold, cancelVotes, shares, label, payoutRedirectVoteCount }
 
-  // Filter logic — always show if no wallet connected
-  if (walletAddr && filter !== 'all') {
+  // Membership gate — always enforce when wallet is connected
+  if (walletAddr) {
     const addr = walletAddr.toLowerCase()
     const isCreator = creator.toLowerCase() === addr
+    const isPayee  = payee.toLowerCase() === addr
     const isParticipant = shares.some(s => s.participant.toLowerCase() === addr)
-    const isDone = status === 1 || status === 2
-    if (filter === 'created' && !isCreator) return null
-    if (filter === 'owe' && (!isParticipant || isDone)) return null
-    if (filter === 'done' && !isDone) return null
+    if (!isCreator && !isPayee && !isParticipant) return null
+    // Sub-filter within member bills
+    if (filter !== 'all') {
+      const isDone = status === 1 || status === 2
+      if (filter === 'created' && !isCreator) return null
+      if (filter === 'owe' && (!isParticipant || isDone)) return null
+      if (filter === 'done' && !isDone) return null
+    }
   }
 
   return <BillCard bill={bill} refetch={refetch} />
@@ -1181,20 +1186,28 @@ function PayoutReadyToaster({ count, address: walletAddr }: { count: number; add
   )
 }
 
-// ─── Stats strip ─────────────────────────────────────────────────────────────
-function StatPill({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl px-4 py-3" style={glass.inner}>
-      <p className="text-xs font-semibold uppercase tracking-widest mb-0.5" style={{ color: 'var(--subtle)' }}>{label}</p>
-      <p className="display text-xl font-bold tabular-nums" style={{ color: 'var(--ink)' }}>{value}</p>
-    </div>
-  )
-}
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
-  const { address, chainId } = useAccount()
+  const { address: wagmiAddress, chainId } = useAccount()
   const wrongChain = chainId !== CHAIN_ID
+
+  // ── Circle Wallet (passkey smart account) ──────────────────────────────────
+  const [circleAddress, setCircleAddress] = useState<`0x${string}` | null>(null)
+  const [, setCircleBundler] = useState<ReturnType<typeof import('viem/account-abstraction').createBundlerClient> | null>(null)
+
+  // Restore passkey session on mount
+  useEffect(() => {
+    void restoreCircleSession().then(session => {
+      if (session) {
+        setCircleAddress(session.address)
+        setCircleBundler(session.bundler)
+      }
+    })
+  }, [])
+
+  // Unified address: Circle wallet takes precedence, then MetaMask
+  const address = circleAddress ?? wagmiAddress
 
   const { data: billCount, refetch: refetchCount } = useReadContract({
     address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'billCount', chainId: CHAIN_ID,
@@ -1209,11 +1222,7 @@ export default function App() {
   const deepLinkBillId = useMemo(() => { const b = urlParams.get('bill'); return b != null ? BigInt(b) : null }, [urlParams])
 
   const { dark, toggle: toggleDark } = useDarkMode()
-  const [tab, setTab] = useState<'bills' | 'send' | 'receive' | 'bridge' | 'account'>(prefilledTo ? 'send' : 'bills')
-  const [passkeySession, setPasskeySession] = useState<AccountSession | null>(() => {
-    try { return JSON.parse(localStorage.getItem('fairtab_session_v2') ?? 'null') as AccountSession | null }
-    catch { return null }
-  })
+  const [tab, setTab] = useState<'bills' | 'send' | 'receive'>(prefilledTo ? 'send' : 'bills')
 
   const count = billCount != null ? Number(billCount) : 0
 
@@ -1235,10 +1244,7 @@ export default function App() {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3">
           <div className="flex items-center gap-3">
             {/* Logo mark */}
-            <div className="relative flex size-9 items-center justify-center rounded-xl overflow-hidden"
-              style={{ background: 'var(--accent)' }}>
-              <Receipt className="size-5" style={{ color: 'var(--accent-dark)' }} />
-            </div>
+            <img src="/logo.svg" alt="Fairtab" className="size-9 rounded-xl" />
             <div>
               <span className="display text-lg font-bold leading-none" style={{ color: 'var(--ink)' }}>Fairtab</span>
               <p className="text-xs leading-none mt-0.5" style={{ color: 'var(--subtle)' }}>powered by Arc</p>
@@ -1267,6 +1273,20 @@ export default function App() {
             >
               {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
             </motion.button>
+            {/* Circle Wallet (passkey) — shown only when MetaMask is not connected */}
+            {!wagmiAddress && (
+              <CircleWalletAuth
+                connectedAddress={circleAddress}
+                onConnected={(addr, bundler) => {
+                  setCircleAddress(addr)
+                  setCircleBundler(bundler)
+                }}
+                onDisconnected={() => {
+                  setCircleAddress(null)
+                  setCircleBundler(null)
+                }}
+              />
+            )}
             <ConnectKitButton />
           </div>
         </div>
@@ -1284,7 +1304,7 @@ export default function App() {
                 Fairtab
               </h1>
               <p className="text-xs" style={{ color: 'var(--muted)' }}>
-                Split bills · Send USDC · Bridge
+                Split bills · Send USDC
               </p>
             </motion.div>
 
@@ -1294,8 +1314,6 @@ export default function App() {
                 { id: 'bills',   label: 'Bills',   icon: LayoutGrid },
                 { id: 'send',    label: 'Send',    icon: Send       },
                 { id: 'receive', label: 'Receive', icon: QrCode     },
-                { id: 'bridge',  label: 'Bridge',  icon: Globe      },
-                { id: 'account', label: 'Account', icon: KeyRound   },
               ] as const).map(({ id, label, icon: Icon }) => (
                 <button key={id} onClick={() => setTab(id)}
                   className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition-all hover:scale-[1.01] text-left"
@@ -1305,18 +1323,13 @@ export default function App() {
                     border: `1px solid ${tab === id ? 'var(--accent-light)' : 'transparent'}`,
                   }}>
                   <Icon className="size-4 shrink-0" /> {label}
-                  {id === 'account' && passkeySession && (
-                    <span className="ml-auto size-2 rounded-full shrink-0" style={{ background: 'var(--success)' }} />
-                  )}
                 </button>
               ))}
             </motion.div>
 
             {tab === 'bills' && (
               <>
-                <motion.div {...fadeUp} transition={{ delay: 0.08 }}>
-                  <StatPill label="Total Bills" value={String(count)} />
-                </motion.div>
+
                 <motion.button onClick={() => setShowCreate(true)}
                   className="flex items-center justify-center gap-2 rounded-2xl py-4 text-sm font-bold transition-all hover:scale-[1.02] active:scale-[0.98]"
                   style={{ background: 'var(--accent)', color: 'var(--accent-dark)' }}
@@ -1339,8 +1352,6 @@ export default function App() {
                 { id: 'bills',   label: 'Bills',   icon: LayoutGrid },
                 { id: 'send',    label: 'Send',    icon: Send       },
                 { id: 'receive', label: 'Receive', icon: QrCode     },
-                { id: 'bridge',  label: 'Bridge',  icon: Globe      },
-                { id: 'account', label: 'Account', icon: KeyRound   },
               ] as const).map(({ id, label, icon: Icon }) => (
                 <button key={id} onClick={() => setTab(id)}
                   className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2.5 text-xs font-semibold transition-all"
@@ -1366,34 +1377,6 @@ export default function App() {
                   <ReceiveView />
                 </motion.div>
               )}
-              {tab === 'bridge' && (
-                <motion.div key="bridge"
-                  initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}
-                  transition={{ duration: 0.18 }}>
-                  <BridgeView />
-                </motion.div>
-              )}
-              {tab === 'account' && (
-                <motion.div key="account"
-                  initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}
-                  transition={{ duration: 0.18 }}>
-                  <div className="max-w-md mx-auto flex flex-col gap-5">
-                    <div>
-                      <h2 className="display text-2xl font-bold" style={{ color: 'var(--ink)', letterSpacing: '-0.03em' }}>
-                        Account
-                      </h2>
-                      <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>
-                        Sign in with Google, email, or a passkey — no seed phrase needed.
-                      </p>
-                    </div>
-                    <AccountView
-                      session={passkeySession}
-                      onSignedIn={sess => setPasskeySession(sess)}
-                      onSignOut={() => setPasskeySession(null)}
-                    />
-                  </div>
-                </motion.div>
-              )}
               {tab === 'bills' && (
                 <motion.div key="bills"
                   initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 16 }}
@@ -1411,9 +1394,9 @@ export default function App() {
                   {/* Bills header row */}
                   <div className="flex items-center justify-between gap-3 flex-wrap">
                     <h2 className="display text-xl font-bold" style={{ color: 'var(--ink)' }}>
-                      {count > 0 ? `${count} ${count === 1 ? 'Bill' : 'Bills'}` : 'Bills'}
+                      Bills
                     </h2>
-                    {address && count > 0 && (
+                    {address && (
                       <div className="flex rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-strong)' }}>
                         {([
                           { id: 'all',     label: 'All'     },
@@ -1431,8 +1414,20 @@ export default function App() {
                     )}
                   </div>
 
-                  {/* Bills grid or empty state */}
-                  {count === 0 ? (
+                  {/* Bills grid or empty/gate state */}
+                  {!address ? (
+                    <motion.div className="flex flex-col items-center justify-center py-24 gap-5" style={glass.card} {...fadeUp}>
+                      <div className="flex size-16 items-center justify-center rounded-3xl"
+                        style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)' }}>
+                        <Wallet className="size-7" style={{ color: 'var(--subtle)' }} />
+                      </div>
+                      <div className="text-center">
+                        <p className="display font-semibold text-lg" style={{ color: 'var(--ink)' }}>Connect your wallet</p>
+                        <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>Connect to see bills you are part of.</p>
+                      </div>
+                      <ConnectKitButton />
+                    </motion.div>
+                  ) : count === 0 ? (
                     <motion.div className="flex flex-col items-center justify-center py-24 gap-5" style={glass.card} {...fadeUp}>
                       <div className="flex size-16 items-center justify-center rounded-3xl"
                         style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)' }}>

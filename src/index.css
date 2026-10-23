@@ -4,82 +4,83 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Light mode ─────────────────────────────────────────────────────── */
+/* ── Fairtab Blue theme (both modes share the same blue world) ───────── */
 :root {
-  --bg:             #f8fafc;
-  --bg-top:         #f8fafc;
-  --bg-mid:         #f1f5f9;
-  --bg-btm:         #f1f5f9;
+  /* Logo blue: #2563EB. Backgrounds graduate from deep navy → mid blue */
+  --bg:             #1a3a6b;
+  --bg-top:         #1a3a6b;
+  --bg-mid:         #1e4080;
+  --bg-btm:         #1e4080;
 
-  --surface:        #ffffff;
-  --surface-strong: #ffffff;
-  --surface-muted:  #f8fafc;
-  --surface-hover:  #f1f5f9;
+  --surface:        #1e4080;
+  --surface-strong: #2452a0;
+  --surface-muted:  #163264;
+  --surface-hover:  #2452a0;
 
-  --ink:    #0f172a;
-  --ink-2:  #334155;
-  --muted:  #64748b;
-  --subtle: #94a3b8;
+  --ink:    #ffffff;
+  --ink-2:  #bfdbfe;
+  --muted:  #93c5fd;
+  --subtle: #60a5fa;
 
-  --border:        #e2e8f0;
-  --border-strong: #cbd5e1;
+  --border:        rgba(255,255,255,0.12);
+  --border-strong: rgba(255,255,255,0.22);
 
-  --accent:       #6366f1;
-  --accent-hover: #4f46e5;
+  --accent:       #2563eb;
+  --accent-hover: #1d4ed8;
   --accent-dark:  #ffffff;
-  --accent-light: #eef2ff;
-
-  --success:    #059669;
-  --success-bg: #ecfdf5;
-  --danger:     #dc2626;
-  --danger-bg:  #fef2f2;
-  --warning:        #d97706;
-  --warning-bg:     #fffbeb;
-  --warning-border: #fde68a;
-
-  --spectral: linear-gradient(90deg, #6366f1 0%, #8b5cf6 40%, #ec4899 75%, #f97316 100%);
-
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-  --shadow:    0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-md: 0 4px 6px rgba(0,0,0,0.05), 0 2px 4px rgba(0,0,0,0.04);
-}
-
-/* ── Dark mode ──────────────────────────────────────────────────────── */
-html.dark {
-  --bg:             #0f172a;
-  --bg-top:         #0f172a;
-  --bg-mid:         #0f172a;
-  --bg-btm:         #0f172a;
-
-  --surface:        #1e293b;
-  --surface-strong: #1e293b;
-  --surface-muted:  #0f172a;
-  --surface-hover:  #293548;
-
-  --ink:    #f1f5f9;
-  --ink-2:  #cbd5e1;
-  --muted:  #94a3b8;
-  --subtle: #475569;
-
-  --border:        #1e293b;
-  --border-strong: #334155;
-
-  --accent:       #818cf8;
-  --accent-hover: #6366f1;
-  --accent-dark:  #ffffff;
-  --accent-light: rgba(99,102,241,0.15);
+  --accent-light: rgba(37,99,235,0.25);
 
   --success:    #34d399;
-  --success-bg: rgba(52,211,153,0.10);
+  --success-bg: rgba(52,211,153,0.15);
   --danger:     #f87171;
-  --danger-bg:  rgba(248,113,113,0.10);
+  --danger-bg:  rgba(248,113,113,0.15);
   --warning:        #fbbf24;
-  --warning-bg:     rgba(251,191,36,0.10);
+  --warning-bg:     rgba(251,191,36,0.15);
+  --warning-border: rgba(251,191,36,0.30);
+
+  --spectral: linear-gradient(90deg, #2563eb 0%, #3b82f6 40%, #60a5fa 75%, #93c5fd 100%);
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.30);
+  --shadow:    0 1px 3px rgba(0,0,0,0.40), 0 1px 2px rgba(0,0,0,0.25);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.35), 0 2px 4px rgba(0,0,0,0.25);
+}
+
+/* ── Dark mode — deeper navy, same blue accent ───────────────────────── */
+html.dark {
+  --bg:             #0d2244;
+  --bg-top:         #0d2244;
+  --bg-mid:         #0d2244;
+  --bg-btm:         #0d2244;
+
+  --surface:        #152e5e;
+  --surface-strong: #1a3a6b;
+  --surface-muted:  #0d2244;
+  --surface-hover:  #1e4080;
+
+  --ink:    #f0f7ff;
+  --ink-2:  #bfdbfe;
+  --muted:  #93c5fd;
+  --subtle: #3b82f6;
+
+  --border:        rgba(255,255,255,0.10);
+  --border-strong: rgba(255,255,255,0.18);
+
+  --accent:       #3b82f6;
+  --accent-hover: #2563eb;
+  --accent-dark:  #ffffff;
+  --accent-light: rgba(59,130,246,0.20);
+
+  --success:    #34d399;
+  --success-bg: rgba(52,211,153,0.12);
+  --danger:     #f87171;
+  --danger-bg:  rgba(248,113,113,0.12);
+  --warning:        #fbbf24;
+  --warning-bg:     rgba(251,191,36,0.12);
   --warning-border: rgba(251,191,36,0.25);
 
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.40);
-  --shadow:    0 1px 3px rgba(0,0,0,0.50);
-  --shadow-md: 0 4px 6px rgba(0,0,0,0.40);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.50);
+  --shadow:    0 1px 3px rgba(0,0,0,0.60);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.50);
 }
 
 /* ── Base ───────────────────────────────────────────────────────────── */

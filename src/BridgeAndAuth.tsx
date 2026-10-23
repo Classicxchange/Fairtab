@@ -192,9 +192,21 @@ export function BridgeView() {
       // Show approve as in-progress immediately
       updateStep('approve', { state: 'pending' })
 
+      // Only pass address when bridging to a different address.
+      // User-controlled adapters (injected wallets) resolve their own address
+      // automatically — passing address alongside them throws an error.
+      type BridgeParams = Parameters<typeof appKit.bridge>[0]
+      type BridgeTo = BridgeParams['to']
+
+      const bridgeDest: BridgeTo = (
+        dest.toLowerCase() !== address.toLowerCase()
+          ? { adapter, chain: toChain.kitName, address: dest }
+          : { adapter, chain: toChain.kitName }
+      )
+
       const result = await appKit.bridge({
         from: { adapter, chain: fromChain.kitName },
-        to:   { adapter, chain: toChain.kitName, address: dest },
+        to:   bridgeDest,
         amount,
       })
 
