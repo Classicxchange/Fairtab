@@ -26,6 +26,7 @@ import { decryptSeedWallet, encryptSeedWallet, loadEncryptedWallet } from '@/See
 import type { AccountSession } from '@/AccountView'
 import { buildAddressExplorerUrl } from '@/onchain-facts'
 import { arcChain, IS_MAINNET } from '@/config'
+import { useDisconnect } from 'wagmi'
 
 const CHAIN_ID = arcChain.id
 
@@ -502,7 +503,9 @@ interface AccountPageProps {
 
 export function AccountPage({ address, seedSession, socialSession, wagmiAddress, onSignOut }: AccountPageProps) {
   const [copied, setCopied] = useState(false)
-  useAutoSignOut(onSignOut)
+  const { disconnect } = useDisconnect()
+  const handleSignOut = useCallback(() => { disconnect(); onSignOut() }, [disconnect, onSignOut])
+  useAutoSignOut(handleSignOut)
 
   const isSeed    = !!seedSession
   const isMetaMask = !!wagmiAddress && !seedSession
@@ -694,7 +697,7 @@ export function AccountPage({ address, seedSession, socialSession, wagmiAddress,
             </div>
           )}
           <button
-            onClick={onSignOut}
+            onClick={handleSignOut}
             className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold transition-all"
             style={{ background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-bg)' }}
           >
