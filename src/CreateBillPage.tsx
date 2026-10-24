@@ -26,7 +26,7 @@ import artifact from '../contracts/out/HouseholdBillSplitter.sol/HouseholdBillSp
 import { IS_MAINNET } from '@/config'
 
 const TESTNET_CONTRACT = '0xdb58ca32df331cf4729ee8668d19cc254f2d9326' as const
-const MAINNET_CONTRACT = '0x2d4c3580B6B3BD5f1aEa2f0CF04649ED558769C0' as const
+const MAINNET_CONTRACT = '0x8cd4db9811d7beda48f18c34e92f0eb5baa9dfb2' as const
 const CONTRACT_ADDRESS  = (IS_MAINNET ? MAINNET_CONTRACT : TESTNET_CONTRACT) as `0x${string}`
 const CONTRACT_ABI = artifact.abi
 const CHAIN_ID = arcChain.id
