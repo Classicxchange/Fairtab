@@ -1182,6 +1182,7 @@ export default function App() {
           <CreateBillPage
             onClose={() => setShowCreate(false)}
             onCreated={() => { setShowCreate(false); void refetch() }}
+            seedSession={seedSession}
           />
         )}
       </AnimatePresence>

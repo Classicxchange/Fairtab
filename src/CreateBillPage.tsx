@@ -3,7 +3,12 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain,
 } from 'wagmi'
-import { parseUnits, isAddress } from 'viem'
+import {
+  parseUnits, isAddress, createWalletClient, createPublicClient, http,
+  encodeFunctionData, type Chain,
+} from 'viem'
+import { privateKeyToAccount } from 'viem/accounts'
+import type { SeedWalletSession } from '@/SeedWalletAuth'
 import { TokenUSDC } from '@web3icons/react'
 import {
   Plus, XCircle, CheckCircle2, Loader2, ExternalLink, Tag, Users,
@@ -65,14 +70,17 @@ const BILL_CATEGORIES: { icon: React.ElementType; label: string; color: string }
 interface Props {
   onClose: () => void
   onCreated: () => void
+  seedSession?: SeedWalletSession | null
 }
 
-export function CreateBillPage({ onClose, onCreated }: Props) {
-  const { address, chainId } = useAccount()
+export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
+  const { address: wagmiAddress, chainId } = useAccount()
   const { switchChain } = useSwitchChain()
   // Only flag wrong chain when a wagmi wallet is connected — seed/Circle wallets
   // don't expose a chainId through wagmi so chainId will be undefined for them.
   const wrongChain = chainId !== undefined && chainId !== CHAIN_ID
+  // Unified address: seed wallet takes priority over wagmi
+  const address = seedSession?.address ?? wagmiAddress
 
   // Form state
   const [step, setStep] = useState<1 | 2 | 3>(1)
@@ -88,20 +96,29 @@ export function CreateBillPage({ onClose, onCreated }: Props) {
   const [rows, setRows] = useState<ParticipantRow[]>([{ address: '', value: '' }, { address: '', value: '' }])
   const [advancedOpen, setAdvancedOpen] = useState(false)
 
-  const { writeContract, data: hash, isPending, isError, error, reset } = useWriteContract()
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
+  // Seed wallet direct-signing state
+  const [seedPending, setSeedPending] = useState(false)
+  const [seedHash, setSeedHash] = useState<`0x${string}` | null>(null)
+  const [seedSuccess, setSeedSuccess] = useState(false)
+  const [seedError, setSeedError] = useState<string | null>(null)
+
+  const { writeContract, data: wagmiHash, isPending: wagmiPending, isError: wagmiIsError, error: wagmiError, reset: wagmiReset } = useWriteContract()
+  const { isLoading: wagmiConfirming, isSuccess: wagmiSuccess } = useWaitForTransactionReceipt({ hash: wagmiHash })
+
+  const hash = seedHash ?? wagmiHash
+  const isPending = seedPending || wagmiPending
+  const isConfirming = wagmiConfirming
+  const isSuccess = seedSuccess || wagmiSuccess
+  const isError = wagmiIsError || !!seedError
+  const error = wagmiError ?? (seedError ? new Error(seedError) : null)
+  const reset = () => { wagmiReset(); setSeedHash(null); setSeedSuccess(false); setSeedError(null) }
 
   const addRow = () => setRows(r => [...r, { address: '', value: '' }])
   const removeRow = (i: number) => setRows(r => r.filter((_, idx) => idx !== i))
   const updateRow = (i: number, f: keyof ParticipantRow, v: string) =>
     setRows(r => r.map((row, idx) => idx === i ? { ...row, [f]: v } : row))
 
-  const handleCreate = useCallback(() => {
-    if (wrongChain) { switchChain({ chainId: CHAIN_ID }); return }
-    if (!address || !totalAmount || !payee) return
-    if (!isAddress(payee)) { toast.error('Payee is not a valid address'); return }
-    const invalidIdx = rows.findIndex(r => !isAddress(r.address))
-    if (invalidIdx >= 0) { toast.error(`Participant ${invalidIdx + 1} has an invalid address`); return }
+  const buildArgs = useCallback(() => {
     const dec = usdcDecimalsFor(CHAIN_ID)
     const totalRaw = parseUnits(totalAmount, dec)
     const participants = rows.map(r => r.address as `0x${string}`)
@@ -111,17 +128,53 @@ export function CreateBillPage({ onClose, onCreated }: Props) {
     const labelStr = selectedCategory
       ? `${selectedCategory} ${billLabel}`.trim().slice(0, 32)
       : billLabel
+    return [
+      totalRaw, labelToBytes32(labelStr),
+      payee as `0x${string}`, participants, amounts, usePercentages,
+      deadline ? BigInt(Math.floor(new Date(deadline).getTime() / 1000)) : 0n,
+      recurring, recurring ? BigInt(parseInt(recurDays) * 86400) : 0n,
+      parseInt(cancelThreshold),
+    ] as const
+  }, [totalAmount, rows, usePercentages, selectedCategory, billLabel, payee, deadline, recurring, recurDays, cancelThreshold])
+
+  // Seed wallet: sign + broadcast via viem directly
+  const handleSeedCreate = useCallback(async () => {
+    if (!seedSession?.privateKey) return
+    setSeedPending(true); setSeedError(null)
+    try {
+      const viemChain = arcChain as unknown as Chain
+      const rpcUrl = (arcChain.rpcUrls as unknown as { default: { http: string[] } }).default.http[0]
+      const account = privateKeyToAccount(seedSession.privateKey)
+      const publicClient = createPublicClient({ chain: viemChain, transport: http(rpcUrl) })
+      const walletClient = createWalletClient({ account, chain: viemChain, transport: http(rpcUrl) })
+      const data = encodeFunctionData({ abi: CONTRACT_ABI, functionName: 'createBill', args: buildArgs() })
+      const txHash = await walletClient.sendTransaction({ to: CONTRACT_ADDRESS, data, value: 0n, chain: viemChain })
+      setSeedHash(txHash)
+      await publicClient.waitForTransactionReceipt({ hash: txHash })
+      setSeedSuccess(true)
+      toast.success('Bill created!')
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      setSeedError(msg.includes('rejected') ? 'Transaction cancelled.' : msg.slice(0, 150))
+      toast.error('Failed to create bill')
+    } finally { setSeedPending(false) }
+  }, [seedSession, buildArgs])
+
+  const handleCreate = useCallback(() => {
+    if (!address || !totalAmount || !payee) return
+    if (!isAddress(payee)) { toast.error('Payee is not a valid address'); return }
+    const invalidIdx = rows.findIndex(r => !isAddress(r.address))
+    if (invalidIdx >= 0) { toast.error(`Participant ${invalidIdx + 1} has an invalid address`); return }
+    if (seedSession?.privateKey) {
+      void handleSeedCreate()
+      return
+    }
+    if (wrongChain) { switchChain({ chainId: CHAIN_ID }); return }
     writeContract({
       address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'createBill',
-      args: [
-        totalRaw, labelToBytes32(labelStr),
-        payee, participants, amounts, usePercentages,
-        deadline ? BigInt(Math.floor(new Date(deadline).getTime() / 1000)) : 0n,
-        recurring, recurring ? BigInt(parseInt(recurDays) * 86400) : 0n,
-        parseInt(cancelThreshold),
-      ],
+      args: buildArgs(),
     })
-  }, [address, wrongChain, switchChain, billLabel, selectedCategory, payee, totalAmount, usePercentages, rows, deadline, recurring, recurDays, cancelThreshold, writeContract])
+  }, [address, wrongChain, switchChain, payee, totalAmount, rows, seedSession, handleSeedCreate, buildArgs, writeContract])
 
   // Step validation
   const step1Valid = billLabel.length > 0 && totalAmount !== '' && parseFloat(totalAmount) > 0
