@@ -25,7 +25,7 @@ import {
   Send, Copy, QrCode, Link2, LayoutGrid,
   Sun, Moon, Share2, UserCircle,
   List, PenLine, ArrowDownCircle, CircleCheckBig,
-  Bell, UserPlus, Check, X,
+  Bell, UserPlus, Check, X, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { TokenUSDC } from '@web3icons/react'
 import { toast } from 'sonner'
@@ -527,11 +527,13 @@ function ParticipantRow({ billId, share, isMe, isCreator, billActive, fullyPaid,
 }
 
 // ─── Bill Card ────────────────────────────────────────────────────────────────
-function BillCard({ bill, refetch, myParticipantStatus }: { bill: BillSummary; refetch: () => void; myParticipantStatus?: ParticipantStatus }) {
+function BillCard({ bill, refetch, myParticipantStatus, isOpen, onToggle }: {
+  bill: BillSummary; refetch: () => void; myParticipantStatus?: ParticipantStatus
+  isOpen: boolean; onToggle: () => void
+}) {
   const { address, chainId } = useAccount()
   const { switchChain } = useSwitchChain()
   const wrongChain = chainId !== undefined && chainId !== CHAIN_ID
-  const [expanded, setExpanded] = useState(false)
   const [showPaySheet, setShowPaySheet] = useState(false)
 
   const myShare = bill.shares.find(s => s.participant.toLowerCase() === address?.toLowerCase())
@@ -778,17 +780,17 @@ function BillCard({ bill, refetch, myParticipantStatus }: { bill: BillSummary; r
           </div>
 
           {/* Expand participants */}
-          <button onClick={() => setExpanded(v => !v)}
+          <button onClick={onToggle}
             className="mt-4 flex w-full items-center justify-between text-xs font-semibold"
             style={{ color: 'var(--subtle)' }}>
             <span className="flex items-center gap-1.5">
               <Users className="size-3.5" /> {bill.shares.length} participants
             </span>
-            {expanded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+            {isOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
           </button>
 
           <AnimatePresence>
-            {expanded && (
+            {isOpen && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }}
@@ -901,12 +903,13 @@ function BillCard({ bill, refetch, myParticipantStatus }: { bill: BillSummary; r
 }
 
 // ─── Bill loader ──────────────────────────────────────────────────────────────
-function BillLoader({ id, refetch, filter, address: walletAddr, onVisible, onInvite }: {
+function BillLoader({ id, refetch, filter, address: walletAddr, onVisible, onInvite, isOpen, onToggle }: {
   id: bigint; refetch: () => void
   filter: 'all' | 'created' | 'owe' | 'done' | 'invites'
   address?: `0x${string}`
   onVisible?: (id: bigint) => void
   onInvite?: (id: bigint) => void
+  isOpen: boolean; onToggle: () => void
 }) {
   const { data: billData } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getBill', args: [id], chainId: CHAIN_ID })
   const { data: sharesData } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getShares', args: [id], chainId: CHAIN_ID })
@@ -969,7 +972,7 @@ function BillLoader({ id, refetch, filter, address: walletAddr, onVisible, onInv
     }
   }
 
-  return <BillCard bill={bill} refetch={refetch} myParticipantStatus={myStatus} />
+  return <BillCard bill={bill} refetch={refetch} myParticipantStatus={myStatus} isOpen={isOpen} onToggle={onToggle} />
 }
 
 // ─── Receive View ─────────────────────────────────────────────────────────────
@@ -1318,8 +1321,18 @@ export default function App() {
     if (node) setTimeout(() => node.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300)
   }, [])
 
-  const ids = Array.from({ length: count }, (_, i) => BigInt(i)).reverse()
+  const PAGE_SIZE = 5
+  const [page, setPage] = useState(0)
+  const [openBillId, setOpenBillId] = useState<bigint | null>(null)
+  const allIds = Array.from({ length: count }, (_, i) => BigInt(i)).reverse()
+  const pageCount = Math.max(1, Math.ceil(allIds.length / PAGE_SIZE))
+  const ids = allIds.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE)
   const refetch = useCallback(() => { void refetchCount() }, [refetchCount])
+
+  // Reset page + open card when filter changes
+  const handleFilterChange = useCallback((f: typeof filter) => {
+    setFilter(f); setPage(0); setOpenBillId(null)
+  }, [setFilter])
 
   return (
     <div className="relative min-h-dvh" style={{ background: 'transparent' }}>
@@ -1566,7 +1579,7 @@ export default function App() {
                           const active = filter === f
                           const showBadge = tabCount > 0
                           return (
-                            <button key={f} onClick={() => setFilter(f)}
+                            <button key={f} onClick={() => handleFilterChange(f)}
                               className="relative flex items-center gap-1.5 shrink-0 rounded-2xl px-3.5 py-2 text-xs font-semibold transition-all hover:scale-105 active:scale-95"
                               style={{
                                 background: active ? 'var(--accent)' : 'var(--surface)',
@@ -1642,18 +1655,48 @@ export default function App() {
                       </div>
                     </motion.div>
                   ) : (
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      {ids.map((id, i) => (
-                        <motion.div key={id.toString()}
-                          ref={deepLinkBillId === id ? deepLinkRef : undefined}
-                          initial={{ opacity: 0, y: 12 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.22, delay: i * 0.04 }}
-                          style={deepLinkBillId === id ? { outline: '2px solid var(--accent)', outlineOffset: 3, borderRadius: 14 } : {}}>
-                          <BillLoader id={id} refetch={refetch} filter={filter} address={address} onVisible={handleBillVisible} onInvite={handleInviteBill} />
-                        </motion.div>
-                      ))}
-                    </div>
+                    <>
+                      <div className="flex flex-col gap-3">
+                        {ids.map((id, i) => (
+                          <motion.div key={id.toString()}
+                            ref={deepLinkBillId === id ? deepLinkRef : undefined}
+                            initial={{ opacity: 0, y: 12 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.22, delay: i * 0.04 }}
+                            style={deepLinkBillId === id ? { outline: '2px solid var(--accent)', outlineOffset: 3, borderRadius: 14 } : {}}>
+                            <BillLoader
+                              id={id} refetch={refetch} filter={filter} address={address}
+                              onVisible={handleBillVisible} onInvite={handleInviteBill}
+                              isOpen={openBillId === id}
+                              onToggle={() => setOpenBillId(prev => prev === id ? null : id)}
+                            />
+                          </motion.div>
+                        ))}
+                      </div>
+
+                      {/* Pagination */}
+                      {pageCount > 1 && (
+                        <div className="flex items-center justify-between pt-2">
+                          <button
+                            onClick={() => { setPage(p => Math.max(0, p - 1)); setOpenBillId(null) }}
+                            disabled={page === 0}
+                            className="flex items-center gap-1.5 rounded-2xl px-4 py-2 text-xs font-semibold transition-all disabled:opacity-30 hover:scale-105 active:scale-95"
+                            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--ink-2)' }}>
+                            <ChevronLeft className="size-3.5" /> Prev
+                          </button>
+                          <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>
+                            Page {page + 1} of {pageCount}
+                          </span>
+                          <button
+                            onClick={() => { setPage(p => Math.min(pageCount - 1, p + 1)); setOpenBillId(null) }}
+                            disabled={page >= pageCount - 1}
+                            className="flex items-center gap-1.5 rounded-2xl px-4 py-2 text-xs font-semibold transition-all disabled:opacity-30 hover:scale-105 active:scale-95"
+                            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--ink-2)' }}>
+                            Next <ChevronRight className="size-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </>
                   )}
                 </motion.div>
               )}
