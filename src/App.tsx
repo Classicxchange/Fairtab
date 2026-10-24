@@ -1,10 +1,10 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { restoreCircleSession, clearCredential } from '@/CircleWalletAuth'
-import { SignInModal } from '@/SignInModal'
 import { type SeedWalletSession, clearSeedWallet } from '@/SeedWalletAuth'
 import { type AccountSession } from '@/AccountView'
 import { WalletDropdown } from '@/WalletDropdown'
 import { AccountPage } from '@/AccountPage'
+import { SignInPage } from '@/SignInPage'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   useAccount,
@@ -1255,6 +1255,40 @@ export default function App() {
     <div className="relative min-h-dvh" style={{ background: 'transparent' }}>
       <ArcBg />
 
+      {/* ── Sign-in page gate ── shown when no wallet is connected ─ */}
+      <AnimatePresence>
+        {!address && (
+          <motion.div
+            key="signin-page"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50"
+            style={{ background: 'var(--bg)' }}
+          >
+            <SignInPage
+              dark={dark}
+              onToggleDark={toggleDark}
+              onSeedSignedIn={s => setSeedSession(s)}
+              onSocialSignedIn={session => {
+                setSocialSession(session)
+                localStorage.setItem('fairtab_session_v2', JSON.stringify(session))
+              }}
+              onCircleConnected={addr => setCircleAddress(addr)}
+              onSignOut={() => {
+                setSeedSession(null)
+                setSocialSession(null)
+                localStorage.removeItem('fairtab_session_v2')
+                setCircleAddress(null)
+                clearCredential()
+                clearSeedWallet()
+              }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ── Header ─────────────────────────────────────────────────── */}
       <header className="relative z-30 sticky top-0"
         style={{
@@ -1266,10 +1300,7 @@ export default function App() {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3 gap-3">
           {/* Logo */}
           <div className="flex items-center gap-3 shrink-0">
-            <div className="size-9 rounded-xl flex items-center justify-center shrink-0"
-              style={{ background: 'var(--accent)', boxShadow: '0 2px 8px rgba(37,99,235,0.30)' }}>
-              <span className="display text-white font-bold text-base">F</span>
-            </div>
+            <img src="/logo.svg" alt="Fairtab" className="size-9 rounded-xl" />
             <div className="hidden sm:block">
               <span className="display text-lg font-bold leading-none" style={{ color: 'var(--ink)' }}>Fairtab</span>
               <p className="text-xs leading-none mt-0.5" style={{ color: 'var(--subtle)' }}>powered by Arc</p>
@@ -1295,41 +1326,21 @@ export default function App() {
               {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
             </motion.button>
 
-            {/* Wallet connected: show dropdown; else show sign-in modal */}
-            {address
-              ? <WalletDropdown
-                  address={address}
-                  onGoToAccount={() => setTab('account')}
-                  onSignOut={() => {
-                    setSeedSession(null)
-                    setSocialSession(null)
-                    localStorage.removeItem('fairtab_session_v2')
-                    setCircleAddress(null)
-                    clearCredential()
-                    clearSeedWallet()
-                  }}
-                />
-              : <SignInModal
-                  wagmiAddress={wagmiAddress}
-                  circleAddress={circleAddress ?? undefined}
-                  socialSession={socialSession}
-                  seedSession={seedSession}
-                  onSeedSignedIn={s => setSeedSession(s)}
-                  onSocialSignedIn={(session) => {
-                    setSocialSession(session)
-                    localStorage.setItem('fairtab_session_v2', JSON.stringify(session))
-                  }}
-                  onCircleConnected={(addr) => setCircleAddress(addr)}
-                  onSignOut={() => {
-                    setSeedSession(null)
-                    setSocialSession(null)
-                    localStorage.removeItem('fairtab_session_v2')
-                    setCircleAddress(null)
-                    clearCredential()
-                    clearSeedWallet()
-                  }}
-                />
-            }
+            {/* Wallet dropdown (only shown when connected) */}
+            {address && (
+              <WalletDropdown
+                address={address}
+                onGoToAccount={() => setTab('account')}
+                onSignOut={() => {
+                  setSeedSession(null)
+                  setSocialSession(null)
+                  localStorage.removeItem('fairtab_session_v2')
+                  setCircleAddress(null)
+                  clearCredential()
+                  clearSeedWallet()
+                }}
+              />
+            )}
           </div>
         </div>
       </header>
@@ -1511,43 +1522,21 @@ export default function App() {
                 <motion.div key="account"
                   initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}
                   transition={{ duration: 0.18 }}>
-                  {address
-                    ? <AccountPage
-                        address={address}
-                        seedSession={seedSession}
-                        socialSession={socialSession}
-                        wagmiAddress={wagmiAddress}
-                        onSignOut={() => {
-                          setSeedSession(null)
-                          setSocialSession(null)
-                          localStorage.removeItem('fairtab_session_v2')
-                          setCircleAddress(null)
-                          clearCredential()
-                          clearSeedWallet()
-                          setTab('bills')
-                        }}
-                      />
-                    : <SignInModal
-                        wagmiAddress={wagmiAddress}
-                        circleAddress={circleAddress ?? undefined}
-                        socialSession={socialSession}
-                        seedSession={seedSession}
-                        onSeedSignedIn={s => setSeedSession(s)}
-                        onSocialSignedIn={(session) => {
-                          setSocialSession(session)
-                          localStorage.setItem('fairtab_session_v2', JSON.stringify(session))
-                        }}
-                        onCircleConnected={(addr) => setCircleAddress(addr)}
-                        onSignOut={() => {
-                          setSeedSession(null)
-                          setSocialSession(null)
-                          localStorage.removeItem('fairtab_session_v2')
-                          setCircleAddress(null)
-                          clearCredential()
-                          clearSeedWallet()
-                        }}
-                      />
-                  }
+                  <AccountPage
+                    address={address ?? '0x'}
+                    seedSession={seedSession}
+                    socialSession={socialSession}
+                    wagmiAddress={wagmiAddress}
+                    onSignOut={() => {
+                      setSeedSession(null)
+                      setSocialSession(null)
+                      localStorage.removeItem('fairtab_session_v2')
+                      setCircleAddress(null)
+                      clearCredential()
+                      clearSeedWallet()
+                      setTab('bills')
+                    }}
+                  />
                 </motion.div>
               )}
             </AnimatePresence>
