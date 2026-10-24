@@ -36,6 +36,8 @@
   --warning-bg:     rgba(217,119,6,0.10);
   --warning-border: rgba(217,119,6,0.25);
 
+  --popover: #ffffff;
+
   --shadow-sm: 0 1px 3px rgba(15,27,53,0.08), 0 1px 2px rgba(15,27,53,0.04);
   --shadow:    0 4px 12px rgba(15,27,53,0.10), 0 1px 4px rgba(15,27,53,0.06);
   --shadow-md: 0 8px 24px rgba(15,27,53,0.12), 0 2px 8px rgba(15,27,53,0.08);
@@ -73,6 +75,8 @@ html.dark {
   --warning:        #fbbf24;
   --warning-bg:     rgba(251,191,36,0.12);
   --warning-border: rgba(251,191,36,0.25);
+
+  --popover: #131f35;
 
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.40);
   --shadow:    0 4px 12px rgba(0,0,0,0.40);

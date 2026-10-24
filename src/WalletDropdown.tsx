@@ -85,7 +85,7 @@ export function WalletDropdown({ address, onGoToAccount, onSignOut }: Props) {
             transition={{ type: 'spring', stiffness: 420, damping: 30 }}
             className="absolute right-0 mt-2 w-64 rounded-2xl overflow-hidden z-50"
             style={{
-              background: 'var(--surface-strong)',
+              background: 'var(--popover)',
               border: '1px solid var(--border-strong)',
               boxShadow: 'var(--shadow-lg)',
             }}
