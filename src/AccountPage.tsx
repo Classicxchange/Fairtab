@@ -16,8 +16,11 @@ import { toast } from 'sonner'
 import {
   Wallet, Shield, Key, Copy, CheckCircle2, Eye, EyeOff,
   AlertTriangle, LogOut, ExternalLink, ChevronDown, ChevronUp,
-  Fingerprint, Lock, RefreshCw, ShieldCheck, Timer,
+  Fingerprint, Lock, RefreshCw, ShieldCheck, Timer, LifeBuoy,
 } from 'lucide-react'
+import {
+  RecoveryStatus, TOTPSetup, EmailRecoverySetup, PasskeySetup,
+} from '@/WalletRecovery'
 import type { SeedWalletSession } from '@/SeedWalletAuth'
 import { decryptSeedWallet, encryptSeedWallet, loadEncryptedWallet } from '@/SeedWalletAuth'
 import type { AccountSession } from '@/AccountView'
@@ -352,7 +355,8 @@ function ChangePassword() {
 }
 
 // ── Sign-out timer setting ────────────────────────────────────────────────────
-const TIMER_KEY = 'fairtab_signout_timer'
+const TIMER_KEY     = 'fairtab_signout_timer'
+const SIGNIN_TS_KEY = 'fairtab_signin_ts'
 
 const TIMER_OPTIONS = [
   { label: 'Immediately', value: 0 },
@@ -364,15 +368,43 @@ const TIMER_OPTIONS = [
   { label: 'Never',       value: -1 },
 ]
 
+/** Call this once when the user successfully signs in */
+export function recordSignInTime() {
+  localStorage.setItem(SIGNIN_TS_KEY, String(Date.now()))
+}
+
+/**
+ * On mount: check if the elapsed time since last sign-in exceeds the chosen
+ * timer. If so, sign out immediately. If not, schedule a timeout for the
+ * remaining time. This keeps the session alive across reloads as long as
+ * the timer hasn't elapsed.
+ */
 export function useAutoSignOut(onSignOut: () => void) {
   useEffect(() => {
-    const stored = parseInt(localStorage.getItem(TIMER_KEY) ?? '0', 10)
-    if (stored <= 0) return // 0 = immediate (handled on mount above), -1 = never
-    const ms = stored * 60 * 1000
+    const timerMins = parseInt(localStorage.getItem(TIMER_KEY) ?? '-1', 10)
+    // -1 = Never; keep session alive
+    if (timerMins === -1) return
+    // 0 = Immediately on next load
+    if (timerMins === 0) {
+      toast.info('Session expired — signing out')
+      onSignOut()
+      return
+    }
+    const timerMs   = timerMins * 60 * 1000
+    const signInTs  = parseInt(localStorage.getItem(SIGNIN_TS_KEY) ?? '0', 10)
+    const elapsed   = Date.now() - signInTs
+    const remaining = timerMs - elapsed
+    if (remaining <= 0) {
+      // Timer already elapsed — sign out now
+      toast.info('Session expired — signing out')
+      onSignOut()
+      return
+    }
+    // Schedule sign-out for the remaining time
     const id = setTimeout(() => {
       toast.info('Session expired — signing out')
       onSignOut()
-    }, ms)
+    }, remaining)
     return () => clearTimeout(id)
   }, [onSignOut])
 }
@@ -424,6 +456,37 @@ function SignOutTimerSetting({ onSignOut }: { onSignOut: () => void }) {
           <p className="text-xs font-semibold" style={{ color: 'var(--success)' }}>Timer saved</p>
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Recovery account section (sub-navigation inside SectionToggle) ───────────
+function RecoveryAccountSection({ address: _addr }: { address: string }) {
+  const [subView, setSubView] = useState<'status' | 'totp' | 'email'>('status')
+  return (
+    <div className="flex flex-col gap-3 pt-3">
+      <AnimatePresence mode="wait">
+        {subView === 'status' && (
+          <motion.div key="status" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <RecoveryStatus
+              onSetupTOTP={() => setSubView('totp')}
+              onSetupEmail={() => setSubView('email')}
+            />
+          </motion.div>
+        )}
+        {subView === 'totp' && (
+          <motion.div key="totp" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <TOTPSetup onDone={() => setSubView('status')} />
+            <button onClick={() => setSubView('status')} className="text-xs mt-2" style={{ color: 'var(--subtle)' }}>Back</button>
+          </motion.div>
+        )}
+        {subView === 'email' && (
+          <motion.div key="email" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <EmailRecoverySetup onDone={() => setSubView('status')} />
+            <button onClick={() => setSubView('status')} className="text-xs mt-2" style={{ color: 'var(--subtle)' }}>Back</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
@@ -551,6 +614,24 @@ export function AccountPage({ address, seedSession, socialSession, wagmiAddress,
             icon={Lock}
           >
             <ChangePassword />
+          </SectionToggle>
+
+          {/* Recovery methods */}
+          <SectionToggle
+            title="Account recovery"
+            subtitle="Set up Google Authenticator or email backup to recover if you lose your seed phrase"
+            icon={LifeBuoy}
+          >
+            <RecoveryAccountSection address={address} />
+          </SectionToggle>
+
+          {/* Passkey */}
+          <SectionToggle
+            title="Passkey (Face ID / fingerprint)"
+            subtitle="Register a biometric passkey to unlock without typing your password"
+            icon={Fingerprint}
+          >
+            <PasskeySetup address={address} onDone={() => toast.success('Passkey active')} />
           </SectionToggle>
         </>
       )}

@@ -21,7 +21,9 @@ import { toast } from 'sonner'
 import {
   Wallet, Eye, EyeOff, Copy, CheckCircle2, AlertTriangle,
   KeyRound, Loader2, ArrowLeft, ShieldCheck, LogOut, RefreshCw,
+  Fingerprint, HelpCircle,
 } from 'lucide-react'
+import { authenticatePasskey, loadPasskeyCredId, ForgotPhraseFlow } from '@/WalletRecovery'
 import { mnemonicToAccount, generateMnemonic, english, privateKeyToAccount } from 'viem/accounts'
 import type { Hex } from 'viem'
 
@@ -42,6 +44,7 @@ type Step =
   | 'import-key'
   | 'import-set-password'
   | 'unlock'
+  | 'forgot'
   | 'done'
 
 // ── Storage key ────────────────────────────────────────────────────────────────
@@ -332,6 +335,22 @@ export function SeedWalletAuth({ session, onSignedIn, onSignOut }: Props) {
     } catch { toast.error('Wrong password') }
     finally { setLoading(false) }
   }, [unlockPw])
+
+  // ── Passkey unlock ────────────────────────────────────────────────────────
+  const handlePasskeyUnlock = useCallback(async () => {
+    setLoading(true); setError(null)
+    try {
+      const ok = await authenticatePasskey()
+      if (!ok) { setError('Passkey authentication failed'); setLoading(false); return }
+      // After passkey auth, we still need to decrypt with password.
+      // Show password input with a "passkey verified" note — or if we have the pw cached, auto-unlock.
+      // For now: show unlock with a success indicator that passkey was verified
+      toast.success('Passkey verified — enter your password to decrypt')
+    } catch (e) {
+      const msg = (e as Error).message
+      if (!msg.includes('cancelled') && !msg.includes('abort')) setError(msg)
+    } finally { setLoading(false) }
+  }, [])
 
   // ── Sign out ──────────────────────────────────────────────────────────────
   const handleSignOut = useCallback(() => {
@@ -634,17 +653,41 @@ export function SeedWalletAuth({ session, onSignedIn, onSignOut }: Props) {
               {loading ? <Loader2 className="size-4 animate-spin" /> : <><KeyRound className="size-4" /> Unlock</>}
             </button>
 
-            <div className="flex items-center gap-2 pt-1">
-              <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
-              <span className="text-xs" style={{ color: 'var(--subtle)' }}>or</span>
-              <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
-            </div>
+            {/* Passkey unlock — only shown if a passkey is registered */}
+            {loadPasskeyCredId() && (
+              <button onClick={() => void handlePasskeyUnlock()} disabled={loading}
+                className="w-full rounded-xl py-3 text-sm font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+                style={{ background: 'rgba(59,142,248,0.08)', color: 'var(--accent)', border: '1px solid rgba(90,160,255,0.18)' }}>
+                <Fingerprint className="size-4" /> Use passkey (Face ID / fingerprint)
+              </button>
+            )}
 
-            <button onClick={() => { clearSeedWallet(); setStep('choose'); setUnlockPw(''); setError(null) }}
-              className="w-full rounded-xl py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5"
-              style={{ background: 'rgba(240,98,146,0.06)', color: 'var(--danger)', border: '1px solid rgba(240,98,146,0.15)' }}>
-              <ArrowLeft className="size-3.5" /> Use a different wallet
-            </button>
+            <div className="flex items-center justify-between pt-1">
+              <button onClick={() => setStep('forgot')}
+                className="flex items-center gap-1 text-xs" style={{ color: 'var(--subtle)' }}>
+                <HelpCircle className="size-3.5" /> Forgot phrase?
+              </button>
+              <button onClick={() => { clearSeedWallet(); setStep('choose'); setUnlockPw(''); setError(null) }}
+                className="flex items-center gap-1 text-xs" style={{ color: 'var(--danger)' }}>
+                <ArrowLeft className="size-3.5" /> Different wallet
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── Forgot phrase ────────────────────────────────────────────────── */}
+        {step === 'forgot' && (
+          <motion.div key="forgot" {...fadeUp}>
+            <ForgotPhraseFlow
+              onRecovered={() => {
+                // Wallet blob restored to localStorage — go back to unlock
+                setStep('unlock')
+                setUnlockPw('')
+                setError(null)
+                toast.info('Wallet restored — enter your password to unlock, or create a new password')
+              }}
+              onCancel={() => setStep('unlock')}
+            />
           </motion.div>
         )}
 

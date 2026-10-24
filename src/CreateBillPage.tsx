@@ -9,6 +9,8 @@ import {
   Plus, XCircle, CheckCircle2, Loader2, ExternalLink, Tag, Users,
   ArrowLeft, ArrowRight, RefreshCw, Calendar, Shield, AlertTriangle,
   ChevronDown, ChevronUp,
+  Home, Zap, Wifi, Tv, ShoppingCart, Car, Lightbulb, Music,
+  Dumbbell, UtensilsCrossed, Plane, Package,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { buildTxExplorerUrl } from '@/onchain-facts'
@@ -45,19 +47,19 @@ const fadeSlide = {
 
 interface ParticipantRow { address: string; value: string }
 
-const BILL_CATEGORIES = [
-  { emoji: '🏠', label: 'Rent' },
-  { emoji: '⚡', label: 'Electricity' },
-  { emoji: '📡', label: 'Internet' },
-  { emoji: '🍿', label: 'Netflix' },
-  { emoji: '🛒', label: 'Groceries' },
-  { emoji: '🚗', label: 'Car / Gas' },
-  { emoji: '💡', label: 'Utilities' },
-  { emoji: '🎵', label: 'Spotify' },
-  { emoji: '🏋️', label: 'Gym' },
-  { emoji: '🍽️', label: 'Dining' },
-  { emoji: '✈️', label: 'Travel' },
-  { emoji: '📦', label: 'Other' },
+const BILL_CATEGORIES: { icon: React.ElementType; label: string; color: string }[] = [
+  { icon: Home,            label: 'Rent',        color: '#6366f1' },
+  { icon: Zap,             label: 'Electricity', color: '#f59e0b' },
+  { icon: Wifi,            label: 'Internet',    color: '#3b82f6' },
+  { icon: Tv,              label: 'Netflix',     color: '#ef4444' },
+  { icon: ShoppingCart,    label: 'Groceries',   color: '#10b981' },
+  { icon: Car,             label: 'Car / Gas',   color: '#f97316' },
+  { icon: Lightbulb,       label: 'Utilities',   color: '#eab308' },
+  { icon: Music,           label: 'Spotify',     color: '#22c55e' },
+  { icon: Dumbbell,        label: 'Gym',         color: '#8b5cf6' },
+  { icon: UtensilsCrossed, label: 'Dining',      color: '#ec4899' },
+  { icon: Plane,           label: 'Travel',      color: '#0ea5e9' },
+  { icon: Package,         label: 'Other',       color: '#94a3b8' },
 ]
 
 interface Props {
@@ -223,21 +225,28 @@ export function CreateBillPage({ onClose, onCreated }: Props) {
               <div>
                 <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--muted)' }}>Category</p>
                 <div className="grid grid-cols-4 gap-2">
-                  {BILL_CATEGORIES.map(cat => (
-                    <button key={cat.label} onClick={() => {
-                      setSelectedCategory(selectedCategory === cat.emoji ? '' : cat.emoji)
-                      if (!billLabel) setBillLabel(cat.label)
-                    }}
-                      className="flex flex-col items-center gap-1 rounded-2xl py-3 px-1 text-xs font-medium transition-all hover:scale-105 active:scale-95"
-                      style={{
-                        background: selectedCategory === cat.emoji ? 'var(--accent)' : 'var(--surface)',
-                        border: selectedCategory === cat.emoji ? 'none' : '1px solid var(--border)',
-                        color: selectedCategory === cat.emoji ? '#fff' : 'var(--ink-2)',
-                      }}>
-                      <span className="text-xl">{cat.emoji}</span>
-                      <span>{cat.label}</span>
-                    </button>
-                  ))}
+                  {BILL_CATEGORIES.map(cat => {
+                    const CatIcon = cat.icon
+                    const isSelected = selectedCategory === cat.label
+                    return (
+                      <button key={cat.label} onClick={() => {
+                        setSelectedCategory(isSelected ? '' : cat.label)
+                        if (!billLabel) setBillLabel(cat.label)
+                      }}
+                        className="flex flex-col items-center gap-1.5 rounded-2xl py-3 px-1 text-xs font-medium transition-all hover:scale-105 active:scale-95"
+                        style={{
+                          background: isSelected ? 'var(--accent)' : 'var(--surface)',
+                          border: isSelected ? 'none' : '1px solid var(--border)',
+                          color: isSelected ? '#fff' : 'var(--ink-2)',
+                        }}>
+                        <div className="size-8 rounded-xl flex items-center justify-center"
+                          style={{ background: isSelected ? 'rgba(255,255,255,0.2)' : `${cat.color}18` }}>
+                          <CatIcon className="size-4" style={{ color: isSelected ? '#fff' : cat.color }} />
+                        </div>
+                        <span>{cat.label}</span>
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
 
@@ -451,8 +460,8 @@ export function CreateBillPage({ onClose, onCreated }: Props) {
                       background: allocationMatch ? 'var(--success-bg)' : 'var(--danger-bg)',
                       border: `1px solid ${allocationMatch ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`,
                     }}>
-                    <span className="text-xs font-semibold" style={{ color: allocationMatch ? 'var(--success)' : 'var(--danger)' }}>
-                      {allocationMatch ? '✓ Shares match total' : '⚠ Shares don\'t add up to total'}
+                    <span className="text-xs font-semibold flex items-center gap-1" style={{ color: allocationMatch ? 'var(--success)' : 'var(--danger)' }}>
+                      {allocationMatch ? <><CheckCircle2 className="size-3.5" /> Shares match total</> : <><AlertTriangle className="size-3.5" /> Shares don&apos;t add up to total</>}
                     </span>
                     <span className="mono text-xs tabular-nums" style={{ color: allocationMatch ? 'var(--success)' : 'var(--danger)' }}>
                       {Number(allocatedRaw) / 10 ** 6} / {totalAmount} USDC
@@ -465,8 +474,8 @@ export function CreateBillPage({ onClose, onCreated }: Props) {
                       background: totalBps === 10000 ? 'var(--success-bg)' : 'var(--surface-muted)',
                       border: '1px solid var(--border)',
                     }}>
-                    <span className="text-xs font-semibold" style={{ color: totalBps === 10000 ? 'var(--success)' : 'var(--muted)' }}>
-                      {totalBps === 10000 ? '✓ Shares sum to 100%' : 'Shares must sum to 10 000 bps'}
+                    <span className="text-xs font-semibold flex items-center gap-1" style={{ color: totalBps === 10000 ? 'var(--success)' : 'var(--muted)' }}>
+                      {totalBps === 10000 ? <><CheckCircle2 className="size-3.5" /> Shares sum to 100%</> : 'Shares must sum to 10 000 bps'}
                     </span>
                     <span className="mono text-xs tabular-nums" style={{ color: totalBps === 10000 ? 'var(--success)' : 'var(--ink-2)' }}>
                       {totalBps.toLocaleString()} / 10 000
@@ -490,7 +499,16 @@ export function CreateBillPage({ onClose, onCreated }: Props) {
                 {/* Hero */}
                 <div className="px-5 py-6 text-center"
                   style={{ background: 'linear-gradient(135deg,rgba(79,110,247,0.1),rgba(79,110,247,0.03))' }}>
-                  {selectedCategory && <p className="text-4xl mb-2">{selectedCategory}</p>}
+                  {selectedCategory && (() => {
+                    const cat = BILL_CATEGORIES.find(c => c.label === selectedCategory)
+                    const ReviewIcon = cat?.icon
+                    return ReviewIcon ? (
+                      <div className="size-14 rounded-2xl flex items-center justify-center mx-auto mb-3"
+                        style={{ background: `${cat.color}18` }}>
+                        <ReviewIcon className="size-7" style={{ color: cat.color }} />
+                      </div>
+                    ) : null
+                  })()}
                   <p className="display text-2xl font-bold" style={{ color: 'var(--ink)', letterSpacing: '-0.04em' }}>
                     {billLabel || 'Unnamed Bill'}
                   </p>

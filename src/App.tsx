@@ -3,7 +3,7 @@ import { restoreCircleSession, clearCredential } from '@/CircleWalletAuth'
 import { type SeedWalletSession, clearSeedWallet } from '@/SeedWalletAuth'
 import { type AccountSession } from '@/AccountView'
 import { WalletDropdown } from '@/WalletDropdown'
-import { AccountPage } from '@/AccountPage'
+import { AccountPage, recordSignInTime } from '@/AccountPage'
 import { SignInPage } from '@/SignInPage'
 import { SendPage } from '@/SendPage'
 import { CreateBillPage } from '@/CreateBillPage'
@@ -24,6 +24,7 @@ import {
   Users, RefreshCw, Wallet,
   Send, Copy, QrCode, Link2, LayoutGrid,
   Sun, Moon, Share2, UserCircle,
+  List, PenLine, ArrowDownCircle, CircleCheckBig,
 } from 'lucide-react'
 import { TokenUSDC } from '@web3icons/react'
 import { toast } from 'sonner'
@@ -825,6 +826,11 @@ export default function App() {
     })
   }, [])
 
+  // Record sign-in time when MetaMask connects
+  useEffect(() => {
+    if (wagmiAddress) recordSignInTime()
+  }, [wagmiAddress])
+
   // Unified address: seed wallet > Circle passkey > social (Google/email) > MetaMask
   const address = seedSession?.address ?? circleAddress ?? (socialSession?.address as `0x${string}` | undefined) ?? wagmiAddress
 
@@ -872,9 +878,10 @@ export default function App() {
             <SignInPage
               dark={dark}
               onToggleDark={toggleDark}
-              onSeedSignedIn={s => setSeedSession(s)}
+              onSeedSignedIn={s => { setSeedSession(s); recordSignInTime() }}
               onSocialSignedIn={session => {
                 setSocialSession(session)
+                recordSignInTime()
                 localStorage.setItem('fairtab_session_v2', JSON.stringify(session))
               }}
               onCircleConnected={addr => setCircleAddress(addr)}
@@ -1068,11 +1075,11 @@ export default function App() {
                     {address && (
                       <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
                         {([
-                          { id: 'all',     label: 'All',     emoji: '📋' },
-                          { id: 'created', label: 'Created', emoji: '✏️' },
-                          { id: 'owe',     label: 'I Owe',   emoji: '💸' },
-                          { id: 'done',    label: 'Done',    emoji: '✅' },
-                        ] as const).map(({ id: f, label: fl, emoji }) => (
+                          { id: 'all',     label: 'All',     icon: List            },
+                          { id: 'created', label: 'Created', icon: PenLine         },
+                          { id: 'owe',     label: 'I Owe',   icon: ArrowDownCircle },
+                          { id: 'done',    label: 'Done',    icon: CircleCheckBig  },
+                        ] as const).map(({ id: f, label: fl, icon: FilterIcon }) => (
                           <button key={f} onClick={() => setFilter(f)}
                             className="flex items-center gap-1.5 shrink-0 rounded-2xl px-4 py-2 text-xs font-semibold transition-all hover:scale-105"
                             style={{
@@ -1081,7 +1088,8 @@ export default function App() {
                               border: filter === f ? 'none' : '1px solid var(--border)',
                               boxShadow: filter === f ? '0 2px 12px rgba(79,110,247,0.25)' : 'none',
                             }}>
-                            <span>{emoji}</span> {fl}
+                            <FilterIcon className="size-3.5" />
+                            {fl}
                             {f === 'all' && count > 0 && (
                               <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold"
                                 style={{ background: filter === f ? 'rgba(255,255,255,0.25)' : 'var(--surface-muted)', color: filter === f ? '#fff' : 'var(--muted)' }}>
