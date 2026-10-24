@@ -11,10 +11,11 @@
  * env files only at startup.
  */
 
-import { http, createConfig } from 'wagmi'
+import { http } from 'wagmi'
 import { mainnet, baseSepolia, arbitrumSepolia, sepolia, base } from 'wagmi/chains'
 import { defineChain } from 'viem'
-import { ConnectKitProvider } from 'connectkit' // eslint-disable-line @typescript-eslint/no-unused-vars
+import { getDefaultConfig } from 'connectkit'
+import { createConfig } from 'wagmi'
 import { registerChain } from './tracing'
 
 // ─── Arc chain definitions (from official docs.arc.io) ───────────────────────
@@ -55,25 +56,37 @@ export const arcChain = IS_MAINNET ? arcMainnetChain : arcTestnetChain
 // ─── wagmi config ─────────────────────────────────────────────────────────────
 registerChain(arcChain.id, arcChain.rpcUrls.default.http[0])
 
-const mainnetConfig = createConfig({
-  chains: [arcMainnetChain, base, mainnet],
-  transports: {
-    [arcMainnetChain.id]: http('https://rpc.mainnet.arc.io'),
-    [base.id]:            http(),
-    [mainnet.id]:         http(),
-  },
-})
+// WalletConnect project ID — set VITE_WALLETCONNECT_PROJECT_ID in .env or
+// Vercel env vars to enable WalletConnect. Without it MetaMask injected still works.
+const wcProjectId = (import.meta.env.VITE_WALLETCONNECT_PROJECT_ID as string | undefined) ?? ''
 
-const testnetConfig = createConfig({
-  chains: [arcTestnetChain, baseSepolia, arbitrumSepolia, sepolia, mainnet],
-  transports: {
-    [arcTestnetChain.id]:  http('https://rpc.testnet.arc.io'),
-    [baseSepolia.id]:      http(),
-    [arbitrumSepolia.id]:  http(),
-    [sepolia.id]:          http(),
-    [mainnet.id]:          http(),
-  },
-})
+const mainnetConfig = createConfig(
+  getDefaultConfig({
+    appName: 'Fairtab',
+    walletConnectProjectId: wcProjectId,
+    chains: [arcMainnetChain, base, mainnet],
+    transports: {
+      [arcMainnetChain.id]: http('https://rpc.mainnet.arc.io'),
+      [base.id]:            http(),
+      [mainnet.id]:         http(),
+    },
+  })
+)
+
+const testnetConfig = createConfig(
+  getDefaultConfig({
+    appName: 'Fairtab',
+    walletConnectProjectId: wcProjectId,
+    chains: [arcTestnetChain, baseSepolia, arbitrumSepolia, sepolia, mainnet],
+    transports: {
+      [arcTestnetChain.id]:  http('https://rpc.testnet.arc.io'),
+      [baseSepolia.id]:      http(),
+      [arbitrumSepolia.id]:  http(),
+      [sepolia.id]:          http(),
+      [mainnet.id]:          http(),
+    },
+  })
+)
 
 export const config = IS_MAINNET ? mainnetConfig : testnetConfig
 

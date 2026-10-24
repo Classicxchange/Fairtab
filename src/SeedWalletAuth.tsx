@@ -21,7 +21,7 @@ import { toast } from 'sonner'
 import {
   Wallet, Eye, EyeOff, Copy, CheckCircle2, AlertTriangle,
   KeyRound, Loader2, ArrowLeft, ShieldCheck, LogOut, RefreshCw,
-  Fingerprint, HelpCircle,
+  Fingerprint, LifeBuoy, HelpCircle,
 } from 'lucide-react'
 import { authenticatePasskey, loadPasskeyCredId, ForgotPhraseFlow } from '@/WalletRecovery'
 import { mnemonicToAccount, generateMnemonic, english, privateKeyToAccount } from 'viem/accounts'
@@ -37,6 +37,7 @@ export interface SeedWalletSession {
 
 type Step =
   | 'choose'
+  | 'recover'
   | 'create-show-seed'
   | 'create-set-password'
   | 'import-choose'
@@ -467,6 +468,34 @@ export function SeedWalletAuth({ session, onSignedIn, onSignOut }: Props) {
               style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--ink)', border: '1px solid var(--border)' }}>
               <KeyRound className="size-4" style={{ color: 'var(--accent)' }} /> Import wallet
             </button>
+
+            {/* Divider */}
+            <div className="flex items-center gap-2">
+              <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+              <span className="text-xs" style={{ color: 'var(--subtle)' }}>lost your phrase?</span>
+              <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+            </div>
+
+            <button onClick={() => { setStep('recover'); setError(null) }}
+              className="w-full flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all hover:scale-[1.01]"
+              style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--ink)', border: '1px dashed rgba(90,160,255,0.3)' }}>
+              <LifeBuoy className="size-4" style={{ color: 'var(--accent)' }} /> Recover wallet
+            </button>
+          </motion.div>
+        )}
+
+        {/* ── Recover ──────────────────────────────────────────────────────── */}
+        {step === 'recover' && (
+          <motion.div key="recover" className="flex flex-col gap-3" {...fadeUp}>
+            <ForgotPhraseFlow
+              onRecovered={() => {
+                setStep('unlock')
+                setUnlockPw('')
+                setError(null)
+                toast.info('Wallet restored — enter your password to unlock')
+              }}
+              onCancel={() => setStep('choose')}
+            />
           </motion.div>
         )}
 

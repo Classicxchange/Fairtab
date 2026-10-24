@@ -6,6 +6,7 @@
 import { motion } from 'framer-motion'
 import { ConnectKitButton } from 'connectkit'
 import { Shield, Zap, Users, ArrowRight, Sun, Moon } from 'lucide-react'
+import { TokenMASK } from '@web3icons/react'
 import { SeedWalletAuth, type SeedWalletSession } from './SeedWalletAuth'
 import { type AccountSession } from './AccountView'
 
@@ -156,15 +157,10 @@ export function SignInPage({ onSeedSignedIn, onSignOut, dark, onToggleDark }: Pr
                   boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
                 }}
               >
-                {/* MetaMask fox */}
-                <div className="size-9 rounded-xl flex items-center justify-center shrink-0"
+                {/* MetaMask icon */}
+                <div className="size-9 rounded-xl flex items-center justify-center shrink-0 overflow-hidden"
                   style={{ background: '#F5841F' }}>
-                  <svg viewBox="0 0 35 33" width="22" height="20" fill="none">
-                    <path d="M32.9 1L19.4 10.7l2.5-5.9L32.9 1z" fill="#E17726" stroke="#E17726" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M2.1 1l13.4 9.8-2.4-5.9L2.1 1z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M28.1 23.5l-3.6 5.5 7.7 2.1 2.2-7.5-6.3-.1zM1.7 23.6l2.2 7.5 7.7-2.1-3.6-5.5-6.3.1z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M11.1 14.6l-2.1 3.2 7.5.3-.3-8.1-5.1 4.6zM23.9 14.6l-5.2-4.7-.2 8.2 7.4-.3-2-3.2zM11.6 29l4.5-2.2-3.9-3-0.6 5.2zM18.9 26.8l4.5 2.2-.6-5.2-3.9 3z" fill="#E27625" stroke="#E27625" strokeWidth=".3" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
+                  <TokenMASK variant="branded" size={28} />
                 </div>
                 <div className="flex-1 text-left">
                   <p className="font-semibold" style={{ color: 'var(--ink)' }}>MetaMask / WalletConnect</p>
