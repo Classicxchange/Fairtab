@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
-import { CircleWalletAuth, restoreCircleSession } from '@/CircleWalletAuth'
+import { restoreCircleSession, clearCredential } from '@/CircleWalletAuth'
+import { SignInModal } from '@/SignInModal'
 import { AccountView, type AccountSession } from '@/AccountView'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -1282,21 +1283,22 @@ export default function App() {
             >
               {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
             </motion.button>
-            {/* Circle Wallet (passkey) — shown only when MetaMask is not connected */}
-            {!wagmiAddress && (
-              <CircleWalletAuth
-                connectedAddress={circleAddress}
-                onConnected={(addr, bundler) => {
-                  setCircleAddress(addr)
-                  setCircleBundler(bundler)
-                }}
-                onDisconnected={() => {
-                  setCircleAddress(null)
-                  setCircleBundler(null)
-                }}
-              />
-            )}
-            <ConnectKitButton />
+            <SignInModal
+              wagmiAddress={wagmiAddress}
+              circleAddress={circleAddress ?? undefined}
+              socialSession={socialSession}
+              onSocialSignedIn={(session) => {
+                setSocialSession(session)
+                localStorage.setItem('fairtab_session_v2', JSON.stringify(session))
+              }}
+              onCircleConnected={(addr) => setCircleAddress(addr)}
+              onSignOut={() => {
+                setSocialSession(null)
+                localStorage.removeItem('fairtab_session_v2')
+                setCircleAddress(null)
+                clearCredential()
+              }}
+            />
           </div>
         </div>
       </header>
