@@ -23,9 +23,12 @@ import {
 } from '@circle-fin/modular-wallets-core'
 import { toWebAuthnAccount } from 'viem/account-abstraction'
 import { createPublicClient } from 'viem'
-import { arcTestnet } from 'viem/chains'
-import { BRIDGE_CHAINS, type BridgeChain } from '@/config'
+import { arc, arcTestnet } from 'viem/chains'
+import { BRIDGE_CHAINS, type BridgeChain, IS_MAINNET } from '@/config'
 import { formatUsdc, parseUsdc } from '@/onchain-money'
+
+const activeChain = IS_MAINNET ? arc : arcTestnet
+const activeChainPath = IS_MAINNET ? 'arc' : 'arcTestnet'
 
 // ─── App Kit singleton ───────────────────────────────────────────────────────
 const appKit = new AppKit()
@@ -37,8 +40,8 @@ const clientUrl  = import.meta.env.VITE_CLIENT_URL  as string | undefined
 function getModularClients() {
   if (!clientKey || !clientUrl) return null
   const passkeyTransport  = toPasskeyTransport(clientUrl, clientKey)
-  const modularTransport  = toModularTransport(`${clientUrl}/arcTestnet`, clientKey)
-  const publicClient = createPublicClient({ chain: arcTestnet, transport: modularTransport })
+  const modularTransport  = toModularTransport(`${clientUrl}/${activeChainPath}`, clientKey)
+  const publicClient = createPublicClient({ chain: activeChain, transport: modularTransport })
   return { passkeyTransport, publicClient }
 }
 

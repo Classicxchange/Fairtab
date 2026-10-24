@@ -583,7 +583,7 @@ export function CreateBillPage({ onClose, onCreated }: Props) {
                 {isPending || isConfirming
                   ? <><Loader2 className="size-5 animate-spin" /> {isPending ? 'Confirm in wallet…' : 'Creating…'}</>
                   : wrongChain
-                    ? 'Switch to Arc Testnet'
+                    ? `Switch to ${IS_MAINNET ? 'Arc Mainnet' : 'Arc Testnet'}`
                     : <><CheckCircle2 className="size-5" /> Create bill onchain</>
                 }
               </button>

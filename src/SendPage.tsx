@@ -104,7 +104,7 @@ export function SendPage({ unifiedAddress, seedSession }: Props) {
     setSeedSending(true)
     try {
       const viemChain = arcChain as unknown as Chain
-      const rpcUrl = (arcChain.rpcUrls as unknown as { default: { http: string[] } }).default.http[0] ?? 'https://rpc.testnet.arc.io'
+      const rpcUrl = (arcChain.rpcUrls as unknown as { default: { http: string[] } }).default.http[0] ?? (IS_MAINNET ? 'https://rpc.mainnet.arc.io' : 'https://rpc.testnet.arc.io')
       const account = privateKeyToAccount(seedSession.privateKey)
       const publicClient = createPublicClient({ chain: viemChain, transport: http(rpcUrl) })
       const walletClient = createWalletClient({ account, chain: viemChain, transport: http(rpcUrl) })

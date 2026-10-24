@@ -24,7 +24,10 @@ import {
 } from '@circle-fin/modular-wallets-core'
 import { toWebAuthnAccount } from 'viem/account-abstraction'
 import { createPublicClient } from 'viem'
-import { arcTestnet } from 'viem/chains'
+import { arc, arcTestnet } from 'viem/chains'
+import { IS_MAINNET } from '@/config'
+
+const activeChain = IS_MAINNET ? arc : arcTestnet
 
 // ── Env ───────────────────────────────────────────────────────────────────────
 const appId      = import.meta.env.VITE_CIRCLE_APP_ID     as string | undefined
@@ -68,7 +71,7 @@ function getModularClients() {
   const transport = toModularTransport(clientUrl, clientKey)
   return {
     passkeyTransport: transport,
-    publicClient: createPublicClient({ chain: arcTestnet, transport }),
+    publicClient: createPublicClient({ chain: activeChain, transport }),
   }
 }
 
