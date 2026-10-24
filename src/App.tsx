@@ -831,6 +831,88 @@ function ReceiveView({ unifiedAddress }: { unifiedAddress?: `0x${string}` }) {
   )
 }
 
+// ─── Bill notification scanner ───────────────────────────────────────────────
+// Scans every bill on first sign-in. Fires a toast if the user was added as a
+// participant to bills they didn't create, and counts unpaid shares.
+function BillParticipantChecker({ id, walletAddr, onResult }: {
+  id: bigint
+  walletAddr: string
+  onResult: (id: bigint, isNewBill: boolean, hasUnpaidShare: boolean) => void
+}) {
+  const { data: billData } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getBill', args: [id], chainId: CHAIN_ID })
+  const { data: sharesData } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getShares', args: [id], chainId: CHAIN_ID })
+  const notified = useRef(false)
+  useEffect(() => {
+    if (!billData || !sharesData || notified.current) return
+    const bd = billData as unknown[]
+    const creator = (bd[0] as string).toLowerCase()
+    const status = bd[4] as number
+    const addr = walletAddr.toLowerCase()
+    const shares = sharesData as Array<{ participant: string; amount: bigint; contributed: bigint }>
+    const myShare = shares.find(s => s.participant.toLowerCase() === addr)
+    if (!myShare) return
+    const isParticipant = true
+    const isCreator = creator === addr
+    const hasUnpaidShare = status === 0 && myShare.contributed < myShare.amount
+    // A "new bill" = user is participant but not creator
+    const isNewBill = isParticipant && !isCreator
+    notified.current = true
+    onResult(id, isNewBill, hasUnpaidShare)
+  }, [billData, sharesData, walletAddr, id, onResult])
+  return null
+}
+
+function BillNotificationScanner({ count, address: walletAddr, onOwedCount }: {
+  count: number
+  address?: `0x${string}`
+  onOwedCount: (n: number) => void
+}) {
+  const toastedRef = useRef(false)
+  const seenKey = `fairtab_seen_bills_${walletAddr ?? ''}`
+  const newBillIds = useRef<bigint[]>([])
+  const owedCount = useRef(0)
+  const resolvedCount = useRef(0)
+
+  const ids = useMemo(() => Array.from({ length: count }, (_, i) => BigInt(i)), [count])
+
+  const handleResult = useCallback((id: bigint, isNewBill: boolean, hasUnpaidShare: boolean) => {
+    resolvedCount.current++
+    if (hasUnpaidShare) { owedCount.current++; onOwedCount(owedCount.current) }
+    if (isNewBill) {
+      try {
+        const seen = (JSON.parse(localStorage.getItem(seenKey) ?? '[]') as unknown) as string[]
+        const idStr = id.toString()
+        if (!seen.includes(idStr)) newBillIds.current.push(id)
+      } catch { newBillIds.current.push(id) }
+    }
+    // After all resolved, fire toast for unseen new bills
+    if (resolvedCount.current === count && newBillIds.current.length > 0 && !toastedRef.current) {
+      toastedRef.current = true
+      const n = newBillIds.current.length
+      toast(`You've been added to ${n} new bill${n > 1 ? 's' : ''}`, {
+        description: 'Open the "I Owe" tab to see your shares.',
+        duration: 8000,
+        action: { label: 'View', onClick: () => {} },
+      })
+      // Mark all as seen
+      try {
+        const seen = (JSON.parse(localStorage.getItem(seenKey) ?? '[]') as unknown) as string[]
+        const updated = [...new Set([...seen, ...newBillIds.current.map(i => i.toString())])]
+        localStorage.setItem(seenKey, JSON.stringify(updated))
+      } catch {}
+    }
+  }, [count, seenKey, onOwedCount])
+
+  if (!walletAddr || count === 0) return null
+  return (
+    <>
+      {ids.map(id => (
+        <BillParticipantChecker key={id.toString()} id={id} walletAddr={walletAddr} onResult={handleResult} />
+      ))}
+    </>
+  )
+}
+
 // ─── Payout ready toaster ─────────────────────────────────────────────────────
 // Each BillPayoutChecker reads one bill's payout and calls onReady with the
 // claimable amount if this wallet is the payee. PayoutReadyToaster mounts one
@@ -917,6 +999,7 @@ export default function App() {
 
   const [showCreate, setShowCreate] = useState(false)
   const [filter, setFilter] = useState<'all' | 'created' | 'owe' | 'done'>('all')
+  const [owedBillCount, setOwedBillCount] = useState(0)
   // Parse prefilled params from URL
   const urlParams = useMemo(() => new URLSearchParams(window.location.search), [])
   const prefilledTo = urlParams.get('to')
@@ -1184,11 +1267,11 @@ export default function App() {
                         {([
                           { id: 'all',     label: 'All',     icon: List            },
                           { id: 'created', label: 'Created', icon: PenLine         },
-                          { id: 'owe',     label: 'I Owe',   icon: ArrowDownCircle },
+                          { id: 'owe',     label: 'I Owe',   icon: ArrowDownCircle, badge: owedBillCount },
                           { id: 'done',    label: 'Done',    icon: CircleCheckBig  },
-                        ] as const).map(({ id: f, label: fl, icon: FilterIcon }) => (
+                        ] as Array<{ id: 'all'|'created'|'owe'|'done', label: string, icon: React.ElementType, badge?: number }>).map(({ id: f, label: fl, icon: FilterIcon, badge }) => (
                           <button key={f} onClick={() => setFilter(f)}
-                            className="flex items-center gap-1.5 shrink-0 rounded-2xl px-4 py-2 text-xs font-semibold transition-all hover:scale-105"
+                            className="relative flex items-center gap-1.5 shrink-0 rounded-2xl px-4 py-2 text-xs font-semibold transition-all hover:scale-105"
                             style={{
                               background: filter === f ? 'var(--accent)' : 'var(--surface)',
                               color: filter === f ? '#fff' : 'var(--ink-2)',
@@ -1203,11 +1286,34 @@ export default function App() {
                                 {userBillCount}
                               </span>
                             )}
+                            {badge != null && badge > 0 && (
+                              <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full text-[9px] font-bold"
+                                style={{ background: 'var(--danger)', color: '#fff' }}>
+                                {badge}
+                              </span>
+                            )}
                           </button>
                         ))}
                       </div>
                     )}
                   </div>
+
+                  {/* Deep-link invite banner */}
+                  {deepLinkBillId !== null && (
+                    <motion.div className="rounded-2xl p-4 flex items-start gap-3" {...fadeUp}
+                      style={{ background: 'linear-gradient(135deg,rgba(79,110,247,0.10),rgba(79,110,247,0.04))', border: '1px solid rgba(79,110,247,0.25)' }}>
+                      <div className="flex size-9 shrink-0 items-center justify-center rounded-xl"
+                        style={{ background: 'var(--accent)', boxShadow: '0 0 12px rgba(79,110,247,0.3)' }}>
+                        <Receipt className="size-4" style={{ color: '#fff' }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold" style={{ color: 'var(--ink)' }}>You've been added to a bill</p>
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
+                          Bill #{deepLinkBillId.toString()} is highlighted below. Open it to see your share and pay when ready.
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
 
                   {/* Bills grid or empty/gate state */}
                   {!address ? (
@@ -1280,6 +1386,9 @@ export default function App() {
           </main>
         </div>
       </div>
+
+      {/* ── Bill notification scanner (fires once on sign-in) ─── */}
+      <BillNotificationScanner count={count} address={address} onOwedCount={setOwedBillCount} />
 
       {/* ── Payout ready toast (fires once on wallet connect) ──── */}
       <PayoutReadyToaster count={count} address={address} />
