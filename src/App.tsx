@@ -683,10 +683,11 @@ function BillCard({ bill, refetch }: { bill: BillSummary; refetch: () => void })
 }
 
 // ─── Bill loader ──────────────────────────────────────────────────────────────
-function BillLoader({ id, refetch, filter, address: walletAddr }: {
+function BillLoader({ id, refetch, filter, address: walletAddr, onVisible }: {
   id: bigint; refetch: () => void
   filter: 'all' | 'created' | 'owe' | 'done'
   address?: `0x${string}`
+  onVisible?: (id: bigint) => void
 }) {
   const { data: billData } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getBill', args: [id], chainId: CHAIN_ID })
   const { data: sharesData } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getShares', args: [id], chainId: CHAIN_ID })
@@ -715,6 +716,8 @@ function BillLoader({ id, refetch, filter, address: walletAddr }: {
       if (filter === 'owe' && (!isParticipant || isDone)) return null
       if (filter === 'done' && !isDone) return null
     }
+    // Notify parent that this bill is visible (parent deduplicates)
+    onVisible?.(id)
   }
 
   return <BillCard bill={bill} refetch={refetch} />
@@ -924,6 +927,16 @@ export default function App() {
   const [tab, setTab] = useState<'bills' | 'send' | 'receive' | 'account'>(prefilledTo ? 'send' : 'bills')
 
   const count = billCount != null ? Number(billCount) : 0
+
+  // Track which bill IDs are visible to this user (passed the membership gate)
+  const visibleBillIds = useRef(new Set<string>())
+  const [userBillCount, setUserBillCount] = useState(0)
+  const handleBillVisible = useCallback((id: bigint) => {
+    const key = `${address ?? ''}:${id.toString()}`
+    if (visibleBillIds.current.has(key)) return
+    visibleBillIds.current.add(key)
+    setUserBillCount(visibleBillIds.current.size)
+  }, [address])
 
   // When a deep-link bill arrives, scroll to it once bills are loaded
   const deepLinkRef = useCallback((node: HTMLDivElement | null) => {
@@ -1184,10 +1197,10 @@ export default function App() {
                             }}>
                             <FilterIcon className="size-3.5" />
                             {fl}
-                            {f === 'all' && count > 0 && (
+                            {f === 'all' && userBillCount > 0 && (
                               <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold"
                                 style={{ background: filter === f ? 'rgba(255,255,255,0.25)' : 'var(--surface-muted)', color: filter === f ? '#fff' : 'var(--muted)' }}>
-                                {count}
+                                {userBillCount}
                               </span>
                             )}
                           </button>
@@ -1235,7 +1248,7 @@ export default function App() {
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.22, delay: i * 0.04 }}
                           style={deepLinkBillId === id ? { outline: '2px solid var(--accent)', outlineOffset: 3, borderRadius: 14 } : {}}>
-                          <BillLoader id={id} refetch={refetch} filter={filter} address={address} />
+                          <BillLoader id={id} refetch={refetch} filter={filter} address={address} onVisible={handleBillVisible} />
                         </motion.div>
                       ))}
                     </div>

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   useAccount, useWriteContract, useWaitForTransactionReceipt, useSwitchChain,
@@ -74,6 +74,30 @@ interface Props {
   seedSession?: SeedWalletSession | null
 }
 
+// ─── Draft persistence ────────────────────────────────────────────────────────
+const DRAFT_KEY = 'fairtab_bill_draft_v1'
+interface BillDraft {
+  step: 1 | 2 | 3
+  billLabel: string
+  selectedCategory: string
+  payee: string
+  totalAmount: string
+  usePercentages: boolean
+  deadline: string
+  recurring: boolean
+  recurDays: string
+  cancelThreshold: string
+  rows: ParticipantRow[]
+  advancedOpen: boolean
+}
+function loadDraft(): BillDraft | null {
+  try { const raw = localStorage.getItem(DRAFT_KEY); return raw ? (JSON.parse(raw) as BillDraft) : null } catch { return null }
+}
+function saveDraft(d: BillDraft) {
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(d)) } catch { /* ignore */ }
+}
+function clearDraft() { localStorage.removeItem(DRAFT_KEY) }
+
 export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
   const { address: wagmiAddress, chainId } = useAccount()
   const { switchChain } = useSwitchChain()
@@ -83,19 +107,24 @@ export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
   // Unified address: seed wallet takes priority over wagmi
   const address = seedSession?.address ?? wagmiAddress
 
-  // Form state
-  const [step, setStep] = useState<1 | 2 | 3>(1)
-  const [billLabel, setBillLabel] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState('')
-  const [payee, setPayee] = useState('')
-  const [totalAmount, setTotalAmount] = useState('')
-  const [usePercentages, setUsePercentages] = useState(false)
-  const [deadline, setDeadline] = useState('')
-  const [recurring, setRecurring] = useState(false)
-  const [recurDays, setRecurDays] = useState('30')
-  const [cancelThreshold, setCancelThreshold] = useState('1')
-  const [rows, setRows] = useState<ParticipantRow[]>([{ address: '', value: '' }, { address: '', value: '' }])
-  const [advancedOpen, setAdvancedOpen] = useState(false)
+  // Restore from draft on mount (lazy initialisers)
+  const draft = loadDraft()
+
+  // Form state — initialised from draft if one exists
+  const [step, setStep] = useState<1 | 2 | 3>(draft?.step ?? 1)
+  const [billLabel, setBillLabel] = useState(draft?.billLabel ?? '')
+  const [selectedCategory, setSelectedCategory] = useState(draft?.selectedCategory ?? '')
+  const [payee, setPayee] = useState(draft?.payee ?? '')
+  const [totalAmount, setTotalAmount] = useState(draft?.totalAmount ?? '')
+  const [usePercentages, setUsePercentages] = useState(draft?.usePercentages ?? false)
+  const [deadline, setDeadline] = useState(draft?.deadline ?? '')
+  const [recurring, setRecurring] = useState(draft?.recurring ?? false)
+  const [recurDays, setRecurDays] = useState(draft?.recurDays ?? '30')
+  const [cancelThreshold, setCancelThreshold] = useState(draft?.cancelThreshold ?? '1')
+  const [rows, setRows] = useState<ParticipantRow[]>(draft?.rows ?? [{ address: '', value: '' }, { address: '', value: '' }])
+  const [advancedOpen, setAdvancedOpen] = useState(draft?.advancedOpen ?? false)
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
+  const hasDraft = !!draft
 
   // Seed wallet direct-signing state
   const [seedPending, setSeedPending] = useState(false)
@@ -113,12 +142,17 @@ export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
   const isSuccess = seedSuccess || wagmiSuccess
   const isError = wagmiIsError || !!seedError
   const error = wagmiError ?? (seedError ? new Error(seedError) : null)
-  const reset = () => { wagmiReset(); setSeedHash(null); setSeedSuccess(false); setSeedError(null) }
+  const reset = () => { wagmiReset(); setSeedHash(null); setSeedSuccess(false); setSeedError(null); clearDraft() }
 
   const addRow = () => setRows(r => [...r, { address: '', value: '' }])
   const removeRow = (i: number) => setRows(r => r.filter((_, idx) => idx !== i))
   const updateRow = (i: number, f: keyof ParticipantRow, v: string) =>
     setRows(r => r.map((row, idx) => idx === i ? { ...row, [f]: v } : row))
+
+  // Auto-save draft whenever form state changes
+  useEffect(() => {
+    saveDraft({ step, billLabel, selectedCategory, payee, totalAmount, usePercentages, deadline, recurring, recurDays, cancelThreshold, rows, advancedOpen })
+  }, [step, billLabel, selectedCategory, payee, totalAmount, usePercentages, deadline, recurring, recurDays, cancelThreshold, rows, advancedOpen])
 
   const buildArgs = useCallback(() => {
     const dec = usdcDecimalsFor(CHAIN_ID)
@@ -155,6 +189,7 @@ export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
       setShowConfirmModal(false)
       await publicClient.waitForTransactionReceipt({ hash: txHash })
       setSeedSuccess(true)
+      clearDraft()
       toast.success('Bill created!')
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e)
@@ -257,21 +292,65 @@ export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
           <h2 className="display text-lg font-bold" style={{ color: 'var(--ink)', letterSpacing: '-0.03em' }}>
             New Bill
           </h2>
-          <p className="text-xs" style={{ color: 'var(--muted)' }}>Step {step} of 3</p>
+          <p className="text-xs" style={{ color: 'var(--muted)' }}>
+            Step {step} of 3{hasDraft && <span style={{ color: 'var(--accent)' }}> · Draft saved</span>}
+          </p>
         </div>
-        {/* Step dots */}
-        <div className="flex items-center gap-1.5">
-          {[1, 2, 3].map(s => (
-            <div key={s}
-              className="rounded-full transition-all duration-300"
-              style={{
-                width: step === s ? 20 : 6,
-                height: 6,
-                background: step >= s ? 'var(--accent)' : 'var(--border-strong)',
-              }} />
-          ))}
+        {/* Step dots + discard */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            {[1, 2, 3].map(s => (
+              <div key={s}
+                className="rounded-full transition-all duration-300"
+                style={{
+                  width: step === s ? 20 : 6,
+                  height: 6,
+                  background: step >= s ? 'var(--accent)' : 'var(--border-strong)',
+                }} />
+            ))}
+          </div>
+          {hasDraft && (
+            <button onClick={() => setShowDiscardConfirm(true)}
+              className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold transition-all hover:scale-105"
+              style={{ background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid rgba(220,38,38,0.15)' }}>
+              <XCircle className="size-3" /> Discard
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Discard draft confirmation */}
+      {showDiscardConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center px-6"
+          style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+          <motion.div className="w-full max-w-sm rounded-3xl p-6 flex flex-col gap-4"
+            style={{ background: 'var(--surface-strong)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)' }}
+            initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+            <div className="flex size-12 items-center justify-center rounded-2xl mx-auto"
+              style={{ background: 'var(--danger-bg)' }}>
+              <XCircle className="size-6" style={{ color: 'var(--danger)' }} />
+            </div>
+            <div className="text-center">
+              <p className="font-bold text-base" style={{ color: 'var(--ink)' }}>Discard draft?</p>
+              <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>
+                Your saved progress will be permanently deleted.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setShowDiscardConfirm(false)}
+                className="flex-1 rounded-2xl py-3 text-sm font-semibold"
+                style={{ background: 'var(--surface-muted)', color: 'var(--ink-2)', border: '1px solid var(--border)' }}>
+                Keep draft
+              </button>
+              <button onClick={() => { clearDraft(); setShowDiscardConfirm(false); onClose() }}
+                className="flex-1 rounded-2xl py-3 text-sm font-bold"
+                style={{ background: 'var(--danger)', color: '#fff' }}>
+                Discard
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
