@@ -70,7 +70,9 @@ interface Props {
 export function CreateBillPage({ onClose, onCreated }: Props) {
   const { address, chainId } = useAccount()
   const { switchChain } = useSwitchChain()
-  const wrongChain = chainId !== CHAIN_ID
+  // Only flag wrong chain when a wagmi wallet is connected — seed/Circle wallets
+  // don't expose a chainId through wagmi so chainId will be undefined for them.
+  const wrongChain = chainId !== undefined && chainId !== CHAIN_ID
 
   // Form state
   const [step, setStep] = useState<1 | 2 | 3>(1)

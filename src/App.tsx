@@ -192,8 +192,7 @@ function PaySheet({ bill, open, onClose, onPaid }: {
 }) {
   const { address, chainId } = useAccount()
   const { switchChain } = useSwitchChain()
-  const wrongChain = chainId !== CHAIN_ID
-
+  const wrongChain = chainId !== undefined && chainId !== CHAIN_ID
 
   const myShare = bill.shares.find(s => s.participant.toLowerCase() === address?.toLowerCase())
   const myRemaining = myShare ? myShare.amount - myShare.contributed : 0n
@@ -348,7 +347,7 @@ function ShareBillButton({ billId }: { billId: bigint }) {
 function BillCard({ bill, refetch }: { bill: BillSummary; refetch: () => void }) {
   const { address, chainId } = useAccount()
   const { switchChain } = useSwitchChain()
-  const wrongChain = chainId !== CHAIN_ID
+  const wrongChain = chainId !== undefined && chainId !== CHAIN_ID
   const [expanded, setExpanded] = useState(false)
   const [showPaySheet, setShowPaySheet] = useState(false)
 
@@ -799,7 +798,7 @@ function PayoutReadyToaster({ count, address: walletAddr }: { count: number; add
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
   const { address: wagmiAddress, chainId } = useAccount()
-  const wrongChain = chainId !== CHAIN_ID
+  const wrongChain = chainId !== undefined && chainId !== CHAIN_ID
 
   // ── Social session (Google / email OTP) ───────────────────────────────────
   const [socialSession, setSocialSession] = useState<AccountSession | null>(() => {
