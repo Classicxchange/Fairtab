@@ -6,7 +6,7 @@
 import { motion } from 'framer-motion'
 import { ConnectKitButton } from 'connectkit'
 import { Shield, Zap, Users, ArrowRight, Sun, Moon } from 'lucide-react'
-import { TokenMASK } from '@web3icons/react'
+import { WalletMetamask, WalletWalletConnect } from '@web3icons/react'
 import { SeedWalletAuth, type SeedWalletSession } from './SeedWalletAuth'
 import { type AccountSession } from './AccountView'
 
@@ -157,10 +157,16 @@ export function SignInPage({ onSeedSignedIn, onSignOut, dark, onToggleDark }: Pr
                   boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
                 }}
               >
-                {/* MetaMask icon */}
-                <div className="size-9 rounded-xl flex items-center justify-center shrink-0 overflow-hidden"
-                  style={{ background: '#F5841F' }}>
-                  <TokenMASK variant="branded" size={28} />
+                {/* Stacked logos: MetaMask + WalletConnect */}
+                <div className="relative shrink-0 w-12 h-9">
+                  <div className="absolute left-0 top-0 size-9 rounded-xl overflow-hidden border-2 border-white dark:border-neutral-900 shadow-sm"
+                    style={{ background: '#F5841F' }}>
+                    <WalletMetamask variant="branded" width={36} height={36} />
+                  </div>
+                  <div className="absolute left-5 top-0 size-9 rounded-xl overflow-hidden border-2 border-white dark:border-neutral-900 shadow-sm"
+                    style={{ background: '#3B99FC' }}>
+                    <WalletWalletConnect variant="branded" width={36} height={36} />
+                  </div>
                 </div>
                 <div className="flex-1 text-left">
                   <p className="font-semibold" style={{ color: 'var(--ink)' }}>MetaMask / WalletConnect</p>

@@ -30,7 +30,7 @@ import { toast } from 'sonner'
 import {
   Mail, ShieldCheck, Copy, CheckCircle2, AlertTriangle, Eye, EyeOff,
   Loader2, QrCode, Smartphone, KeyRound, X,
-  Lock, Unlock,
+  Lock, Unlock, Download, Upload, FileDown,
 } from 'lucide-react'
 import type { Hex } from 'viem'
 import { loadEncryptedWallet, decryptSeedWallet } from '@/SeedWalletAuth'
@@ -169,6 +169,86 @@ function saveRecovery(blob: RecoveryBlob) {
 
 export function clearRecovery() {
   localStorage.removeItem(RECOVERY_KEY)
+}
+
+// ── Recovery file export / import ────────────────────────────────────────────
+interface RecoveryFilePayload {
+  version: 1
+  createdAt: number
+  walletBlob: unknown       // the AES-encrypted wallet (safe to store — needs password)
+  recoveryBlob: RecoveryBlob // TOTP secret + email encrypted keys
+}
+
+const WALLET_BLOB_KEY = 'fairtab_seed_wallet_v1'
+
+export function exportRecoveryFile() {
+  const walletBlob = localStorage.getItem(WALLET_BLOB_KEY)
+  const recoveryBlob = loadRecovery()
+  if (!walletBlob) throw new Error('No wallet found to export')
+  const payload: RecoveryFilePayload = {
+    version: 1,
+    createdAt: Date.now(),
+    walletBlob: JSON.parse(walletBlob) as unknown,
+    recoveryBlob,
+  }
+  const json = JSON.stringify(payload, null, 2)
+  const blob = new Blob([json], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `fairtab-recovery-${new Date().toISOString().slice(0, 10)}.fairtab`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+export async function importRecoveryFile(file: File): Promise<{ address?: string }> {
+  const text = await file.text()
+  const payload = JSON.parse(text) as RecoveryFilePayload
+  if (payload.version !== 1) throw new Error('Unsupported recovery file version')
+  // Restore wallet blob and recovery blob to localStorage
+  localStorage.setItem(WALLET_BLOB_KEY, JSON.stringify(payload.walletBlob))
+  if (payload.recoveryBlob && Object.keys(payload.recoveryBlob).length > 0) {
+    saveRecovery(payload.recoveryBlob)
+  }
+  return {}
+}
+
+// ── Export Recovery File Button Component ─────────────────────────────────────
+export function RecoveryFileExportButton() {
+  const [done, setDone] = useState(false)
+  const [err, setErr]   = useState<string | null>(null)
+
+  const handleExport = () => {
+    try {
+      exportRecoveryFile()
+      setDone(true)
+      toast.success('Recovery file downloaded')
+      setTimeout(() => setDone(false), 3000)
+    } catch (e) {
+      setErr((e as Error).message)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-start gap-2 rounded-xl p-3"
+        style={{ background: 'var(--accent-light)', border: '1px solid var(--accent-border)' }}>
+        <FileDown className="size-4 shrink-0 mt-0.5" style={{ color: 'var(--accent)' }} />
+        <p className="text-xs leading-relaxed" style={{ color: 'var(--ink-2)' }}>
+          Download a <strong>.fairtab</strong> recovery file. Store it in a safe place — Google Drive, email, USB.
+          On a new device, upload this file and use your TOTP or email key to restore.
+        </p>
+      </div>
+      {err && <p className="text-xs" style={{ color: 'var(--danger)' }}>{err}</p>}
+      <button onClick={handleExport}
+        className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition-all hover:opacity-90"
+        style={{ background: done ? 'var(--success-bg)' : 'var(--surface-muted)', color: done ? 'var(--success)' : 'var(--ink-2)', border: '1px solid var(--border)' }}>
+        {done ? <><CheckCircle2 className="size-4" /> Downloaded!</> : <><Download className="size-4" /> Download recovery file</>}
+      </button>
+    </div>
+  )
 }
 
 // ── Shared UI helpers ─────────────────────────────────────────────────────────
@@ -539,6 +619,14 @@ export function RecoveryStatus({ onSetupTOTP, onSetupEmail }: {
           </p>
         </div>
       )}
+
+      {/* Export recovery file — always show when wallet exists */}
+      <div className="mt-1">
+        <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--muted)' }}>
+          Recovery file
+        </p>
+        <RecoveryFileExportButton />
+      </div>
     </div>
   )
 }
@@ -550,13 +638,14 @@ interface ForgotPhraseProps {
 }
 
 export function ForgotPhraseFlow({ onRecovered, onCancel }: ForgotPhraseProps) {
-  const recovery = loadRecovery()
+  const [recovery, setRecovery] = useState<RecoveryBlob>(loadRecovery)
   const hasTOTP  = !!recovery.totp
   const hasEmail = !!recovery.email
 
-  const [method, setMethod]   = useState<'choose' | 'totp' | 'email'>(
+  const [method, setMethod] = useState<'choose' | 'totp' | 'email' | 'file'>(
     hasTOTP ? 'totp' : hasEmail ? 'email' : 'choose'
   )
+  const [fileImported, setFileImported] = useState(false)
   const [code, setCode]       = useState('')
   const [emailKey, setEmailKey] = useState('')
   const [loading, setLoading] = useState(false)
@@ -596,18 +685,56 @@ export function ForgotPhraseFlow({ onRecovered, onCancel }: ForgotPhraseProps) {
     finally { setLoading(false) }
   }, [emailKey, recovery, onRecovered])
 
-  if (!hasTOTP && !hasEmail) {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setLoading(true)
+    try {
+      await importRecoveryFile(file)
+      const refreshed = loadRecovery()
+      setRecovery(refreshed)
+      setFileImported(true)
+      toast.success('Recovery file loaded — now verify with your TOTP or email key')
+      // After import, determine which method to show
+      if (refreshed.totp) setMethod('totp')
+      else if (refreshed.email) setMethod('email')
+      else {
+        // File only had wallet blob — restore done, user needs password
+        toast.info('Wallet restored — enter your password to unlock')
+        onRecovered({ mnemonic: undefined, privateKey: '0x', address: '0x' })
+      }
+    } catch (e) {
+      setErr('Could not read file: ' + (e as Error).message)
+    } finally { setLoading(false) }
+  }
+
+  if (!hasTOTP && !hasEmail && !fileImported) {
     return (
       <div className="flex flex-col gap-3 p-5 rounded-2xl" style={card}>
         <div className="flex items-center justify-between">
-          <p className="font-semibold text-sm" style={{ color: 'var(--ink)' }}>Forgot phrase</p>
+          <p className="font-semibold text-sm" style={{ color: 'var(--ink)' }}>Recover wallet</p>
           <button onClick={onCancel} style={{ color: 'var(--subtle)' }}><X className="size-4" /></button>
         </div>
+
+        {/* Upload recovery file — works on any device */}
         <div className="flex items-start gap-2 rounded-xl p-3"
+          style={{ background: 'var(--accent-light)', border: '1px solid var(--accent-border)' }}>
+          <Upload className="size-4 shrink-0 mt-0.5" style={{ color: 'var(--accent)' }} />
+          <p className="text-xs leading-relaxed" style={{ color: 'var(--ink-2)' }}>
+            Upload your <strong>.fairtab</strong> recovery file to restore on this device.
+          </p>
+        </div>
+        <label className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold cursor-pointer transition-all hover:opacity-90"
+          style={{ background: 'var(--accent)', color: '#fff' }}>
+          {loading ? <Loader2 className="size-4 animate-spin" /> : <><Upload className="size-4" /> Upload recovery file</>}
+          <input type="file" accept=".fairtab,application/json" className="hidden" onChange={e => void handleFileUpload(e)} disabled={loading} />
+        </label>
+
+        <div className="flex items-start gap-2 rounded-xl p-3 mt-1"
           style={{ background: 'var(--danger-bg)', border: '1px solid rgba(239,68,68,0.2)' }}>
           <AlertTriangle className="size-4 shrink-0 mt-0.5" style={{ color: 'var(--danger)' }} />
           <p className="text-xs leading-relaxed" style={{ color: 'var(--danger)' }}>
-            No recovery method was set up for this wallet. Without your seed phrase, this wallet cannot be recovered.
+            No recovery methods found on this device. Upload a .fairtab recovery file, or use your seed phrase to import your wallet.
           </p>
         </div>
         <button onClick={onCancel} className="text-xs text-center" style={{ color: 'var(--subtle)' }}>Back</button>
@@ -642,6 +769,13 @@ export function ForgotPhraseFlow({ onRecovered, onCancel }: ForgotPhraseProps) {
                 Email recovery key
               </button>
             )}
+            {/* Always allow file import — works cross-device */}
+            <label className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold cursor-pointer transition-all hover:scale-[1.01]"
+              style={{ background: 'var(--surface-muted)', color: 'var(--ink)', border: '1px dashed var(--border)' }}>
+              <Upload className="size-4" style={{ color: 'var(--subtle)' }} />
+              Upload recovery file
+              <input type="file" accept=".fairtab,application/json" className="hidden" onChange={e => void handleFileUpload(e)} />
+            </label>
           </motion.div>
         )}
 
