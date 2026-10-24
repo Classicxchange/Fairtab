@@ -125,6 +125,27 @@ export function clearSeedWallet() {
   localStorage.removeItem(STORAGE_KEY)
 }
 
+// ── Public helpers for AccountPage ────────────────────────────────────────────
+export function loadEncryptedWallet(): EncryptedWallet | null {
+  return loadBlob()
+}
+
+export async function decryptSeedWallet(
+  blob: ReturnType<typeof loadEncryptedWallet>,
+  password: string
+): Promise<{ mnemonic?: string; privateKey: Hex; address: Hex }> {
+  if (!blob) throw new Error('No wallet found')
+  return decryptWallet(blob, password)
+}
+
+export async function encryptSeedWallet(
+  payload: { mnemonic?: string; privateKey: Hex; address: Hex },
+  password: string
+): Promise<void> {
+  const blob = await encryptWallet(payload, password)
+  saveBlob(blob)
+}
+
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const spectral = 'linear-gradient(90deg,#3b8ef8,#818cf8,#e879f9,#f97316)'
 const glass = {

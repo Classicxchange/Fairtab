@@ -2,7 +2,9 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { restoreCircleSession, clearCredential } from '@/CircleWalletAuth'
 import { SignInModal } from '@/SignInModal'
 import { type SeedWalletSession, clearSeedWallet } from '@/SeedWalletAuth'
-import { AccountView, type AccountSession } from '@/AccountView'
+import { type AccountSession } from '@/AccountView'
+import { WalletDropdown } from '@/WalletDropdown'
+import { AccountPage } from '@/AccountPage'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   useAccount,
@@ -1042,8 +1044,9 @@ function SendView() {
 }
 
 // ─── Receive View ─────────────────────────────────────────────────────────────
-function ReceiveView() {
-  const { address } = useAccount()
+function ReceiveView({ unifiedAddress }: { unifiedAddress?: `0x${string}` }) {
+  const { address: wagmiAddr } = useAccount()
+  const address = unifiedAddress ?? wagmiAddr
   const [reqAmount, setReqAmount] = useState('')
   const [reqMemo, setReqMemo] = useState('')
   const [copied, setCopied] = useState(false)
@@ -1071,7 +1074,7 @@ function ReceiveView() {
   if (!address) return (
     <motion.div className="flex flex-col items-center justify-center py-20 gap-4" {...fadeUp}>
       <QrCode className="size-10" style={{ color: 'var(--subtle)' }} />
-      <p className="text-sm" style={{ color: 'var(--muted)' }}>Connect your wallet to receive USDC.</p>
+      <p className="text-sm" style={{ color: 'var(--muted)' }}>Connect a wallet to receive USDC.</p>
       <ConnectKitButton />
     </motion.div>
   )
@@ -1254,18 +1257,27 @@ export default function App() {
 
       {/* ── Header ─────────────────────────────────────────────────── */}
       <header className="relative z-30 sticky top-0"
-        style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3">
-          <div className="flex items-center gap-3">
-            {/* Logo mark */}
-            <img src="/logo.svg" alt="Fairtab" className="size-9 rounded-xl" />
-            <div>
+        style={{
+          background: 'var(--surface-strong)',
+          borderBottom: '1px solid var(--border)',
+          boxShadow: 'var(--shadow-sm)',
+          backdropFilter: 'blur(12px)',
+        }}>
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3 gap-3">
+          {/* Logo */}
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="size-9 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: 'var(--accent)', boxShadow: '0 2px 8px rgba(37,99,235,0.30)' }}>
+              <span className="display text-white font-bold text-base">F</span>
+            </div>
+            <div className="hidden sm:block">
               <span className="display text-lg font-bold leading-none" style={{ color: 'var(--ink)' }}>Fairtab</span>
               <p className="text-xs leading-none mt-0.5" style={{ color: 'var(--subtle)' }}>powered by Arc</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          {/* Right controls */}
+          <div className="flex items-center gap-2">
             {wrongChain && address && (
               <span className="hidden sm:flex items-center gap-1.5 text-xs font-semibold rounded-full px-3 py-1.5"
                 style={{ background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-bg)' }}>
@@ -1277,36 +1289,47 @@ export default function App() {
               onClick={toggleDark}
               whileTap={{ scale: 0.88 }}
               className="flex items-center justify-center rounded-xl transition-colors"
-              style={{
-                width: 38, height: 38,
-                background: 'var(--surface-strong)',
-                border: '1px solid var(--border)',
-                color: 'var(--ink-2)',
-              }}
+              style={{ width: 36, height: 36, background: 'var(--surface-muted)', border: '1px solid var(--border)', color: 'var(--ink-2)' }}
               aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
             </motion.button>
-            <SignInModal
-              wagmiAddress={wagmiAddress}
-              circleAddress={circleAddress ?? undefined}
-              socialSession={socialSession}
-              seedSession={seedSession}
-              onSeedSignedIn={s => setSeedSession(s)}
-              onSocialSignedIn={(session) => {
-                setSocialSession(session)
-                localStorage.setItem('fairtab_session_v2', JSON.stringify(session))
-              }}
-              onCircleConnected={(addr) => setCircleAddress(addr)}
-              onSignOut={() => {
-                setSeedSession(null)
-                setSocialSession(null)
-                localStorage.removeItem('fairtab_session_v2')
-                setCircleAddress(null)
-                clearCredential()
-                clearSeedWallet()
-              }}
-            />
+
+            {/* Wallet connected: show dropdown; else show sign-in modal */}
+            {address
+              ? <WalletDropdown
+                  address={address}
+                  onGoToAccount={() => setTab('account')}
+                  onSignOut={() => {
+                    setSeedSession(null)
+                    setSocialSession(null)
+                    localStorage.removeItem('fairtab_session_v2')
+                    setCircleAddress(null)
+                    clearCredential()
+                    clearSeedWallet()
+                  }}
+                />
+              : <SignInModal
+                  wagmiAddress={wagmiAddress}
+                  circleAddress={circleAddress ?? undefined}
+                  socialSession={socialSession}
+                  seedSession={seedSession}
+                  onSeedSignedIn={s => setSeedSession(s)}
+                  onSocialSignedIn={(session) => {
+                    setSocialSession(session)
+                    localStorage.setItem('fairtab_session_v2', JSON.stringify(session))
+                  }}
+                  onCircleConnected={(addr) => setCircleAddress(addr)}
+                  onSignOut={() => {
+                    setSeedSession(null)
+                    setSocialSession(null)
+                    localStorage.removeItem('fairtab_session_v2')
+                    setCircleAddress(null)
+                    clearCredential()
+                    clearSeedWallet()
+                  }}
+                />
+            }
           </div>
         </div>
       </header>
@@ -1367,7 +1390,8 @@ export default function App() {
           {/* ── Main content ────────────────────────────────────── */}
           <main className="flex-1 min-w-0 flex flex-col gap-6">
             {/* Mobile tab bar */}
-            <div className="md:hidden flex rounded-2xl overflow-hidden" style={{ border: '1px solid var(--border-strong)' }}>
+            <div className="md:hidden flex rounded-2xl overflow-hidden p-1 gap-1"
+              style={{ background: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
               {([
                 { id: 'bills',   label: 'Bills',   icon: LayoutGrid },
                 { id: 'send',    label: 'Send',    icon: Send       },
@@ -1375,10 +1399,13 @@ export default function App() {
                 { id: 'account', label: 'Account', icon: UserCircle },
               ] as const).map(({ id, label, icon: Icon }) => (
                 <button key={id} onClick={() => setTab(id)}
-                  className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2.5 text-xs font-semibold transition-all"
-                  style={{ background: tab === id ? 'var(--accent)' : 'transparent', color: tab === id ? '#fff' : 'var(--subtle)' }}>
-                  <Icon className="size-3.5" />
-                  <span className="text-[10px]">{label}</span>
+                  className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2.5 text-xs font-semibold transition-all rounded-xl"
+                  style={{
+                    background: tab === id ? 'var(--accent)' : 'transparent',
+                    color: tab === id ? '#fff' : 'var(--subtle)',
+                  }}>
+                  <Icon className="size-4" />
+                  <span className="text-[10px] font-semibold">{label}</span>
                 </button>
               ))}
             </div>
@@ -1395,7 +1422,7 @@ export default function App() {
                 <motion.div key="receive"
                   initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}
                   transition={{ duration: 0.18 }}>
-                  <ReceiveView />
+                  <ReceiveView unifiedAddress={address} />
                 </motion.div>
               )}
               {tab === 'bills' && (
@@ -1484,17 +1511,43 @@ export default function App() {
                 <motion.div key="account"
                   initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}
                   transition={{ duration: 0.18 }}>
-                  <AccountView
-                    session={socialSession}
-                    onSignedIn={s => {
-                      setSocialSession(s)
-                      localStorage.setItem('fairtab_session_v2', JSON.stringify(s))
-                    }}
-                    onSignOut={() => {
-                      setSocialSession(null)
-                      localStorage.removeItem('fairtab_session_v2')
-                    }}
-                  />
+                  {address
+                    ? <AccountPage
+                        address={address}
+                        seedSession={seedSession}
+                        socialSession={socialSession}
+                        wagmiAddress={wagmiAddress}
+                        onSignOut={() => {
+                          setSeedSession(null)
+                          setSocialSession(null)
+                          localStorage.removeItem('fairtab_session_v2')
+                          setCircleAddress(null)
+                          clearCredential()
+                          clearSeedWallet()
+                          setTab('bills')
+                        }}
+                      />
+                    : <SignInModal
+                        wagmiAddress={wagmiAddress}
+                        circleAddress={circleAddress ?? undefined}
+                        socialSession={socialSession}
+                        seedSession={seedSession}
+                        onSeedSignedIn={s => setSeedSession(s)}
+                        onSocialSignedIn={(session) => {
+                          setSocialSession(session)
+                          localStorage.setItem('fairtab_session_v2', JSON.stringify(session))
+                        }}
+                        onCircleConnected={(addr) => setCircleAddress(addr)}
+                        onSignOut={() => {
+                          setSeedSession(null)
+                          setSocialSession(null)
+                          localStorage.removeItem('fairtab_session_v2')
+                          setCircleAddress(null)
+                          clearCredential()
+                          clearSeedWallet()
+                        }}
+                      />
+                  }
                 </motion.div>
               )}
             </AnimatePresence>
