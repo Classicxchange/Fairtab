@@ -26,7 +26,8 @@ A USDC-based household bill splitter. One person creates a bill with a total amo
 | HouseholdBillSplitter v8 (mainnet, wrong USDC — superseded) | Arc Mainnet | 0x1C0ae34b80084EdC3F620c074f80b902eb310ad3 | https://explorer.arc.io/address/0x1C0ae34b80084EdC3F620c074f80b902eb310ad3 |
 | HouseholdBillSplitter v9 (mainnet, correct USDC 0x3600 — superseded) | Arc Mainnet | 0xCEcb3C47CbD643B14b25D38ec4DB62dBcC6A4e3F | https://explorer.arc.io/address/0xCEcb3C47CbD643B14b25D38ec4DB62dBcC6A4e3F |
 | HouseholdBillSplitter v10 (mainnet, superseded) | Arc Mainnet | 0x2d4c3580B6B3BD5f1aEa2f0CF04649ED558769C0 | https://explorer.arc.io/address/0x2d4c3580B6B3BD5f1aEa2f0CF04649ED558769C0 |
-| HouseholdBillSplitter v11 (mainnet, ACTIVE — consent system: acceptInvite/rejectInvite/expireInvite/addParticipant, majority threshold, redirect quorum, MEV snapshot, deadline gate) | Arc Mainnet | 0x8cd4db9811d7beda48f18c34e92f0eb5baa9dfb2 | https://explorer.arc.io/address/0x8cd4db9811d7beda48f18c34e92f0eb5baa9dfb2 |
+| HouseholdBillSplitter v11 (mainnet, superseded) | Arc Mainnet | 0x8cd4db9811d7beda48f18c34e92f0eb5baa9dfb2 | https://explorer.arc.io/address/0x8cd4db9811d7beda48f18c34e92f0eb5baa9dfb2 |
+| HouseholdBillSplitter v12 (mainnet, ACTIVE — full invite/consent system: acceptInvite, rejectInvite, expireInvite, getParticipantStatus, 24h INVITE_EXPIRY, deployed via admin panel) | Arc Mainnet | 0xcd1dcf79d9bbf3246a21da10aecabde66fb47d08 | https://explorer.arc.io/address/0xcd1dcf79d9bbf3246a21da10aecabde66fb47d08 |
 
 Constructor arg (testnet): USDC = `0x3600000000000000000000000000000000000000` (Arc Testnet)
 Constructor arg (mainnet): USDC = `0x3600000000000000000000000000000000000000` (Arc Mainnet)

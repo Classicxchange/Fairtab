@@ -45,7 +45,7 @@ const CHAIN_ID = arcChain.id
 //     --constructor-args 0x3600000000000000000000000000000000000000
 // Then replace REPLACE_WITH_MAINNET_CONTRACT_ADDRESS below with the deployed address.
 const TESTNET_CONTRACT = '0x9c87ba9e35c1b986ab97174e1192badf44fb03a5' as const
-const MAINNET_CONTRACT = '0x8cd4db9811d7beda48f18c34e92f0eb5baa9dfb2' as const
+const MAINNET_CONTRACT = '0xcd1dcf79d9bbf3246a21da10aecabde66fb47d08' as const
 const CONTRACT_ADDRESS  = (IS_MAINNET ? MAINNET_CONTRACT : TESTNET_CONTRACT) as `0x${string}`
 const CONTRACT_ABI = artifact.abi
 const USDC_ADDRESS = getUsdc(CHAIN_ID)!.address as `0x${string}`
