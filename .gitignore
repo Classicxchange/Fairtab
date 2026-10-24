@@ -9,8 +9,7 @@ node_modules/
 # Circle credentials
 .circle/
 
-# Foundry build artifacts
-contracts/out/
+# Foundry build artifacts — cache only (out/ is committed so Vite can import ABI at build time)
 contracts/cache/
 
 # Dev logs — not for repo
