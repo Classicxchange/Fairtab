@@ -21,6 +21,7 @@ import { ConnectKitProvider } from 'connectkit'
 import { Toaster } from 'sonner'
 import { config } from './config'
 import App from './App'
+import AdminApp from './admin/AdminApp'
 import './index.css'
 
 const queryClient = new QueryClient()
@@ -66,13 +67,17 @@ const StudioWatermark = () => (
   </a>
 )
 
+// Route /auth/admin to AdminApp; everything else goes to the main App.
+// The path is intentionally undiscoverable from the public frontend.
+const isAdminRoute = window.location.pathname === '/auth/admin'
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <ConnectKitProvider>
-          <App />
-          <StudioWatermark />
+          {isAdminRoute ? <AdminApp /> : <App />}
+          {!isAdminRoute && <StudioWatermark />}
           <Toaster position="top-center" />
         </ConnectKitProvider>
       </QueryClientProvider>
