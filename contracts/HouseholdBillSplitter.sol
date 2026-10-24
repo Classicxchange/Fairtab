@@ -23,6 +23,12 @@ contract HouseholdBillSplitter is Ownable2Step, ReentrancyGuard {
         Cancelled
     }
 
+    enum ParticipantStatus {
+        Pending,
+        Accepted,
+        Rejected
+    }
+
     struct Share {
         address participant;
         uint256 amount;
@@ -65,6 +71,11 @@ contract HouseholdBillSplitter is Ownable2Step, ReentrancyGuard {
     error AlreadyVotedRedirect(uint256 billId, address voter);
     error PayoutReclaimNotReady(uint256 billId);
     error NoReclaimAvailable(uint256 billId, address caller);
+    error InviteNotPending(uint256 billId, address participant);
+    error NotCreator(uint256 billId, address caller);
+    error InviteNotExpired(uint256 billId, address participant);
+    error ParticipantNotAccepted(uint256 billId, address participant);
+    error ParticipantAlreadyExists(uint256 billId, address participant);
 
     event BillCreated(
         uint256 indexed billId,
@@ -95,6 +106,11 @@ contract HouseholdBillSplitter is Ownable2Step, ReentrancyGuard {
     event PayoutRedirectVote(uint256 indexed billId, address indexed voter, address indexed candidate, uint8 votes);
     event PayoutReclaimed(uint256 indexed billId, address indexed participant, uint256 amount);
     event TokenRecovered(address indexed token, address indexed to, uint256 amount);
+    event ParticipantInvited(uint256 indexed billId, address indexed participant, uint256 amount);
+    event InviteAccepted(uint256 indexed billId, address indexed participant);
+    event InviteRejected(uint256 indexed billId, address indexed participant);
+    event InviteExpired(uint256 indexed billId, address indexed participant);
+    event ParticipantAdded(uint256 indexed billId, address indexed participant, uint256 amount);
 
     uint256 public billCount;
     mapping(uint256 => Bill) private _bills;
@@ -109,8 +125,11 @@ contract HouseholdBillSplitter is Ownable2Step, ReentrancyGuard {
     mapping(uint256 => mapping(address => bool)) private _hasVotedRedirect;
     mapping(uint256 => mapping(address => address)) private _redirectVoteChoice;
     mapping(uint256 => uint8) public payoutRedirectVotes;
+    mapping(uint256 => mapping(address => ParticipantStatus)) public participantStatus;
+    mapping(uint256 => mapping(address => uint256)) public inviteTimestamp;
     address public immutable usdc;
     uint8 public constant MAX_PARTICIPANTS = 20;
+    uint256 public constant INVITE_EXPIRY = 24 hours;
     /// @notice Default deadline applied when creator passes deadline == 0.
     /// Guarantees every bill has a finite expiry so claimExpiredRefund is always reachable.
     uint256 public constant MAX_BILL_DURATION = 90 days;
@@ -166,6 +185,10 @@ contract HouseholdBillSplitter is Ownable2Step, ReentrancyGuard {
         // Block payments after deadline — post-expiry path is claimExpiredRefund only
         if (bill.deadline != 0 && block.timestamp > bill.deadline) revert DeadlineExpired(billId);
 
+        if (participantStatus[billId][msg.sender] != ParticipantStatus.Accepted) {
+            revert ParticipantNotAccepted(billId, msg.sender);
+        }
+
         (bool found, uint256 shareIndex) = _findShareIndex(bill, msg.sender);
         if (!found) revert NotParticipant(billId, msg.sender);
 
@@ -215,6 +238,79 @@ contract HouseholdBillSplitter is Ownable2Step, ReentrancyGuard {
                 _spawnRecurringBill(billId);
             }
         }
+    }
+
+    function acceptInvite(uint256 billId) external {
+        Bill storage bill = _activeBill(billId);
+        if (participantStatus[billId][msg.sender] != ParticipantStatus.Pending) {
+            revert InviteNotPending(billId, msg.sender);
+        }
+
+        participantStatus[billId][msg.sender] = ParticipantStatus.Accepted;
+        emit InviteAccepted(billId, msg.sender);
+    }
+
+    function rejectInvite(uint256 billId) external {
+        Bill storage bill = _activeBill(billId);
+        if (participantStatus[billId][msg.sender] != ParticipantStatus.Pending) {
+            revert InviteNotPending(billId, msg.sender);
+        }
+
+        participantStatus[billId][msg.sender] = ParticipantStatus.Rejected;
+
+        (bool found, uint256 idx) = _findShareIndex(bill, msg.sender);
+        if (found) {
+            uint256 shareAmount = bill.shares[idx].amount;
+            bill.shares[idx] = bill.shares[bill.shares.length - 1];
+            bill.shares.pop();
+            if (bill.totalAmount >= shareAmount) bill.totalAmount -= shareAmount;
+        }
+
+        emit InviteRejected(billId, msg.sender);
+    }
+
+    function expireInvite(uint256 billId, address participant) external {
+        Bill storage bill = _activeBill(billId);
+        if (participantStatus[billId][participant] != ParticipantStatus.Pending) {
+            revert InviteNotPending(billId, participant);
+        }
+        if (block.timestamp < inviteTimestamp[billId][participant] + INVITE_EXPIRY) {
+            revert InviteNotExpired(billId, participant);
+        }
+
+        participantStatus[billId][participant] = ParticipantStatus.Rejected;
+
+        (bool found, uint256 idx) = _findShareIndex(bill, participant);
+        if (found) {
+            uint256 shareAmount = bill.shares[idx].amount;
+            bill.shares[idx] = bill.shares[bill.shares.length - 1];
+            bill.shares.pop();
+            if (bill.totalAmount >= shareAmount) bill.totalAmount -= shareAmount;
+        }
+
+        emit InviteExpired(billId, participant);
+    }
+
+    function addParticipant(uint256 billId, address participant, uint256 amount) external {
+        Bill storage bill = _activeBill(billId);
+        if (msg.sender != bill.creator) revert NotCreator(billId, msg.sender);
+        if (participant == address(0)) revert ZeroAddress();
+        if (bill.shares.length >= MAX_PARTICIPANTS) revert InvalidBillParams("too many participants");
+
+        for (uint256 i = 0; i < bill.shares.length; i++) {
+            if (bill.shares[i].participant == participant) revert ParticipantAlreadyExists(billId, participant);
+        }
+        if (participantStatus[billId][participant] == ParticipantStatus.Accepted) {
+            revert ParticipantAlreadyExists(billId, participant);
+        }
+
+        bill.shares.push(Share({participant: participant, amount: amount, contributed: 0}));
+        bill.totalAmount += amount;
+        participantStatus[billId][participant] = ParticipantStatus.Pending;
+        inviteTimestamp[billId][participant] = block.timestamp;
+
+        emit ParticipantAdded(billId, participant, amount);
+        emit ParticipantInvited(billId, participant, amount);
     }
 
     function voteCancel(uint256 billId) external {
@@ -466,6 +562,10 @@ contract HouseholdBillSplitter is Ownable2Step, ReentrancyGuard {
         remaining = share.amount - share.contributed;
     }
 
+    function getParticipantStatus(uint256 billId, address participant) external view returns (ParticipantStatus) {
+        return participantStatus[billId][participant];
+    }
+
     function isLate(uint256 billId, address participant) external view returns (bool) {
         if (billId >= billCount) return false;
 
@@ -568,6 +668,9 @@ contract HouseholdBillSplitter is Ownable2Step, ReentrancyGuard {
             bill.shares.push(Share({participant: participants[i], amount: resolvedAmounts[i], contributed: 0}));
         }
 
+        // Set invite statuses in a separate call to avoid stack-too-deep in _createBill
+        _initParticipantStatuses(billId, participants, resolvedAmounts);
+
         // Count participants eligible to vote payout redirect (amount > 0)
         uint256 eligibleVoters = 0;
         for (uint256 i = 0; i < bill.shares.length; i++) {
@@ -576,6 +679,26 @@ contract HouseholdBillSplitter is Ownable2Step, ReentrancyGuard {
         if (cancelThreshold == 0 || cancelThreshold > eligibleVoters) revert InvalidBillParams("bad threshold");
 
         _emitBillCreated(billId, bill);
+    }
+
+    /// @dev Sets initial invite statuses for all participants in a new bill.
+    ///      Extracted to avoid stack-too-deep in _createBill.
+    function _initParticipantStatuses(
+        uint256 billId,
+        address[] memory participants,
+        uint256[] memory resolvedAmounts
+    ) private {
+        address creator = _bills[billId].creator;
+        for (uint256 i = 0; i < participants.length; i++) {
+            address p = participants[i];
+            if (p == creator) {
+                participantStatus[billId][p] = ParticipantStatus.Accepted;
+            } else {
+                participantStatus[billId][p] = ParticipantStatus.Pending;
+                inviteTimestamp[billId][p] = block.timestamp;
+            }
+            emit ParticipantInvited(billId, p, resolvedAmounts[i]);
+        }
     }
 
     /// @dev Extracts BillCreated emit into a separate call to reduce stack depth in _createBill.
@@ -643,7 +766,7 @@ contract HouseholdBillSplitter is Ownable2Step, ReentrancyGuard {
             amounts[i] = s.amount;
         }
 
-        _createBill(
+        uint256 newBillId = _createBill(
             parent.creator,
             parent.totalAmount,
             parent.label,
@@ -656,6 +779,12 @@ contract HouseholdBillSplitter is Ownable2Step, ReentrancyGuard {
             parent.recurInterval,
             parent.cancelThreshold
         );
+
+        Bill storage newBill = _bills[newBillId];
+        for (uint256 i = 0; i < newBill.shares.length; i++) {
+            Share storage s = newBill.shares[i];
+            participantStatus[newBillId][s.participant] = ParticipantStatus.Accepted;
+        }
     }
 
     function _activeBill(uint256 billId) internal view returns (Bill storage bill) {

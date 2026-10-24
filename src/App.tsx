@@ -25,6 +25,7 @@ import {
   Send, Copy, QrCode, Link2, LayoutGrid,
   Sun, Moon, Share2, UserCircle,
   List, PenLine, ArrowDownCircle, CircleCheckBig,
+  Bell, UserPlus, Check, X,
 } from 'lucide-react'
 import { TokenUSDC } from '@web3icons/react'
 import { toast } from 'sonner'
@@ -51,6 +52,7 @@ const USDC_ADDRESS = getUsdc(CHAIN_ID)!.address as `0x${string}`
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type BillStatus = 0 | 1 | 2
+type ParticipantStatus = 0 | 1 | 2 // 0=Pending, 1=Accepted, 2=Rejected
 
 interface Share {
   participant: `0x${string}`
@@ -419,7 +421,7 @@ function ShareBillButton({ billId }: { billId: bigint }) {
 }
 
 // ─── Bill Card ────────────────────────────────────────────────────────────────
-function BillCard({ bill, refetch }: { bill: BillSummary; refetch: () => void }) {
+function BillCard({ bill, refetch, myParticipantStatus }: { bill: BillSummary; refetch: () => void; myParticipantStatus?: ParticipantStatus }) {
   const { address, chainId } = useAccount()
   const { switchChain } = useSwitchChain()
   const wrongChain = chainId !== undefined && chainId !== CHAIN_ID
@@ -442,6 +444,31 @@ function BillCard({ bill, refetch }: { bill: BillSummary; refetch: () => void })
   const { isLoading: voteConfirming, isSuccess: voteSuccess } = useWaitForTransactionReceipt({ hash: voteHash })
   const { writeContract: writeExpiredRefund, data: expiredHash, isPending: expiredPending } = useWriteContract()
   const { isLoading: expiredConfirming, isSuccess: expiredSuccess } = useWaitForTransactionReceipt({ hash: expiredHash })
+
+  // Accept / Decline invite
+  const { writeContract: writeAccept, data: acceptHash, isPending: acceptPending } = useWriteContract()
+  const { isLoading: acceptConfirming, isSuccess: acceptSuccess } = useWaitForTransactionReceipt({ hash: acceptHash })
+  const { writeContract: writeDecline, data: declineHash, isPending: declinePending } = useWriteContract()
+  const { isLoading: declineConfirming, isSuccess: declineSuccess } = useWaitForTransactionReceipt({ hash: declineHash })
+  const handleAccept = useCallback(() => { if (ensureChain()) writeAccept({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'acceptInvite', args: [bill.id] }) }, [ensureChain, bill.id, writeAccept])
+  const handleDecline = useCallback(() => { if (ensureChain()) writeDecline({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'rejectInvite', args: [bill.id] }) }, [ensureChain, bill.id, writeDecline])
+  if (acceptSuccess) { refetch(); toast.success('Bill accepted — it will appear in your active bills') }
+  if (declineSuccess) { refetch(); toast.success('Bill declined and removed') }
+
+  // Add Participant (creator only)
+  const [showAddParticipant, setShowAddParticipant] = useState(false)
+  const [newParticipantAddr, setNewParticipantAddr] = useState('')
+  const [newParticipantAmt, setNewParticipantAmt] = useState('')
+  const { writeContract: writeAddParticipant, data: addPartHash, isPending: addPartPending } = useWriteContract()
+  const { isLoading: addPartConfirming, isSuccess: addPartSuccess } = useWaitForTransactionReceipt({ hash: addPartHash })
+  const handleAddParticipant = useCallback(() => {
+    if (!ensureChain()) return
+    const amt = parseFloat(newParticipantAmt)
+    if (!newParticipantAddr.startsWith('0x') || isNaN(amt) || amt <= 0) { toast.error('Enter a valid address and amount'); return }
+    const amtRaw = parseUnits(amt.toFixed(usdcDecimalsFor(CHAIN_ID)), usdcDecimalsFor(CHAIN_ID))
+    writeAddParticipant({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'addParticipant', args: [bill.id, newParticipantAddr as `0x${string}`, amtRaw] })
+  }, [ensureChain, bill.id, newParticipantAddr, newParticipantAmt, writeAddParticipant])
+  if (addPartSuccess) { refetch(); setShowAddParticipant(false); setNewParticipantAddr(''); setNewParticipantAmt(''); toast.success('Participant added — invite sent') }
 
   const { data: payoutClaimableRaw } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'payoutClaimable', args: [bill.id], chainId: CHAIN_ID })
   const payoutClaimableAmt = (payoutClaimableRaw as bigint | undefined) ?? 0n
@@ -533,10 +560,43 @@ function BillCard({ bill, refetch }: { bill: BillSummary; refetch: () => void })
             </div>
           )}
 
+          {/* ── Invite banner (pending status) ── */}
+          {myParticipantStatus === 0 && bill.status === 0 && (
+            <div className="rounded-2xl p-4 flex flex-col gap-3" style={{ background: 'linear-gradient(135deg,rgba(79,110,247,0.10),rgba(79,110,247,0.04))', border: '1px solid rgba(79,110,247,0.25)' }}>
+              <div className="flex items-start gap-3">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-xl" style={{ background: 'var(--accent)' }}>
+                  <Bell className="size-4" style={{ color: '#fff' }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold" style={{ color: 'var(--ink)' }}>You've been invited to this bill</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
+                    Accept to join and pay your share, or decline to remove yourself.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={handleDecline}
+                  disabled={declinePending || declineConfirming}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-semibold disabled:opacity-40"
+                  style={{ background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid transparent' }}>
+                  {declinePending || declineConfirming ? <Loader2 className="size-3.5 animate-spin" /> : <X className="size-3.5" />}
+                  Decline
+                </button>
+                <button onClick={handleAccept}
+                  disabled={acceptPending || acceptConfirming}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-bold disabled:opacity-40"
+                  style={{ background: 'var(--accent)', color: '#fff' }}>
+                  {acceptPending || acceptConfirming ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
+                  Accept
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Action buttons */}
           <div className="flex flex-col gap-2">
             {/* My unpaid share — open pay sheet */}
-            {address && bill.status === 0 && myShare && !myFullyPaid && !isLate && (
+            {address && bill.status === 0 && myShare && !myFullyPaid && !isLate && myParticipantStatus === 1 && (
               <button onClick={() => setShowPaySheet(true)}
                 className="w-full flex items-center justify-between rounded-2xl px-4 py-3 transition-all hover:scale-[1.01] active:scale-[0.99]"
                 style={{ background: 'var(--accent-light)', border: '1px solid rgba(45,216,122,0.20)' }}>
@@ -647,6 +707,53 @@ function BillCard({ bill, refetch }: { bill: BillSummary; refetch: () => void })
                     )
                   })}
 
+                  {/* Add Participant — creator only */}
+                  {bill.status === 0 && isCreator && (
+                    <div className="rounded-xl px-3 py-2.5 flex flex-col gap-2" style={glass.inner}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <UserPlus className="size-3.5" style={{ color: 'var(--accent)' }} />
+                          <p className="text-xs font-semibold" style={{ color: 'var(--ink-2)' }}>Add participant</p>
+                        </div>
+                        <button onClick={() => setShowAddParticipant(v => !v)}
+                          className="text-xs font-semibold px-2 py-1 rounded-lg"
+                          style={{ background: showAddParticipant ? 'var(--danger-bg)' : 'var(--accent-light)', color: showAddParticipant ? 'var(--danger)' : 'var(--accent)' }}>
+                          {showAddParticipant ? 'Cancel' : 'Add'}
+                        </button>
+                      </div>
+                      {showAddParticipant && (
+                        <div className="flex flex-col gap-2">
+                          <input
+                            value={newParticipantAddr}
+                            onChange={e => setNewParticipantAddr(e.target.value.trim())}
+                            placeholder="Wallet address (0x…)"
+                            className="mono w-full rounded-xl px-3 py-2 text-xs outline-none"
+                            style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--ink)' }}
+                          />
+                          <div className="flex gap-2">
+                            <input
+                              inputMode="decimal"
+                              value={newParticipantAmt}
+                              onChange={e => setNewParticipantAmt(e.target.value.replace(/[^0-9.]/g, ''))}
+                              placeholder="Share amount (USDC)"
+                              className="flex-1 rounded-xl px-3 py-2 text-xs outline-none"
+                              style={{ background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--ink)' }}
+                            />
+                            <button onClick={handleAddParticipant}
+                              disabled={addPartPending || addPartConfirming}
+                              className="rounded-xl px-3 py-2 text-xs font-bold disabled:opacity-40"
+                              style={{ background: 'var(--accent)', color: '#fff' }}>
+                              {addPartPending || addPartConfirming ? <Loader2 className="size-3 animate-spin inline" /> : 'Send invite'}
+                            </button>
+                          </div>
+                          <p className="text-[10px]" style={{ color: 'var(--muted)' }}>
+                            The bill total will increase by this amount. The participant must accept the invite within 24 hours.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Request cancellation */}
                   {bill.status === 0 && (isCreator || myShare) && (
                     <div className="flex items-center justify-between rounded-xl px-3 py-2.5" style={glass.inner}>
@@ -683,15 +790,23 @@ function BillCard({ bill, refetch }: { bill: BillSummary; refetch: () => void })
 }
 
 // ─── Bill loader ──────────────────────────────────────────────────────────────
-function BillLoader({ id, refetch, filter, address: walletAddr, onVisible }: {
+function BillLoader({ id, refetch, filter, address: walletAddr, onVisible, onInvite }: {
   id: bigint; refetch: () => void
-  filter: 'all' | 'created' | 'owe' | 'done'
+  filter: 'all' | 'created' | 'owe' | 'done' | 'invites'
   address?: `0x${string}`
   onVisible?: (id: bigint) => void
+  onInvite?: (id: bigint) => void
 }) {
   const { data: billData } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getBill', args: [id], chainId: CHAIN_ID })
   const { data: sharesData } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getShares', args: [id], chainId: CHAIN_ID })
   const { data: metaData } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getBillMeta', args: [id], chainId: CHAIN_ID })
+  const { data: myStatusRaw } = useReadContract({
+    address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getParticipantStatus',
+    args: walletAddr ? [id, walletAddr] : undefined,
+    query: { enabled: !!walletAddr }, chainId: CHAIN_ID,
+  })
+  const myStatus = (myStatusRaw as ParticipantStatus | undefined)
+
   if (!billData || !sharesData) return (
     <div className="rounded-2xl h-32 animate-pulse" style={{ background: 'var(--surface-muted)' }} />
   )
@@ -709,18 +824,29 @@ function BillLoader({ id, refetch, filter, address: walletAddr, onVisible }: {
     const isPayee  = payee.toLowerCase() === addr
     const isParticipant = shares.some(s => s.participant.toLowerCase() === addr)
     if (!isCreator && !isPayee && !isParticipant) return null
+
+    const isPending = myStatus === 0 && isParticipant && !isCreator
+
     // Sub-filter within member bills
-    if (filter !== 'all') {
+    if (filter === 'invites') {
+      if (!isPending) return null
+      onInvite?.(id)
+    } else if (filter !== 'all') {
+      // Hide pending invites from All / I Owe / Created tabs
+      if (isPending) return null
       const isDone = status === 1 || status === 2
       if (filter === 'created' && !isCreator) return null
       if (filter === 'owe' && (!isParticipant || isDone)) return null
       if (filter === 'done' && !isDone) return null
+    } else {
+      // 'all' tab: hide pending invites (they live in Invites tab only)
+      if (isPending) return null
     }
     // Notify parent that this bill is visible (parent deduplicates)
-    onVisible?.(id)
+    if (filter !== 'invites') onVisible?.(id)
   }
 
-  return <BillCard bill={bill} refetch={refetch} />
+  return <BillCard bill={bill} refetch={refetch} myParticipantStatus={myStatus} />
 }
 
 // ─── Receive View ─────────────────────────────────────────────────────────────
@@ -998,8 +1124,9 @@ export default function App() {
   })
 
   const [showCreate, setShowCreate] = useState(false)
-  const [filter, setFilter] = useState<'all' | 'created' | 'owe' | 'done'>('all')
+  const [filter, setFilter] = useState<'all' | 'created' | 'owe' | 'done' | 'invites'>('all')
   const [owedBillCount, setOwedBillCount] = useState(0)
+  const [inviteBillCount, setInviteBillCount] = useState(0)
   // Parse prefilled params from URL
   const urlParams = useMemo(() => new URLSearchParams(window.location.search), [])
   const prefilledTo = urlParams.get('to')
@@ -1019,6 +1146,15 @@ export default function App() {
     if (visibleBillIds.current.has(key)) return
     visibleBillIds.current.add(key)
     setUserBillCount(visibleBillIds.current.size)
+  }, [address])
+
+  // Track invite count
+  const inviteBillIds = useRef(new Set<string>())
+  const handleInviteBill = useCallback((id: bigint) => {
+    const key = `${address ?? ''}:${id.toString()}`
+    if (inviteBillIds.current.has(key)) return
+    inviteBillIds.current.add(key)
+    setInviteBillCount(inviteBillIds.current.size)
   }, [address])
 
   // When a deep-link bill arrives, scroll to it once bills are loaded
@@ -1269,7 +1405,8 @@ export default function App() {
                           { id: 'created', label: 'Created', icon: PenLine         },
                           { id: 'owe',     label: 'I Owe',   icon: ArrowDownCircle, badge: owedBillCount },
                           { id: 'done',    label: 'Done',    icon: CircleCheckBig  },
-                        ] as Array<{ id: 'all'|'created'|'owe'|'done', label: string, icon: React.ElementType, badge?: number }>).map(({ id: f, label: fl, icon: FilterIcon, badge }) => (
+                          { id: 'invites', label: 'Invites', icon: Bell,            badge: inviteBillCount },
+                        ] as Array<{ id: 'all'|'created'|'owe'|'done'|'invites', label: string, icon: React.ElementType, badge?: number }>).map(({ id: f, label: fl, icon: FilterIcon, badge }) => (
                           <button key={f} onClick={() => setFilter(f)}
                             className="relative flex items-center gap-1.5 shrink-0 rounded-2xl px-4 py-2 text-xs font-semibold transition-all hover:scale-105"
                             style={{
@@ -1354,7 +1491,7 @@ export default function App() {
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ duration: 0.22, delay: i * 0.04 }}
                           style={deepLinkBillId === id ? { outline: '2px solid var(--accent)', outlineOffset: 3, borderRadius: 14 } : {}}>
-                          <BillLoader id={id} refetch={refetch} filter={filter} address={address} onVisible={handleBillVisible} />
+                          <BillLoader id={id} refetch={refetch} filter={filter} address={address} onVisible={handleBillVisible} onInvite={handleInviteBill} />
                         </motion.div>
                       ))}
                     </div>
