@@ -44,7 +44,7 @@ const CHAIN_ID = arcChain.id
 //     contracts/HouseholdBillSplitter.sol:HouseholdBillSplitter \
 //     --constructor-args 0x3600000000000000000000000000000000000000
 // Then replace REPLACE_WITH_MAINNET_CONTRACT_ADDRESS below with the deployed address.
-const TESTNET_CONTRACT = '0xdb58ca32df331cf4729ee8668d19cc254f2d9326' as const
+const TESTNET_CONTRACT = '0x9c87ba9e35c1b986ab97174e1192badf44fb03a5' as const
 const MAINNET_CONTRACT = '0x8cd4db9811d7beda48f18c34e92f0eb5baa9dfb2' as const
 const CONTRACT_ADDRESS  = (IS_MAINNET ? MAINNET_CONTRACT : TESTNET_CONTRACT) as `0x${string}`
 const CONTRACT_ABI = artifact.abi
@@ -420,6 +420,112 @@ function ShareBillButton({ billId }: { billId: bigint }) {
   )
 }
 
+// ─── Participant Row ──────────────────────────────────────────────────────────
+// Reads per-participant invite status and timestamp from the contract so it can
+// show a pending badge + countdown + "Remove" button (creator only, after 24 h).
+function ParticipantRow({ billId, share, isMe, isCreator, billActive, fullyPaid, pct, late, now, isExpiring, expirePending, onExpire }: {
+  billId: bigint
+  share: Share
+  isMe: boolean
+  isCreator: boolean
+  billActive: boolean
+  fullyPaid: boolean
+  pct: number
+  late: boolean
+  now: number
+  isExpiring: boolean
+  expirePending: boolean
+  onExpire: (p: `0x${string}`) => void
+}) {
+  const { data: statusRaw } = useReadContract({
+    address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getParticipantStatus',
+    args: [billId, share.participant], chainId: CHAIN_ID,
+  })
+  const { data: tsRaw } = useReadContract({
+    address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'inviteTimestamp',
+    args: [billId, share.participant], chainId: CHAIN_ID,
+  })
+
+  const status = statusRaw as ParticipantStatus | undefined
+  const inviteTs = tsRaw as bigint | undefined
+  const INVITE_EXPIRY_S = 24 * 60 * 60
+  const secondsLeft = inviteTs != null ? Math.max(0, Number(inviteTs) + INVITE_EXPIRY_S - now) : null
+  const isExpired = secondsLeft !== null && secondsLeft === 0
+  const isPending = status === 0
+  const isRejected = status === 2
+
+  function fmtCountdown(s: number) {
+    const h = Math.floor(s / 3600)
+    const m = Math.floor((s % 3600) / 60)
+    if (h > 0) return `${h}h ${m}m left`
+    return `${m}m left`
+  }
+
+  const barColor = isRejected ? 'var(--danger)' : isPending ? 'var(--warning, #f59e0b)' : fullyPaid ? 'var(--success)' : late ? 'var(--danger)' : 'var(--accent)'
+
+  return (
+    <div className="rounded-xl px-3 py-2.5" style={glass.inner}>
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          {isRejected
+            ? <XCircle className="size-3.5 shrink-0" style={{ color: 'var(--danger)' }} />
+            : isPending
+              ? <Clock className="size-3.5 shrink-0" style={{ color: 'var(--warning, #f59e0b)' }} />
+              : fullyPaid
+                ? <CheckCircle2 className="size-3.5 shrink-0" style={{ color: 'var(--success)' }} />
+                : late
+                  ? <AlertTriangle className="size-3.5 shrink-0" style={{ color: 'var(--danger)' }} />
+                  : <Clock className="size-3.5 shrink-0" style={{ color: 'var(--subtle)' }} />}
+          <span className="mono text-xs truncate" style={{ color: isMe ? 'var(--accent)' : 'var(--ink-2)' }}>
+            {isMe ? 'You' : fmtAddr(share.participant)}
+          </span>
+          {isPending && (
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
+              style={{ background: 'rgba(245,158,11,0.12)', color: 'var(--warning, #f59e0b)' }}>
+              {isExpired ? 'Expired' : 'Pending'}
+            </span>
+          )}
+          {isRejected && (
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
+              style={{ background: 'var(--danger-bg)', color: 'var(--danger)' }}>
+              Declined
+            </span>
+          )}
+          {late && !isPending && !isRejected && <span className="text-xs font-bold shrink-0" style={{ color: 'var(--danger)' }}>LATE</span>}
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Countdown for pending invites */}
+          {isPending && secondsLeft !== null && secondsLeft > 0 && (
+            <span className="text-[10px] tabular-nums" style={{ color: 'var(--muted)' }}>
+              {fmtCountdown(secondsLeft)}
+            </span>
+          )}
+          {/* Expire button — creator only, after 24h */}
+          {billActive && isCreator && isPending && isExpired && (
+            <button
+              onClick={() => onExpire(share.participant)}
+              disabled={expirePending}
+              className="text-[10px] font-bold px-2 py-1 rounded-lg disabled:opacity-40"
+              style={{ background: 'var(--danger-bg)', color: 'var(--danger)' }}>
+              {isExpiring && expirePending ? <Loader2 className="size-3 animate-spin inline" /> : 'Remove'}
+            </button>
+          )}
+          {!isPending && !isRejected && (
+            <span className="mono text-xs tabular-nums" style={{ color: fullyPaid ? 'var(--success)' : 'var(--ink-2)' }}>
+              {fmt(share.contributed)}/{fmt(share.amount)}
+            </span>
+          )}
+        </div>
+      </div>
+      <div className="h-1 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
+        <div className="h-full rounded-full transition-all duration-500"
+          style={{ width: isPending || isRejected ? '100%' : `${pct}%`, background: barColor, opacity: isPending || isRejected ? 0.35 : 1 }} />
+      </div>
+    </div>
+  )
+}
+
 // ─── Bill Card ────────────────────────────────────────────────────────────────
 function BillCard({ bill, refetch, myParticipantStatus }: { bill: BillSummary; refetch: () => void; myParticipantStatus?: ParticipantStatus }) {
   const { address, chainId } = useAccount()
@@ -454,6 +560,17 @@ function BillCard({ bill, refetch, myParticipantStatus }: { bill: BillSummary; r
   const handleDecline = useCallback(() => { if (ensureChain()) writeDecline({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'rejectInvite', args: [bill.id] }) }, [ensureChain, bill.id, writeDecline])
   if (acceptSuccess) { refetch(); toast.success('Bill accepted — it will appear in your active bills') }
   if (declineSuccess) { refetch(); toast.success('Bill declined and removed') }
+
+  // Expire invite (creator only — removes participant after 24h with no response)
+  const { writeContract: writeExpire, data: expireHash, isPending: expirePending } = useWriteContract()
+  const { isLoading: expireConfirming, isSuccess: expireSuccess } = useWaitForTransactionReceipt({ hash: expireHash })
+  const [expiringParticipant, setExpiringParticipant] = useState<`0x${string}` | null>(null)
+  const handleExpireInvite = useCallback((participant: `0x${string}`) => {
+    if (!ensureChain()) return
+    setExpiringParticipant(participant)
+    writeExpire({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'expireInvite', args: [bill.id, participant] })
+  }, [ensureChain, bill.id, writeExpire])
+  if (expireSuccess) { refetch(); setExpiringParticipant(null); toast.success('Expired invite removed — participant and their share removed from bill') }
 
   // Add Participant (creator only)
   const [showAddParticipant, setShowAddParticipant] = useState(false)
@@ -683,27 +800,21 @@ function BillCard({ bill, refetch, myParticipantStatus }: { bill: BillSummary; r
                     const late = bill.deadline > 0n && now > Number(bill.deadline) && !fullyPaid && bill.status === 0
                     const isMe = s.participant.toLowerCase() === address?.toLowerCase()
                     return (
-                      <div key={i} className="rounded-xl px-3 py-2.5" style={glass.inner}>
-                        <div className="flex items-center justify-between mb-1.5">
-                          <div className="flex items-center gap-2">
-                            {fullyPaid
-                              ? <CheckCircle2 className="size-3.5" style={{ color: 'var(--success)' }} />
-                              : late ? <AlertTriangle className="size-3.5" style={{ color: 'var(--danger)' }} />
-                                     : <Clock className="size-3.5" style={{ color: 'var(--subtle)' }} />}
-                            <span className="mono text-xs" style={{ color: isMe ? 'var(--accent)' : 'var(--ink-2)' }}>
-                              {isMe ? 'You' : fmtAddr(s.participant)}
-                            </span>
-                            {late && <span className="text-xs font-bold" style={{ color: 'var(--danger)' }}>LATE</span>}
-                          </div>
-                          <span className="mono text-xs tabular-nums" style={{ color: fullyPaid ? 'var(--success)' : 'var(--ink-2)' }}>
-                            {fmt(s.contributed)}/{fmt(s.amount)}
-                          </span>
-                        </div>
-                        <div className="h-1 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
-                          <div className="h-full rounded-full transition-all duration-500"
-                            style={{ width: `${pct}%`, background: fullyPaid ? 'var(--success)' : late ? 'var(--danger)' : 'var(--accent)' }} />
-                        </div>
-                      </div>
+                      <ParticipantRow
+                        key={i}
+                        billId={bill.id}
+                        share={s}
+                        isMe={isMe}
+                        isCreator={isCreator}
+                        billActive={bill.status === 0}
+                        fullyPaid={fullyPaid}
+                        pct={pct}
+                        late={late}
+                        now={now}
+                        isExpiring={expiringParticipant === s.participant}
+                        expirePending={expirePending || expireConfirming}
+                        onExpire={handleExpireInvite}
+                      />
                     )
                   })}
 
@@ -800,15 +911,13 @@ function BillLoader({ id, refetch, filter, address: walletAddr, onVisible, onInv
   const { data: billData } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getBill', args: [id], chainId: CHAIN_ID })
   const { data: sharesData } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getShares', args: [id], chainId: CHAIN_ID })
   const { data: metaData } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getBillMeta', args: [id], chainId: CHAIN_ID })
-  const { data: myStatusRaw, isError: myStatusError, isFetched: myStatusFetched } = useReadContract({
+  const { data: myStatusRaw } = useReadContract({
     address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getParticipantStatus',
     args: walletAddr ? [id, walletAddr] : undefined,
-    query: { enabled: !!walletAddr, retry: false }, chainId: CHAIN_ID,
+    query: { enabled: !!walletAddr }, chainId: CHAIN_ID,
   })
-  // If the contract doesn't support getParticipantStatus (reverts), treat everyone as Accepted (1).
-  // myStatusSettled = true once we have a result OR a confirmed error — never block on it.
-  const myStatusSettled = myStatusFetched || myStatusError
-  const myStatus: ParticipantStatus = myStatusError || myStatusRaw === undefined ? 1 : (myStatusRaw as ParticipantStatus)
+  const myStatus = (myStatusRaw as ParticipantStatus | undefined)
+  const myStatusLoaded = myStatusRaw !== undefined
 
   if (!billData || !sharesData) return (
     <div className="rounded-2xl h-32 animate-pulse" style={{ background: 'var(--surface-muted)' }} />
@@ -828,9 +937,8 @@ function BillLoader({ id, refetch, filter, address: walletAddr, onVisible, onInv
     const isParticipant = shares.some(s => s.participant.toLowerCase() === addr)
     if (!isCreator && !isPayee && !isParticipant) return null
 
-    // Wait for participant status to settle (success OR confirmed error) before filtering.
-    // This prevents a race where undefined status lets a Pending invite slip through to "I Owe".
-    if (isParticipant && !isCreator && !myStatusSettled) {
+    // Wait for participant status before filtering to avoid race where Pending slips into "I Owe"
+    if (isParticipant && !isCreator && !myStatusLoaded) {
       return <div className="rounded-2xl h-32 animate-pulse" style={{ background: 'var(--surface-muted)' }} />
     }
 
@@ -976,15 +1084,13 @@ function BillParticipantChecker({ id, walletAddr, onResult }: {
 }) {
   const { data: billData } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getBill', args: [id], chainId: CHAIN_ID })
   const { data: sharesData } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getShares', args: [id], chainId: CHAIN_ID })
-  const { data: myStatusRaw, isError: myStatusError, isFetched: myStatusFetched } = useReadContract({
+  const { data: myStatusRaw } = useReadContract({
     address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getParticipantStatus',
     args: [id, walletAddr as `0x${string}`], chainId: CHAIN_ID,
-    query: { retry: false },
   })
   const notified = useRef(false)
   useEffect(() => {
-    // Settle once we have data OR a confirmed error (contract doesn't support the function)
-    if (!billData || !sharesData || (!myStatusFetched && !myStatusError) || notified.current) return
+    if (!billData || !sharesData || myStatusRaw === undefined || notified.current) return
     const bd = billData as unknown[]
     const creator = (bd[0] as string).toLowerCase()
     const status = bd[4] as number
@@ -993,8 +1099,7 @@ function BillParticipantChecker({ id, walletAddr, onResult }: {
     const myShare = shares.find(s => s.participant.toLowerCase() === addr)
     if (!myShare) return
     const isCreator = creator === addr
-    // If contract reverts, treat as Accepted (no invite system on this deployment)
-    const participantStatus = myStatusError ? 1 : (myStatusRaw as number ?? 1)
+    const participantStatus = myStatusRaw as number // 0=Pending, 1=Accepted, 2=Rejected
     const isPendingInvite = !isCreator && participantStatus === 0
     // Only count as owed/active if participant has accepted
     const hasUnpaidShare = !isPendingInvite && status === 0 && myShare.contributed < myShare.amount
@@ -1002,7 +1107,7 @@ function BillParticipantChecker({ id, walletAddr, onResult }: {
     const isNewBill = !isCreator && participantStatus === 1
     notified.current = true
     onResult(id, isNewBill, hasUnpaidShare, isPendingInvite)
-  }, [billData, sharesData, myStatusRaw, myStatusError, myStatusFetched, walletAddr, id, onResult])
+  }, [billData, sharesData, myStatusRaw, walletAddr, id, onResult])
   return null
 }
 

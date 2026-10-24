@@ -21,6 +21,7 @@ A USDC-based household bill splitter. One person creates a bill with a total amo
 | HouseholdBillSplitter v5 (redirect hardened) | Arc Testnet | 0x037d5866d485bdfc2106dc0655b7ffd5227adef4 | https://explorer.testnet.arc.io/address/0x037d5866d485bdfc2106dc0655b7ffd5227adef4 |
 | HouseholdBillSplitter v6 (label + share link + security) | Arc Testnet | 0xaed607435d81685d35682b9ed829e04888617db5 | https://explorer.testnet.arc.io/address/0xaed607435d81685d35682b9ed829e04888617db5 |
 | HouseholdBillSplitter v7 (full security hardening: vote-change, recoverToken, redirect window, split-vote) | Arc Testnet | 0xdb58ca32df331cf4729ee8668d19cc254f2d9326 | https://explorer.testnet.arc.io/address/0xdb58ca32df331cf4729ee8668d19cc254f2d9326 |
+| HouseholdBillSplitter v8-testnet (invite/consent system: acceptInvite, rejectInvite, expireInvite, getParticipantStatus, 24h auto-expire) | Arc Testnet | 0x9c87ba9e35c1b986ab97174e1192badf44fb03a5 | https://explorer.testnet.arc.io/address/0x9c87ba9e35c1b986ab97174e1192badf44fb03a5 |
 
 | HouseholdBillSplitter v8 (mainnet, wrong USDC — superseded) | Arc Mainnet | 0x1C0ae34b80084EdC3F620c074f80b902eb310ad3 | https://explorer.arc.io/address/0x1C0ae34b80084EdC3F620c074f80b902eb310ad3 |
 | HouseholdBillSplitter v9 (mainnet, correct USDC 0x3600 — superseded) | Arc Mainnet | 0xCEcb3C47CbD643B14b25D38ec4DB62dBcC6A4e3F | https://explorer.arc.io/address/0xCEcb3C47CbD643B14b25D38ec4DB62dBcC6A4e3F |
