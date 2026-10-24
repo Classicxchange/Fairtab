@@ -121,6 +121,13 @@ export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
   const [recurring, setRecurring] = useState(draft?.recurring ?? false)
   const [recurDays, setRecurDays] = useState(draft?.recurDays ?? '30')
   const [rows, setRows] = useState<ParticipantRow[]>(draft?.rows ?? [{ address: '', value: '' }, { address: '', value: '' }])
+
+  // Derive effective rows: always inject creator address into row 0 if still blank
+  // This avoids setState-in-effect; address is stable once connected
+  const effectiveRows = useMemo(() => {
+    if (!address || rows[0]?.address) return rows
+    return rows.map((r, i) => i === 0 ? { ...r, address } : r)
+  }, [rows, address])
   // Mirror contract: cancelThreshold >= ceil(participants * 51/100), minimum 1
   const minCancelThreshold = Math.max(1, Math.ceil(rows.length * 51 / 100))
   const [cancelThreshold, setCancelThreshold] = useState(() => {
@@ -176,10 +183,10 @@ export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
   const buildArgs = useCallback(() => {
     const dec = usdcDecimalsFor(CHAIN_ID)
     const totalRaw = parseUnits(totalAmount, dec)
-    const participants = rows.map(r => r.address as `0x${string}`)
+    const participants = effectiveRows.map(r => r.address as `0x${string}`)
     const amounts: bigint[] = usePercentages
-      ? rows.map(r => BigInt(Math.round(parseFloat(r.value || '0'))))
-      : rows.map(r => { const v = parseFloat(r.value || '0'); return parseUnits(v.toFixed(dec), dec) })
+      ? effectiveRows.map(r => BigInt(Math.round(parseFloat(r.value || '0'))))
+      : effectiveRows.map(r => { const v = parseFloat(r.value || '0'); return parseUnits(v.toFixed(dec), dec) })
     const labelStr = selectedCategory
       ? `${selectedCategory} ${billLabel}`.trim().slice(0, 32)
       : billLabel
@@ -188,9 +195,9 @@ export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
       payee as `0x${string}`, participants, amounts, usePercentages,
       deadline ? BigInt(Math.floor(new Date(deadline).getTime() / 1000)) : 0n,
       recurring, recurring ? BigInt(parseInt(recurDays) * 86400) : 0n,
-      Math.max(minCancelThreshold, Math.min(rows.length, parseInt(cancelThreshold) || minCancelThreshold)),
+      Math.max(minCancelThreshold, Math.min(effectiveRows.length, parseInt(cancelThreshold) || minCancelThreshold)),
     ] as const
-  }, [totalAmount, rows, usePercentages, selectedCategory, billLabel, payee, deadline, recurring, recurDays, cancelThreshold, minCancelThreshold])
+  }, [totalAmount, effectiveRows, usePercentages, selectedCategory, billLabel, payee, deadline, recurring, recurDays, cancelThreshold, minCancelThreshold])
 
   // Seed wallet: sign + broadcast via viem directly
   const handleSeedCreate = useCallback(async () => {
@@ -221,7 +228,7 @@ export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
   const handleCreate = useCallback(() => {
     if (!address || !totalAmount || !payee) return
     if (!isAddress(payee)) { toast.error('Payee is not a valid address'); return }
-    const invalidIdx = rows.findIndex(r => !isAddress(r.address))
+    const invalidIdx = effectiveRows.findIndex(r => !isAddress(r.address))
     if (invalidIdx >= 0) { toast.error(`Participant ${invalidIdx + 1} has an invalid address`); return }
     if (seedSession?.privateKey) {
       // Build calldata for gas estimation, then show confirmation modal
@@ -235,11 +242,11 @@ export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
       address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'createBill',
       args: buildArgs(),
     })
-  }, [address, wrongChain, switchChain, payee, totalAmount, rows, seedSession, buildArgs, writeContract])
+  }, [address, wrongChain, switchChain, payee, totalAmount, effectiveRows, seedSession, buildArgs, writeContract])
 
   // Step validation
   const step1Valid = billLabel.length > 0 && totalAmount !== '' && parseFloat(totalAmount) > 0
-  const step2Valid = isAddress(payee) && rows.every(r => isAddress(r.address)) && rows.every(r => r.value !== '')
+  const step2Valid = isAddress(payee) && effectiveRows.every(r => isAddress(r.address)) && effectiveRows.every(r => r.value !== '')
   const dec = usdcDecimalsFor(CHAIN_ID)
   const totalRaw = useMemo(() => {
     try { return parseUnits(parseFloat(totalAmount || '0').toFixed(dec), dec) } catch { return 0n }
@@ -247,14 +254,14 @@ export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
   const allocatedRaw = useMemo(() => {
     if (usePercentages) return null
     try {
-      return rows.reduce((sum, r) => {
+      return effectiveRows.reduce((sum, r) => {
         const v = parseFloat(r.value || '0')
         return sum + parseUnits(v.toFixed(dec), dec)
       }, 0n)
     } catch { return null }
-  }, [rows, usePercentages, dec])
+  }, [effectiveRows, usePercentages, dec])
   const allocationMatch = !allocatedRaw || allocatedRaw === totalRaw
-  const totalBps = usePercentages ? rows.reduce((s, r) => s + parseFloat(r.value || '0'), 0) : 0
+  const totalBps = usePercentages ? effectiveRows.reduce((s, r) => s + parseFloat(r.value || '0'), 0) : 0
 
   // ── Success state ──────────────────────────────────────────────────────────
   if (isSuccess) {
@@ -586,17 +593,25 @@ export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  {rows.map((row, i) => (
+                  {effectiveRows.map((row, i) => {
+                    const isCreatorRow = i === 0 && address && row.address.toLowerCase() === address.toLowerCase()
+                    return (
                     <div key={i} className="flex items-center gap-2 rounded-2xl overflow-hidden" style={glass.inner}>
                       <div className="flex size-8 shrink-0 ml-3 items-center justify-center rounded-full text-xs font-bold"
-                        style={{ background: 'var(--surface)', color: 'var(--accent)', border: '1px solid var(--border)' }}>
-                        {i + 1}
+                        style={{ background: isCreatorRow ? 'var(--accent)' : 'var(--surface)', color: isCreatorRow ? '#fff' : 'var(--accent)', border: '1px solid var(--border)' }}>
+                        {isCreatorRow ? 'You' : i + 1}
                       </div>
                       <div className="flex-1 py-3 pr-1">
-                        <input value={row.address} onChange={e => updateRow(i, 'address', e.target.value)}
-                          placeholder={`0x… wallet ${i + 1}`}
-                          className="mono w-full bg-transparent text-xs outline-none placeholder:opacity-30"
-                          style={{ color: row.address && !isAddress(row.address) ? 'var(--danger)' : 'var(--ink)' }} />
+                        {isCreatorRow ? (
+                          <p className="mono w-full text-xs truncate" style={{ color: 'var(--subtle)' }}>
+                            {row.address}
+                          </p>
+                        ) : (
+                          <input value={row.address} onChange={e => updateRow(i, 'address', e.target.value)}
+                            placeholder={`0x… wallet ${i + 1}`}
+                            className="mono w-full bg-transparent text-xs outline-none placeholder:opacity-30"
+                            style={{ color: row.address && !isAddress(row.address) ? 'var(--danger)' : 'var(--ink)' }} />
+                        )}
                       </div>
                       <div className="w-28 border-l py-3 px-3" style={{ borderColor: 'var(--border)' }}>
                         <input inputMode="decimal" value={row.value}
@@ -608,14 +623,14 @@ export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
                           {usePercentages ? 'bps' : 'USDC'}
                         </p>
                       </div>
-                      {rows.length > 1 && (
+                      {rows.length > 1 && !isCreatorRow && (
                         <button onClick={() => removeRow(i)} className="pr-3 pl-1"
                           style={{ color: 'var(--danger)' }}>
                           <XCircle className="size-4" />
                         </button>
                       )}
                     </div>
-                  ))}
+                  )})}  
                 </div>
 
                 {/* Allocation summary */}
@@ -720,10 +735,13 @@ export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
                 <div className="px-5 pb-4" style={{ borderTop: '1px solid var(--border)' }}>
                   <p className="text-xs font-semibold uppercase tracking-widest pt-3 mb-2" style={{ color: 'var(--muted)' }}>Participants</p>
                   <div className="flex flex-col gap-1.5">
-                    {rows.map((r, i) => (
+                    {effectiveRows.map((r, i) => (
                       <div key={i} className="flex items-center justify-between">
                         <span className="mono text-xs" style={{ color: 'var(--ink-2)' }}>
                           {r.address.slice(0,6)}…{r.address.slice(-4)}
+                          {i === 0 && address && r.address.toLowerCase() === address.toLowerCase() && (
+                            <span className="ml-1 text-[10px]" style={{ color: 'var(--accent)' }}>(you)</span>
+                          )}
                         </span>
                         <span className="mono text-xs font-semibold tabular-nums" style={{ color: 'var(--ink)' }}>
                           {r.value} {usePercentages ? 'bps' : 'USDC'}

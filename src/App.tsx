@@ -679,8 +679,8 @@ function BillCard({ bill, refetch, myParticipantStatus, isOpen, onToggle }: {
             </div>
           )}
 
-          {/* ── Invite banner (pending status) ── */}
-          {myParticipantStatus === 0 && bill.status === 0 && (
+          {/* ── Invite banner (pending status — never shown to creator) ── */}
+          {myParticipantStatus === 0 && bill.status === 0 && !isCreator && (
             <div className="rounded-2xl p-4 flex flex-col gap-3" style={{ background: 'linear-gradient(135deg,rgba(79,110,247,0.10),rgba(79,110,247,0.04))', border: '1px solid rgba(79,110,247,0.25)' }}>
               <div className="flex items-start gap-3">
                 <div className="flex size-9 shrink-0 items-center justify-center rounded-xl" style={{ background: 'var(--accent)' }}>
