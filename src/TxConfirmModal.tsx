@@ -84,10 +84,19 @@ export function TxConfirmModal({ open, detail, fromAddress, isPending, onConfirm
       setGasEstimate(null)
       setGasLoading(true)
       try {
-        const [gas, gasPrice] = await Promise.all([
-          client.estimateGas({ account: estimateParams.from, to: estimateParams.to, data: estimateParams.data, value: estimateParams.value ?? 0n }),
-          client.getGasPrice(),
-        ])
+        const gasPrice = await client.getGasPrice()
+        let gas: bigint
+        try {
+          // eth_estimateGas can fail when the wallet balance is 0 (RPC simulates
+          // and rejects). Fall back to a conservative 200k gas limit which covers
+          // most contract writes on Arc.
+          gas = await client.estimateGas({
+            account: estimateParams.from, to: estimateParams.to,
+            data: estimateParams.data, value: estimateParams.value ?? 0n,
+          })
+        } catch {
+          gas = 200_000n
+        }
         if (!cancelled) setGasEstimate(fmtGas(gas * gasPrice))
       } catch {
         if (!cancelled) setGasEstimate('< 0.01 USDC')

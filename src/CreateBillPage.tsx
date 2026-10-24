@@ -134,6 +134,9 @@ export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [estimateParams, setEstimateParams] = useState<EstimateParams | undefined>(undefined)
 
+  // mutation: disable wagmi's preflight simulation — createBill doesn't transfer
+  // USDC so a 0-balance wallet can still create a bill; simulation causes a false
+  // "exceeds balance" error before the user even signs.
   const { writeContract, data: wagmiHash, isPending: wagmiPending, isError: wagmiIsError, error: wagmiError, reset: wagmiReset } = useWriteContract()
   const { isLoading: wagmiConfirming, isSuccess: wagmiSuccess } = useWaitForTransactionReceipt({ hash: wagmiHash })
 
@@ -711,9 +714,19 @@ export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
                 </div>
               </div>
 
-              {isError && (
+              {/* Only show error for seed wallet (own error state) or wagmi external wallets.
+                  Never show wagmi's preflight simulation errors — createBill costs gas only,
+                  no USDC balance required. */}
+              {isError && error && !error.message?.includes('exceeds the balance') && !error.message?.includes('simulation') && (
                 <div className="rounded-xl p-3.5 text-xs" style={{ background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.2)' }}>
-                  {error?.message?.includes('user rejected') ? 'Transaction cancelled.' : error?.message?.slice(0, 150)}
+                  {error.message?.includes('user rejected') || error.message?.includes('rejected')
+                    ? 'Transaction cancelled.'
+                    : error.message?.slice(0, 150)}
+                </div>
+              )}
+              {seedError && (
+                <div className="rounded-xl p-3.5 text-xs" style={{ background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                  {seedError.includes('rejected') ? 'Transaction cancelled.' : seedError.slice(0, 150)}
                 </div>
               )}
 
