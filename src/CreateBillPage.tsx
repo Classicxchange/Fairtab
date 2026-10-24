@@ -9,7 +9,7 @@ import {
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import type { SeedWalletSession } from '@/SeedWalletAuth'
-import { TxConfirmModal, type TxDetail } from '@/TxConfirmModal'
+import { TxConfirmModal, type TxDetail, type EstimateParams } from '@/TxConfirmModal'
 import { TokenUSDC } from '@web3icons/react'
 import {
   Plus, XCircle, CheckCircle2, Loader2, ExternalLink, Tag, Users,
@@ -132,6 +132,7 @@ export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
   const [seedSuccess, setSeedSuccess] = useState(false)
   const [seedError, setSeedError] = useState<string | null>(null)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [estimateParams, setEstimateParams] = useState<EstimateParams | undefined>(undefined)
 
   const { writeContract, data: wagmiHash, isPending: wagmiPending, isError: wagmiIsError, error: wagmiError, reset: wagmiReset } = useWriteContract()
   const { isLoading: wagmiConfirming, isSuccess: wagmiSuccess } = useWaitForTransactionReceipt({ hash: wagmiHash })
@@ -205,7 +206,9 @@ export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
     const invalidIdx = rows.findIndex(r => !isAddress(r.address))
     if (invalidIdx >= 0) { toast.error(`Participant ${invalidIdx + 1} has an invalid address`); return }
     if (seedSession?.privateKey) {
-      // Show confirmation modal before signing
+      // Build calldata for gas estimation, then show confirmation modal
+      const data = encodeFunctionData({ abi: CONTRACT_ABI, functionName: 'createBill', args: buildArgs() })
+      setEstimateParams({ from: address, to: CONTRACT_ADDRESS, data, value: 0n })
       setShowConfirmModal(true)
       return
     }
@@ -763,6 +766,7 @@ export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
           } satisfies TxDetail}
           onConfirm={() => { void handleSeedCreate() }}
           onCancel={() => setShowConfirmModal(false)}
+          estimateParams={estimateParams}
         />
       )}
     </motion.div>

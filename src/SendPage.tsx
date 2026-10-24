@@ -18,7 +18,7 @@ import { arcChain, IS_MAINNET } from '@/config'
 import type { Chain } from 'viem'
 import { type SeedWalletSession } from '@/SeedWalletAuth'
 import { privateKeyToAccount } from 'viem/accounts'
-import { TxConfirmModal, type TxDetail } from '@/TxConfirmModal'
+import { TxConfirmModal, type TxDetail, type EstimateParams } from '@/TxConfirmModal'
 
 const CHAIN_ID = arcChain.id
 const USDC_ADDRESS = getUsdc(CHAIN_ID)!.address as `0x${string}`
@@ -60,6 +60,7 @@ export function SendPage({ unifiedAddress, seedSession }: Props) {
   const [seedTxHash, setSeedTxHash] = useState<`0x${string}` | null>(null)
   const [step, setStep] = useState<'form' | 'confirm' | 'success'>('form')
   const [showTxModal, setShowTxModal] = useState(false)
+  const [txEstimateParams, setTxEstimateParams] = useState<EstimateParams | undefined>(undefined)
 
   const toValid = isAddress(to)
   const amountRaw = useMemo(() => {
@@ -231,7 +232,11 @@ export function SendPage({ unifiedAddress, seedSession }: Props) {
         </div>
 
         <button
-          onClick={seedSession ? () => setShowTxModal(true) : (needsApprove ? handleApprove : handleWagmiSend)}
+          onClick={seedSession ? () => {
+            const data = encodeFunctionData({ abi: erc20Abi, functionName: 'transfer', args: [to as `0x${string}`, amountRaw] })
+            setTxEstimateParams({ from: (unifiedAddress ?? wagmiAddress) as `0x${string}`, to: USDC_ADDRESS, data, value: 0n })
+            setShowTxModal(true)
+          } : (needsApprove ? handleApprove : handleWagmiSend)}
           disabled={busy || exceedsBalance}
           className="w-full flex items-center justify-center gap-2 rounded-2xl py-4 text-base font-bold transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ background: 'var(--accent)', color: '#fff', boxShadow: '0 4px 20px rgba(79,110,247,0.3)' }}>
@@ -416,6 +421,7 @@ export function SendPage({ unifiedAddress, seedSession }: Props) {
           } satisfies TxDetail}
           onConfirm={() => { void handleSeedSend() }}
           onCancel={() => setShowTxModal(false)}
+          estimateParams={txEstimateParams}
         />
       )}
     </motion.div>

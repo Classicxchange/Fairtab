@@ -1,11 +1,15 @@
 /**
  * TxConfirmModal — shown before a seed-wallet transaction is signed.
  * Mimics the "Confirm transaction" modal that MetaMask / ConnectKit shows.
+ * When `estimateParams` is provided, runs eth_estimateGas + eth_gasPrice
+ * on mount to show the real USDC gas cost (Arc native = USDC).
  */
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ShieldCheck, X, Loader2, AlertTriangle, ExternalLink } from 'lucide-react'
+import { ShieldCheck, X, Loader2, AlertTriangle, ExternalLink, Fuel } from 'lucide-react'
 import { TokenUSDC } from '@web3icons/react'
-import { IS_MAINNET } from '@/config'
+import { IS_MAINNET, arcChain } from '@/config'
+import { createPublicClient, http, type Chain } from 'viem'
 
 export interface TxDetail {
   /** Short action label, e.g. "Create bill", "Send USDC", "Pay share" */
@@ -20,6 +24,14 @@ export interface TxDetail {
   warning?: string
 }
 
+/** Params needed to run eth_estimateGas before signing */
+export interface EstimateParams {
+  from: `0x${string}`
+  to: `0x${string}`
+  data: `0x${string}`
+  value?: bigint
+}
+
 interface Props {
   open: boolean
   detail: TxDetail
@@ -28,6 +40,8 @@ interface Props {
   isPending: boolean
   onConfirm: () => void
   onCancel: () => void
+  /** When provided, the modal estimates gas and shows the USDC cost */
+  estimateParams?: EstimateParams
 }
 
 const glass = {
@@ -43,7 +57,48 @@ function fmtAddr(a: string) {
   return a.length > 12 ? `${a.slice(0, 8)}…${a.slice(-6)}` : a
 }
 
-export function TxConfirmModal({ open, detail, fromAddress, isPending, onConfirm, onCancel }: Props) {
+/** Format a gas cost in native Arc units (18 decimals) → USDC display (6 decimals) */
+function fmtGas(native: bigint): string {
+  // Arc native gas has 18 decimals; USDC display is 6 decimals.
+  // We divide by 1e12 to get the 6-decimal USDC value, then format it.
+  const usdc6 = native / 1_000_000_000_000n
+  const whole = usdc6 / 1_000_000n
+  const frac = usdc6 % 1_000_000n
+  const fracStr = frac.toString().padStart(6, '0').slice(0, 4).replace(/0+$/, '')
+  return fracStr ? `${whole}.${fracStr} USDC` : `${whole} USDC`
+}
+
+export function TxConfirmModal({ open, detail, fromAddress, isPending, onConfirm, onCancel, estimateParams }: Props) {
+  const [gasEstimate, setGasEstimate] = useState<string | null>(null)
+  const [gasLoading, setGasLoading] = useState(false)
+
+  useEffect(() => {
+    if (!open || !estimateParams) return
+    let cancelled = false
+    const viemChain = arcChain as unknown as Chain
+    const rpcUrl = (arcChain.rpcUrls as unknown as { default: { http: string[] } }).default.http[0]
+      ?? (IS_MAINNET ? 'https://rpc.mainnet.arc.io' : 'https://rpc.testnet.arc.io')
+    const client = createPublicClient({ chain: viemChain, transport: http(rpcUrl) })
+    const run = async () => {
+      if (cancelled) return
+      setGasEstimate(null)
+      setGasLoading(true)
+      try {
+        const [gas, gasPrice] = await Promise.all([
+          client.estimateGas({ account: estimateParams.from, to: estimateParams.to, data: estimateParams.data, value: estimateParams.value ?? 0n }),
+          client.getGasPrice(),
+        ])
+        if (!cancelled) setGasEstimate(fmtGas(gas * gasPrice))
+      } catch {
+        if (!cancelled) setGasEstimate('< 0.01 USDC')
+      } finally {
+        if (!cancelled) setGasLoading(false)
+      }
+    }
+    void run()
+    return () => { cancelled = true }
+  }, [open, estimateParams])
+
   return (
     <AnimatePresence>
       {open && (
@@ -115,7 +170,20 @@ export function TxConfirmModal({ open, detail, fromAddress, isPending, onConfirm
                 <Row label="From" value={fmtAddr(fromAddress)} mono />
                 {detail.to && <Row label="To" value={detail.to} mono />}
                 <Row label="Network" value={IS_MAINNET ? 'Arc Mainnet' : 'Arc Testnet'} accent />
-                <Row label="Gas fee" value="Paid in USDC" />
+                {/* Gas fee row — estimated or fallback */}
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-semibold uppercase tracking-widest flex items-center gap-1.5" style={{ color: 'var(--muted)' }}>
+                    <Fuel className="size-3" /> Gas fee
+                  </span>
+                  <span className="text-xs font-semibold tabular-nums" style={{ color: 'var(--ink)' }}>
+                    {gasLoading
+                      ? <span className="flex items-center gap-1"><Loader2 className="size-3 animate-spin" style={{ color: 'var(--subtle)' }} /> Estimating…</span>
+                      : gasEstimate
+                        ? <span>{gasEstimate}</span>
+                        : <span style={{ color: 'var(--muted)' }}>Paid in USDC</span>
+                    }
+                  </span>
+                </div>
                 {detail.rows?.map(r => <Row key={r.label} label={r.label} value={r.value} />)}
               </div>
 
