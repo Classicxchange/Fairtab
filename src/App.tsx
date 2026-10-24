@@ -693,7 +693,7 @@ function ReceiveView({ unifiedAddress }: { unifiedAddress?: `0x${string}` }) {
       <div className="rounded-2xl p-5 flex flex-col gap-3" style={glass.card}>
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Your address</span>
-          <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>Arc Testnet</span>
+          <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>{IS_MAINNET ? 'Arc Mainnet' : 'Arc Testnet'}</span>
         </div>
         {/* Visual address block */}
         <div className="rounded-xl p-4 flex flex-col gap-2" style={{ background: 'rgba(79,110,247,0.06)', border: '1px solid rgba(79,110,247,0.15)' }}>
@@ -906,18 +906,18 @@ export default function App() {
           boxShadow: 'var(--shadow-sm)',
           backdropFilter: 'blur(12px)',
         }}>
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3 gap-3">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 gap-2">
           {/* Logo */}
-          <div className="flex items-center gap-2.5 shrink-0">
-            <img src="/logo.svg" alt="Fairtab" className="size-9 rounded-xl" />
-            <div>
-              <span className="display text-base font-bold leading-none tracking-tight" style={{ color: 'var(--ink)' }}>Fairtab</span>
+          <div className="flex items-center gap-2 shrink-0 min-w-0">
+            <img src="/logo.svg" alt="Fairtab" className="size-8 shrink-0 rounded-xl" />
+            <div className="hidden xs:block">
+              <span className="display text-sm font-bold leading-none tracking-tight" style={{ color: 'var(--ink)' }}>Fairtab</span>
               <p className="text-[10px] leading-none mt-0.5 hidden sm:block" style={{ color: 'var(--subtle)' }}>powered by Arc</p>
             </div>
           </div>
 
           {/* Right controls */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 min-w-0">
             {wrongChain && address && (
               <span className="hidden sm:flex items-center gap-1.5 text-xs font-semibold rounded-full px-3 py-1.5"
                 style={{ background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-bg)' }}>
@@ -929,7 +929,7 @@ export default function App() {
               onClick={toggleDark}
               whileTap={{ scale: 0.88 }}
               className="flex items-center justify-center rounded-xl transition-colors"
-              style={{ width: 36, height: 36, background: 'var(--surface-muted)', border: '1px solid var(--border)', color: 'var(--ink-2)' }}
+              style={{ width: 32, height: 32, background: 'var(--surface-muted)', border: '1px solid var(--border)', color: 'var(--ink-2)' }}
               aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
@@ -1003,7 +1003,7 @@ export default function App() {
             )}
 
             <p className="text-center text-xs" style={{ color: 'var(--subtle)' }}>
-              Settled onchain · Arc Testnet
+              Settled onchain · {IS_MAINNET ? 'Arc Mainnet' : 'Arc Testnet'}
             </p>
           </aside>
 
