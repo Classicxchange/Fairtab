@@ -10,13 +10,13 @@
  *   5. Wallet method info (MetaMask / Google / Passkey info)
  *   6. Danger zone — sign out
  */
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import {
   Wallet, Shield, Key, Copy, CheckCircle2, Eye, EyeOff,
   AlertTriangle, LogOut, ExternalLink, ChevronDown, ChevronUp,
-  Fingerprint, Lock, RefreshCw, ShieldCheck,
+  Fingerprint, Lock, RefreshCw, ShieldCheck, Timer,
 } from 'lucide-react'
 import type { SeedWalletSession } from '@/SeedWalletAuth'
 import { decryptSeedWallet, encryptSeedWallet, loadEncryptedWallet } from '@/SeedWalletAuth'
@@ -351,6 +351,83 @@ function ChangePassword() {
   )
 }
 
+// ── Sign-out timer setting ────────────────────────────────────────────────────
+const TIMER_KEY = 'fairtab_signout_timer'
+
+const TIMER_OPTIONS = [
+  { label: 'Immediately', value: 0 },
+  { label: '5 minutes',   value: 5 },
+  { label: '15 minutes',  value: 15 },
+  { label: '30 minutes',  value: 30 },
+  { label: '1 hour',      value: 60 },
+  { label: '4 hours',     value: 240 },
+  { label: 'Never',       value: -1 },
+]
+
+export function useAutoSignOut(onSignOut: () => void) {
+  useEffect(() => {
+    const stored = parseInt(localStorage.getItem(TIMER_KEY) ?? '0', 10)
+    if (stored <= 0) return // 0 = immediate (handled on mount above), -1 = never
+    const ms = stored * 60 * 1000
+    const id = setTimeout(() => {
+      toast.info('Session expired — signing out')
+      onSignOut()
+    }, ms)
+    return () => clearTimeout(id)
+  }, [onSignOut])
+}
+
+function SignOutTimerSetting({ onSignOut }: { onSignOut: () => void }) {
+  const [selected, setSelected] = useState<number>(() =>
+    parseInt(localStorage.getItem(TIMER_KEY) ?? '0', 10)
+  )
+  const [saved, setSaved] = useState(false)
+
+  const handleSave = (val: number) => {
+    setSelected(val)
+    localStorage.setItem(TIMER_KEY, String(val))
+    setSaved(true)
+    setTimeout(() => setSaved(false), 1800)
+    toast.success('Sign-out timer updated')
+    // If "immediately", sign out right away
+    if (val === 0) {
+      setTimeout(onSignOut, 400)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-3 pt-3">
+      <p className="text-xs" style={{ color: 'var(--muted)' }}>
+        Choose when to automatically sign out after the app loads.
+        The timer starts when you open the app.
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        {TIMER_OPTIONS.map(opt => (
+          <button
+            key={opt.value}
+            onClick={() => handleSave(opt.value)}
+            className="flex items-center justify-center rounded-xl py-2.5 text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]"
+            style={{
+              background: selected === opt.value ? 'var(--accent)' : 'var(--surface-muted)',
+              color: selected === opt.value ? '#fff' : 'var(--ink-2)',
+              border: `1px solid ${selected === opt.value ? 'var(--accent)' : 'var(--border)'}`,
+            }}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+      {saved && (
+        <div className="flex items-center gap-2 rounded-xl px-3 py-2"
+          style={{ background: 'var(--success-bg)' }}>
+          <CheckCircle2 className="size-3.5" style={{ color: 'var(--success)' }} />
+          <p className="text-xs font-semibold" style={{ color: 'var(--success)' }}>Timer saved</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Main AccountPage ─────────────────────────────────────────────────────────
 interface AccountPageProps {
   address: string
@@ -362,6 +439,7 @@ interface AccountPageProps {
 
 export function AccountPage({ address, seedSession, socialSession, wagmiAddress, onSignOut }: AccountPageProps) {
   const [copied, setCopied] = useState(false)
+  useAutoSignOut(onSignOut)
 
   const isSeed    = !!seedSession
   const isMetaMask = !!wagmiAddress && !seedSession
@@ -507,7 +585,16 @@ export function AccountPage({ address, seedSession, socialSession, wagmiAddress,
         </div>
       )}
 
-      {/* ── Danger zone ─────────────────────────────────────────────── */}
+      {/* ── Sign-out timer ───────────────────────────────────────── */}
+      <SectionToggle
+        title="Sign-out timer"
+        subtitle="Auto sign out after a set time when the app opens"
+        icon={Timer}
+      >
+        <SignOutTimerSetting onSignOut={onSignOut} />
+      </SectionToggle>
+
+      {/* ── Sign out ─────────────────────────────────────────────── */}
       <SectionToggle
         title="Sign out"
         subtitle="Lock this wallet and return to the sign-in screen"
@@ -530,7 +617,7 @@ export function AccountPage({ address, seedSession, socialSession, wagmiAddress,
             className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold transition-all"
             style={{ background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid var(--danger-bg)' }}
           >
-            <LogOut className="size-4" /> Sign out
+            <LogOut className="size-4" /> Sign out now
           </button>
         </div>
       </SectionToggle>

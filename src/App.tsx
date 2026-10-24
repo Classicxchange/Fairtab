@@ -901,11 +901,11 @@ export default function App() {
         }}>
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3 gap-3">
           {/* Logo */}
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2.5 shrink-0">
             <img src="/logo.svg" alt="Fairtab" className="size-9 rounded-xl" />
-            <div className="hidden sm:block">
-              <span className="display text-lg font-bold leading-none" style={{ color: 'var(--ink)' }}>Fairtab</span>
-              <p className="text-xs leading-none mt-0.5" style={{ color: 'var(--subtle)' }}>powered by Arc</p>
+            <div>
+              <span className="display text-base font-bold leading-none tracking-tight" style={{ color: 'var(--ink)' }}>Fairtab</span>
+              <p className="text-[10px] leading-none mt-0.5 hidden sm:block" style={{ color: 'var(--subtle)' }}>powered by Arc</p>
             </div>
           </div>
 
