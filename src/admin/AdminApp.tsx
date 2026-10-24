@@ -32,7 +32,7 @@ const ADMIN_ADDRESSES = [
 // ─── Contract config ──────────────────────────────────────────────────────────
 const CHAIN_ID = IS_MAINNET ? arcMainnetChain.id : arcTestnetChain.id
 const arcChain = IS_MAINNET ? arcMainnetChain : arcTestnetChain
-const TESTNET_CONTRACT = '0xdb58ca32df331cf4729ee8668d19cc254f2d9326' as const
+const TESTNET_CONTRACT = '0x9c87ba9e35c1b986ab97174e1192badf44fb03a5' as const
 const MAINNET_CONTRACT = '0x8cd4db9811d7beda48f18c34e92f0eb5baa9dfb2' as const
 const CONTRACT_ADDRESS = (IS_MAINNET ? MAINNET_CONTRACT : TESTNET_CONTRACT) as `0x${string}`
 const CONTRACT_ABI = artifact.abi
@@ -280,18 +280,57 @@ function BillsSection() {
 }
 
 // ─── Section: Deploy contract ─────────────────────────────────────────────────
+type DeployStep = 'config' | 'review' | 'deploy'
+
+const CONTRACT_CONSTANTS = [
+  { name: 'MAX_PARTICIPANTS',            value: '20',                    desc: 'Max participants per bill' },
+  { name: 'INVITE_EXPIRY',               value: '24 hours',              desc: 'Time for participants to accept/reject before invite can be expired' },
+  { name: 'MAX_BILL_DURATION',           value: '90 days',               desc: 'Default deadline when none is specified' },
+  { name: 'PAYOUT_REDIRECT_GRACE',       value: '7 days',                desc: 'Time after settlement before payout redirect voting opens' },
+  { name: 'PAYOUT_RECLAIM_TIMEOUT',      value: '91 days',               desc: 'Time after settlement before contributors can reclaim stuck payout' },
+  { name: 'MIN_CANCEL_THRESHOLD',        value: '⌈51% of eligible voters⌉', desc: 'Minimum cancel votes required — enforces majority' },
+  { name: 'MIN_REDIRECT_QUORUM',         value: '⌈51% of contributors⌉', desc: 'Minimum redirect votes required — enforces majority' },
+]
+
 function DeploySection({ adminAddress }: { adminAddress: string }) {
+  const [step, setStep] = useState<DeployStep>('config')
+
+  // ── Config fields ──────────────────────────────────────────────────────────
   const [usdcOverride, setUsdcOverride] = useState('')
+  const [abiTab, setAbiTab] = useState<'write' | 'read' | 'events'>('write')
+  const [showFullBytecode, setShowFullBytecode] = useState(false)
+
+  // ── Deploy state ───────────────────────────────────────────────────────────
   const [deploying, setDeploying] = useState(false)
   const [deployedAddress, setDeployedAddress] = useState<string | null>(null)
   const [deployTxHash, setDeployTxHash] = useState<string | null>(null)
   const [deployError, setDeployError] = useState<string | null>(null)
   const [log, setLog] = useState<string[]>([])
 
-  const addLog = (msg: string) => setLog(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`])
+  const addLog = useCallback((msg: string) => setLog(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]), [])
+  const usdcAddress = usdcOverride.trim() || USDC_ADDRESS
 
-  const usdcAddress = usdcOverride || USDC_ADDRESS
+  // ── ABI breakdown ──────────────────────────────────────────────────────────
+  const abiFunctions = useMemo(() => {
+    return (CONTRACT_ABI as Array<{ type: string; name?: string; inputs?: Array<{ name: string; type: string }>; outputs?: Array<{ name: string; type: string }>; stateMutability?: string }>)
+      .filter(e => e.type === 'function')
+      .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
+  }, [])
+  const abiEvents = useMemo(() => {
+    return (CONTRACT_ABI as Array<{ type: string; name?: string; inputs?: Array<{ name: string; type: string; indexed?: boolean }> }>)
+      .filter(e => e.type === 'event')
+      .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''))
+  }, [])
+  const writeFns  = abiFunctions.filter(f => f.stateMutability !== 'view' && f.stateMutability !== 'pure')
+  const readFns   = abiFunctions.filter(f => f.stateMutability === 'view' || f.stateMutability === 'pure')
 
+  const bytecodeObj = artifact.bytecode as unknown as { object?: string } | string
+  const bytecodeHex: string = (typeof bytecodeObj === 'object' && bytecodeObj !== null && 'object' in bytecodeObj)
+    ? (bytecodeObj.object ?? '')
+    : (typeof bytecodeObj === 'string' ? bytecodeObj : '')
+  const bytecodeSizeKb = Math.round((bytecodeHex.replace('0x', '').length / 2) / 1024 * 10) / 10
+
+  // ── Deploy handler ─────────────────────────────────────────────────────────
   const handleDeploy = useCallback(async () => {
     setDeploying(true)
     setDeployedAddress(null)
@@ -299,139 +338,370 @@ function DeploySection({ adminAddress }: { adminAddress: string }) {
     setDeployError(null)
     setLog([])
     try {
-      addLog(`Deploying HouseholdBillSplitter on ${IS_MAINNET ? 'Arc Mainnet' : 'Arc Testnet'}…`)
-      addLog(`Constructor arg: usdc_ = ${usdcAddress}`)
-      addLog('Requesting MetaMask signature…')
+      addLog(`Network: ${IS_MAINNET ? 'Arc Mainnet' : 'Arc Testnet'} (chain ${CHAIN_ID})`)
+      addLog(`Deployer: ${adminAddress}`)
+      addLog(`Constructor: usdc_ = ${usdcAddress}`)
+      addLog(`Bytecode size: ${bytecodeSizeKb} KB`)
+      addLog('Requesting wallet signature…')
 
-      // Use wagmi/window.ethereum to send the deploy tx
       const ethereum = (window as unknown as { ethereum?: { request: (args: { method: string; params: unknown[] }) => Promise<unknown> } }).ethereum
-      if (!ethereum) throw new Error('MetaMask not found')
+      if (!ethereum) throw new Error('MetaMask (or compatible wallet) not detected')
 
-      const bytecode = (artifact.bytecode.object ?? artifact.bytecode) as `0x${string}`
       const deployData = encodeDeployData({
         abi: CONTRACT_ABI,
-        bytecode,
+        bytecode: bytecodeHex as `0x${string}`,
         args: [usdcAddress],
       })
 
       addLog('Sending deployment transaction…')
       const txHash = await ethereum.request({
         method: 'eth_sendTransaction',
-        params: [{
-          from: adminAddress,
-          data: deployData,
-          chainId: `0x${CHAIN_ID.toString(16)}`,
-        }],
+        params: [{ from: adminAddress, data: deployData, chainId: `0x${CHAIN_ID.toString(16)}` }],
       }) as string
 
       setDeployTxHash(txHash)
-      addLog(`Transaction sent: ${txHash}`)
-      addLog('Waiting for confirmation…')
+      addLog(`Tx submitted: ${txHash}`)
+      addLog('Waiting for on-chain confirmation (up to 2 min)…')
 
       const client = createPublicClient({ chain: arcChain, transport: http(arcChain.rpcUrls.default.http[0]) })
       const receipt = await client.waitForTransactionReceipt({ hash: txHash as `0x${string}`, timeout: 120_000 })
 
       const addr = receipt.contractAddress
-      if (!addr) throw new Error('No contract address in receipt')
+      if (!addr) throw new Error('No contract address in receipt — deployment may have failed')
 
       setDeployedAddress(addr)
-      addLog(`Contract deployed at: ${addr}`)
-      addLog('Update MAINNET_CONTRACT / TESTNET_CONTRACT in App.tsx and CreateBillPage.tsx with this address.')
-      toast.success(`Contract deployed: ${addr}`)
+      addLog(`✓ Contract deployed: ${addr}`)
+      addLog('Paste this address into MAINNET_CONTRACT (or TESTNET_CONTRACT) in src/App.tsx and src/admin/AdminApp.tsx, then rebuild and redeploy the frontend.')
+      toast.success(`Deployed at ${addr}`)
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       setDeployError(msg)
-      addLog(`ERROR: ${msg}`)
+      addLog(`✗ ERROR: ${msg}`)
       toast.error('Deployment failed')
     } finally {
       setDeploying(false)
     }
-  }, [adminAddress, usdcAddress])
+  }, [adminAddress, usdcAddress, bytecodeSizeKb, bytecodeHex, addLog])
+
+  // ── Shared input style ─────────────────────────────────────────────────────
+  const inputStyle: React.CSSProperties = {
+    background: 'var(--surface-muted)', border: '1px solid var(--border)',
+    borderRadius: 12, color: 'var(--ink)',
+  }
 
   return (
     <motion.div className="flex flex-col gap-6" {...fadeUp}>
-      <div>
-        <h2 className="text-2xl font-bold" style={{ color: 'var(--ink)', letterSpacing: '-0.04em' }}>Deploy Contract</h2>
-        <p className="text-sm mt-0.5" style={{ color: 'var(--muted)' }}>
-          Deploy a new HouseholdBillSplitter to {IS_MAINNET ? 'Arc Mainnet' : 'Arc Testnet'} directly from MetaMask.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold" style={{ color: 'var(--ink)', letterSpacing: '-0.04em' }}>Deploy Contract</h2>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--muted)' }}>
+            Configure, review, then deploy HouseholdBillSplitter to {IS_MAINNET ? 'Arc Mainnet' : 'Arc Testnet'}.
+          </p>
+        </div>
       </div>
 
-      <div className="p-5 rounded-2xl flex flex-col gap-4" style={card}>
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>USDC Contract Address</label>
-          <input
-            value={usdcOverride}
-            onChange={e => setUsdcOverride(e.target.value)}
-            placeholder={`Default: ${USDC_ADDRESS}`}
-            className="rounded-xl px-4 py-2.5 text-sm mono outline-none"
-            style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)', color: 'var(--ink)' }}
-          />
-          <p className="text-xs" style={{ color: 'var(--subtle)' }}>Leave blank to use the canonical USDC address for this network.</p>
-        </div>
-
-        <div className="rounded-xl px-4 py-3 flex flex-col gap-1" style={{ background: 'rgba(37,99,235,0.06)', border: '1px solid rgba(37,99,235,0.15)' }}>
-          <p className="text-xs font-semibold" style={{ color: 'var(--ink-2)' }}>Deployer</p>
-          <p className="mono text-xs" style={{ color: 'var(--muted)' }}>{adminAddress}</p>
-          <p className="text-xs font-semibold mt-1" style={{ color: 'var(--ink-2)' }}>Network</p>
-          <p className="text-xs" style={{ color: 'var(--muted)' }}>{IS_MAINNET ? 'Arc Mainnet' : 'Arc Testnet'} (chain {CHAIN_ID})</p>
-        </div>
-
-        <button onClick={() => void handleDeploy()} disabled={deploying}
-          className="flex items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-bold disabled:opacity-50 transition-all"
-          style={{ background: 'var(--accent)', color: '#fff' }}>
-          {deploying ? <Loader2 className="size-4 animate-spin" /> : <Rocket className="size-4" />}
-          {deploying ? 'Deploying…' : 'Deploy contract'}
-        </button>
+      {/* Step tabs */}
+      <div className="flex rounded-2xl overflow-hidden p-1 gap-1"
+        style={{ background: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
+        {([
+          { id: 'config', label: 'Configure', icon: Settings },
+          { id: 'review', label: 'Review ABI', icon: FileText },
+          { id: 'deploy', label: 'Deploy',     icon: Rocket  },
+        ] as Array<{ id: DeployStep; label: string; icon: React.ElementType }>).map(({ id, label, icon: Icon }) => (
+          <button key={id} onClick={() => setStep(id)}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-semibold transition-all"
+            style={{
+              background: step === id ? 'var(--accent)' : 'transparent',
+              color: step === id ? '#fff' : 'var(--subtle)',
+            }}>
+            <Icon className="size-3.5" />{label}
+          </button>
+        ))}
       </div>
 
-      {/* Deployed address result */}
-      {deployedAddress && (
-        <motion.div className="p-5 rounded-2xl flex flex-col gap-3" {...fadeUp}
-          style={{ background: 'var(--success-bg)', border: '1px solid var(--success)' }}>
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="size-5" style={{ color: 'var(--success)' }} />
-            <span className="font-bold text-sm" style={{ color: 'var(--success)' }}>Deployed successfully</span>
+      {/* ── Step 1: Configure ───────────────────────────────────────────────── */}
+      {step === 'config' && (
+        <motion.div className="flex flex-col gap-5" {...fadeUp}>
+
+          {/* Constructor args */}
+          <div className="p-5 rounded-2xl flex flex-col gap-4" style={card}>
+            <div className="flex items-center gap-2 mb-1">
+              <Settings className="size-4" style={{ color: 'var(--accent)' }} />
+              <span className="font-bold text-sm" style={{ color: 'var(--ink)' }}>Constructor arguments</span>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>
+                usdc_ — USDC token address <span style={{ color: 'var(--danger)' }}>*</span>
+              </label>
+              <input
+                value={usdcOverride}
+                onChange={e => setUsdcOverride(e.target.value)}
+                placeholder={`Default canonical: ${USDC_ADDRESS}`}
+                className="rounded-xl px-4 py-2.5 text-sm mono outline-none w-full"
+                style={inputStyle}
+              />
+              <p className="text-xs" style={{ color: 'var(--subtle)' }}>
+                Leave blank to use <span className="mono">{USDC_ADDRESS}</span> (canonical Arc {IS_MAINNET ? 'Mainnet' : 'Testnet'} USDC).
+              </p>
+            </div>
+
+            <div className="rounded-xl px-4 py-3 flex flex-col gap-2"
+              style={{ background: 'rgba(37,99,235,0.06)', border: '1px solid rgba(37,99,235,0.15)' }}>
+              <p className="text-xs font-bold" style={{ color: 'var(--ink-2)' }}>Resolved constructor call</p>
+              <p className="mono text-xs break-all" style={{ color: 'var(--muted)' }}>
+                constructor(<span style={{ color: 'var(--accent)' }}>address</span> usdc_) →{' '}
+                <span style={{ color: '#7dd3fc' }}>{usdcAddress}</span>
+              </p>
+            </div>
           </div>
-          <p className="text-xs" style={{ color: 'var(--muted)' }}>New contract address:</p>
-          <div className="flex items-center gap-2 rounded-xl px-4 py-3" style={inner}>
-            <span className="mono text-sm font-bold flex-1 break-all" style={{ color: 'var(--ink)' }}>{deployedAddress}</span>
-            <button onClick={() => { void navigator.clipboard.writeText(deployedAddress); toast.success('Copied') }}
-              className="rounded-lg px-2.5 py-1.5 text-xs font-semibold shrink-0"
-              style={{ background: 'var(--surface-strong)', color: 'var(--ink-2)' }}>
-              <Copy className="size-3.5 inline mr-1" />Copy
-            </button>
-          </div>
-          {deployTxHash && (
-            <a href={buildTxExplorerUrl(CHAIN_ID, deployTxHash)} target="_blank" rel="noreferrer"
-              className="flex items-center gap-1 text-xs" style={{ color: 'var(--accent)', textDecoration: 'none' }}>
-              <ExternalLink className="size-3" /> View transaction on ArcScan
-            </a>
-          )}
-          <div className="rounded-xl px-4 py-3" style={{ background: 'rgba(5,150,105,0.06)', border: '1px solid rgba(5,150,105,0.2)' }}>
-            <p className="text-xs font-semibold" style={{ color: 'var(--ink-2)' }}>Next step:</p>
-            <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
-              Update <span className="mono font-semibold">MAINNET_CONTRACT</span> (or <span className="mono font-semibold">TESTNET_CONTRACT</span>) in{' '}
-              <span className="mono">src/App.tsx</span> and <span className="mono">src/CreateBillPage.tsx</span> with the address above, then redeploy.
+
+          {/* Contract constants (immutable — shown for review) */}
+          <div className="p-5 rounded-2xl flex flex-col gap-3" style={card}>
+            <div className="flex items-center gap-2 mb-1">
+              <Package className="size-4" style={{ color: 'var(--accent)' }} />
+              <span className="font-bold text-sm" style={{ color: 'var(--ink)' }}>Immutable constants</span>
+              <span className="ml-auto text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--surface-muted)', color: 'var(--muted)' }}>
+                hardcoded in bytecode
+              </span>
+            </div>
+            <p className="text-xs" style={{ color: 'var(--muted)' }}>
+              These values are baked into the contract and cannot be changed after deployment.
             </p>
+            {CONTRACT_CONSTANTS.map(({ name, value, desc }) => (
+              <div key={name} className="flex items-start justify-between gap-3 px-3 py-2.5 rounded-xl" style={inner}>
+                <div className="flex-1 min-w-0">
+                  <p className="mono text-xs font-bold" style={{ color: 'var(--ink-2)' }}>{name}</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--subtle)' }}>{desc}</p>
+                </div>
+                <span className="mono text-xs font-semibold shrink-0 px-2 py-1 rounded-lg"
+                  style={{ background: 'var(--accent-light)', color: 'var(--accent)' }}>
+                  {value}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Deployer + network summary */}
+          <div className="p-5 rounded-2xl flex flex-col gap-3" style={card}>
+            <div className="flex items-center gap-2 mb-1">
+              <Terminal className="size-4" style={{ color: 'var(--accent)' }} />
+              <span className="font-bold text-sm" style={{ color: 'var(--ink)' }}>Deployment context</span>
+            </div>
+            {[
+              ['Deployer wallet', adminAddress],
+              ['Network',         `${IS_MAINNET ? 'Arc Mainnet' : 'Arc Testnet'} (chain ${CHAIN_ID})`],
+              ['Bytecode size',   `${bytecodeSizeKb} KB`],
+              ['Solidity',        '0.8.28'],
+            ].map(([k, v]) => (
+              <div key={k} className="flex items-center justify-between px-3 py-2 rounded-xl" style={inner}>
+                <span className="text-xs font-semibold" style={{ color: 'var(--muted)' }}>{k}</span>
+                <span className="mono text-xs break-all text-right ml-3" style={{ color: 'var(--ink-2)' }}>{v}</span>
+              </div>
+            ))}
+          </div>
+
+          <button onClick={() => setStep('review')}
+            className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold"
+            style={{ background: 'var(--accent)', color: '#fff' }}>
+            Next: Review ABI <ChevronDown className="size-4 -rotate-90" />
+          </button>
+        </motion.div>
+      )}
+
+      {/* ── Step 2: Review ABI ──────────────────────────────────────────────── */}
+      {step === 'review' && (
+        <motion.div className="flex flex-col gap-5" {...fadeUp}>
+
+          {/* ABI overview stats */}
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: 'Write functions', value: writeFns.length,  color: 'var(--accent)'  },
+              { label: 'Read functions',  value: readFns.length,   color: 'var(--success)' },
+              { label: 'Events',          value: abiEvents.length, color: 'var(--warning, #f59e0b)' },
+            ].map(({ label, value, color }) => (
+              <div key={label} className="p-3 rounded-2xl flex flex-col gap-1 text-center" style={card}>
+                <span className="text-2xl font-bold tabular-nums" style={{ color }}>{value}</span>
+                <span className="text-xs" style={{ color: 'var(--muted)' }}>{label}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* ABI tabs */}
+          <div className="flex rounded-2xl overflow-hidden p-1 gap-1"
+            style={{ background: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
+            {(['write', 'read', 'events'] as const).map(t => (
+              <button key={t} onClick={() => setAbiTab(t)}
+                className="flex-1 rounded-xl py-2 text-xs font-semibold capitalize transition-all"
+                style={{ background: abiTab === t ? 'var(--accent)' : 'transparent', color: abiTab === t ? '#fff' : 'var(--subtle)' }}>
+                {t === 'write' ? `Write (${writeFns.length})` : t === 'read' ? `Read (${readFns.length})` : `Events (${abiEvents.length})`}
+              </button>
+            ))}
+          </div>
+
+          {/* Function list */}
+          <div className="flex flex-col gap-2 max-h-[480px] overflow-y-auto pr-1">
+            {abiTab !== 'events' && (abiTab === 'write' ? writeFns : readFns).map(fn => (
+              <div key={fn.name} className="rounded-xl px-4 py-3 flex flex-col gap-1.5" style={inner}>
+                <div className="flex items-center gap-2">
+                  <span className="mono text-xs font-bold" style={{ color: abiTab === 'write' ? 'var(--accent)' : 'var(--success)' }}>
+                    {fn.name}
+                  </span>
+                  <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full"
+                    style={{ background: abiTab === 'write' ? 'rgba(79,110,247,0.1)' : 'rgba(5,150,105,0.1)', color: abiTab === 'write' ? 'var(--accent)' : 'var(--success)' }}>
+                    {fn.stateMutability}
+                  </span>
+                </div>
+                {(fn.inputs ?? []).length > 0 && (
+                  <div className="flex flex-col gap-0.5">
+                    {(fn.inputs ?? []).map((inp, i) => (
+                      <p key={i} className="mono text-[11px]" style={{ color: 'var(--muted)' }}>
+                        <span style={{ color: 'var(--ink-2)' }}>{inp.type}</span>{' '}
+                        <span style={{ color: 'var(--subtle)' }}>{inp.name}</span>
+                      </p>
+                    ))}
+                  </div>
+                )}
+                {(fn.outputs ?? []).length > 0 && (
+                  <p className="mono text-[11px]" style={{ color: 'var(--subtle)' }}>
+                    → {(fn.outputs ?? []).map(o => o.type).join(', ')}
+                  </p>
+                )}
+              </div>
+            ))}
+            {abiTab === 'events' && abiEvents.map(ev => (
+              <div key={ev.name} className="rounded-xl px-4 py-3 flex flex-col gap-1.5" style={inner}>
+                <span className="mono text-xs font-bold" style={{ color: '#f59e0b' }}>{ev.name}</span>
+                {(ev.inputs ?? []).map((inp, i) => (
+                  <p key={i} className="mono text-[11px]" style={{ color: 'var(--muted)' }}>
+                    <span style={{ color: 'var(--ink-2)' }}>{inp.type}</span>{' '}
+                    {inp.indexed && <span className="text-[9px] px-1 py-0.5 rounded" style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}>indexed</span>}{' '}
+                    <span style={{ color: 'var(--subtle)' }}>{inp.name}</span>
+                  </p>
+                ))}
+              </div>
+            ))}
+          </div>
+
+          {/* Bytecode preview */}
+          <div className="p-4 rounded-2xl flex flex-col gap-2" style={card}>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold" style={{ color: 'var(--ink-2)' }}>Deployment bytecode ({bytecodeSizeKb} KB)</span>
+              <button onClick={() => setShowFullBytecode(v => !v)}
+                className="text-xs px-2.5 py-1 rounded-lg font-semibold"
+                style={{ background: 'var(--surface-muted)', color: 'var(--ink-2)', border: '1px solid var(--border)' }}>
+                {showFullBytecode ? 'Hide' : 'Show'}
+              </button>
+            </div>
+            <p className="mono text-[11px] break-all leading-relaxed" style={{ color: 'var(--muted)' }}>
+              {showFullBytecode ? bytecodeHex : `${bytecodeHex.slice(0, 80)}…`}
+            </p>
+          </div>
+
+          <div className="flex gap-2">
+            <button onClick={() => setStep('config')}
+              className="flex-1 rounded-xl py-3 text-sm font-semibold"
+              style={{ background: 'var(--surface-muted)', color: 'var(--ink-2)', border: '1px solid var(--border)' }}>
+              ← Back
+            </button>
+            <button onClick={() => setStep('deploy')}
+              className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold"
+              style={{ background: 'var(--accent)', color: '#fff' }}>
+              Next: Deploy <Rocket className="size-4" />
+            </button>
           </div>
         </motion.div>
       )}
 
-      {deployError && (
-        <div className="p-4 rounded-xl" style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger)' }}>
-          <p className="text-sm font-semibold" style={{ color: 'var(--danger)' }}>Deployment failed</p>
-          <p className="text-xs mt-1 mono" style={{ color: 'var(--danger)' }}>{deployError}</p>
-        </div>
-      )}
+      {/* ── Step 3: Deploy ──────────────────────────────────────────────────── */}
+      {step === 'deploy' && (
+        <motion.div className="flex flex-col gap-5" {...fadeUp}>
 
-      {/* Terminal log */}
-      {log.length > 0 && (
-        <div className="rounded-xl p-4 overflow-auto max-h-64" style={{ background: '#0a0f1c', border: '1px solid rgba(255,255,255,0.08)' }}>
-          {log.map((line, i) => (
-            <p key={i} className="mono text-xs leading-relaxed" style={{ color: i === log.length - 1 ? '#7dd3fc' : '#94a3b8' }}>{line}</p>
-          ))}
-        </div>
+          {/* Final summary before deploying */}
+          <div className="p-5 rounded-2xl flex flex-col gap-3" style={{ ...card, border: '1px solid rgba(79,110,247,0.3)' }}>
+            <p className="text-sm font-bold" style={{ color: 'var(--ink)' }}>Deployment summary</p>
+            {[
+              ['Contract',   'HouseholdBillSplitter'],
+              ['Network',    `${IS_MAINNET ? 'Arc Mainnet' : 'Arc Testnet'} (chain ${CHAIN_ID})`],
+              ['usdc_',      usdcAddress],
+              ['Deployer',   adminAddress],
+              ['Size',       `${bytecodeSizeKb} KB`],
+            ].map(([k, v]) => (
+              <div key={k} className="flex items-start justify-between gap-3 px-3 py-2 rounded-xl" style={inner}>
+                <span className="text-xs font-semibold shrink-0" style={{ color: 'var(--muted)' }}>{k}</span>
+                <span className="mono text-xs break-all text-right" style={{ color: 'var(--ink-2)' }}>{v}</span>
+              </div>
+            ))}
+          </div>
+
+          {!deployedAddress && (
+            <button onClick={() => void handleDeploy()} disabled={deploying}
+              className="flex items-center justify-center gap-2 rounded-xl py-4 text-sm font-bold disabled:opacity-50 transition-all"
+              style={{ background: IS_MAINNET ? '#dc2626' : 'var(--accent)', color: '#fff', boxShadow: IS_MAINNET ? '0 4px 16px rgba(220,38,38,0.35)' : '0 4px 16px rgba(79,110,247,0.3)' }}>
+              {deploying ? <><Loader2 className="size-4 animate-spin" /> Deploying…</> : <><Rocket className="size-4" /> {IS_MAINNET ? 'Deploy to Mainnet' : 'Deploy to Testnet'}</>}
+            </button>
+          )}
+
+          {/* Terminal log */}
+          {log.length > 0 && (
+            <div className="rounded-xl p-4 overflow-auto max-h-64 flex flex-col gap-0.5"
+              style={{ background: '#0a0f1c', border: '1px solid rgba(255,255,255,0.08)' }}>
+              {log.map((line, i) => (
+                <p key={i} className="mono text-xs leading-relaxed whitespace-pre-wrap"
+                  style={{ color: line.includes('✓') ? '#4ade80' : line.includes('✗') ? '#f87171' : i === log.length - 1 ? '#7dd3fc' : '#94a3b8' }}>
+                  {line}
+                </p>
+              ))}
+            </div>
+          )}
+
+          {/* Success result */}
+          {deployedAddress && (
+            <motion.div className="p-5 rounded-2xl flex flex-col gap-3" {...fadeUp}
+              style={{ background: 'var(--success-bg)', border: '1px solid var(--success)' }}>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="size-5" style={{ color: 'var(--success)' }} />
+                <span className="font-bold text-sm" style={{ color: 'var(--success)' }}>Contract deployed successfully</span>
+              </div>
+              <div className="flex items-center gap-2 rounded-xl px-4 py-3" style={inner}>
+                <span className="mono text-sm font-bold flex-1 break-all" style={{ color: 'var(--ink)' }}>{deployedAddress}</span>
+                <button onClick={() => { void navigator.clipboard.writeText(deployedAddress); toast.success('Copied') }}
+                  className="rounded-lg px-2.5 py-1.5 text-xs font-semibold shrink-0"
+                  style={{ background: 'var(--surface-strong)', color: 'var(--ink-2)' }}>
+                  <Copy className="size-3.5 inline mr-1" />Copy
+                </button>
+              </div>
+              {deployTxHash && (
+                <a href={buildTxExplorerUrl(CHAIN_ID, deployTxHash)} target="_blank" rel="noreferrer"
+                  className="flex items-center gap-1 text-xs" style={{ color: 'var(--accent)', textDecoration: 'none' }}>
+                  <ExternalLink className="size-3" /> View on ArcScan
+                </a>
+              )}
+              <div className="rounded-xl px-4 py-3 flex flex-col gap-1" style={{ background: 'rgba(5,150,105,0.08)', border: '1px solid rgba(5,150,105,0.2)' }}>
+                <p className="text-xs font-bold" style={{ color: 'var(--ink-2)' }}>Next steps:</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
+                  1. Copy the address above.<br />
+                  2. Update <span className="mono font-semibold">{IS_MAINNET ? 'MAINNET_CONTRACT' : 'TESTNET_CONTRACT'}</span> in{' '}
+                  <span className="mono">src/App.tsx</span> and <span className="mono">src/admin/AdminApp.tsx</span>.<br />
+                  3. Commit, rebuild, and redeploy the frontend.
+                </p>
+              </div>
+            </motion.div>
+          )}
+
+          {deployError && (
+            <div className="p-4 rounded-xl" style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger)' }}>
+              <p className="text-sm font-semibold" style={{ color: 'var(--danger)' }}>Deployment failed</p>
+              <p className="text-xs mt-1 mono break-all" style={{ color: 'var(--danger)' }}>{deployError}</p>
+            </div>
+          )}
+
+          <button onClick={() => setStep('config')}
+            className="rounded-xl py-2.5 text-xs font-semibold"
+            style={{ background: 'var(--surface-muted)', color: 'var(--ink-2)', border: '1px solid var(--border)' }}>
+            ← Back to config
+          </button>
+        </motion.div>
       )}
     </motion.div>
   )
