@@ -1555,7 +1555,7 @@ export default function App() {
                     </div>
                     {/* Filter chips */}
                     {address && (
-                      <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
+                      <div className="flex gap-2 overflow-x-auto pb-1 pt-0.5 px-0.5 scrollbar-none -mx-0.5">
                         {([
                           { id: 'all',     label: 'All',     icon: List,            count: userBillCount   },
                           { id: 'created', label: 'Created', icon: PenLine,         count: 0               },
@@ -1567,7 +1567,7 @@ export default function App() {
                           const showBadge = tabCount > 0
                           return (
                             <button key={f} onClick={() => setFilter(f)}
-                              className="relative flex items-center gap-1.5 shrink-0 rounded-2xl px-3 py-2 text-xs font-semibold transition-all hover:scale-105 active:scale-95"
+                              className="relative flex items-center gap-1.5 shrink-0 rounded-2xl px-3.5 py-2 text-xs font-semibold transition-all hover:scale-105 active:scale-95"
                               style={{
                                 background: active ? 'var(--accent)' : 'var(--surface)',
                                 color: active ? '#fff' : 'var(--ink-2)',
