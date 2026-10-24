@@ -12,7 +12,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { deviceId } = req.body as { deviceId: string }
     if (!deviceId) return res.status(400).json({ error: 'deviceId required' })
 
-    const result = await circleClient.createUserTokenWithDeviceId({ deviceId })
+    // createDeviceTokenForSocialLogin returns the device token used by Google OAuth flow
+    const result = await circleClient.createDeviceTokenForSocialLogin({ deviceId })
     return res.status(200).json(result.data)
   } catch (e) {
     return res.status(500).json({ error: (e as Error).message })

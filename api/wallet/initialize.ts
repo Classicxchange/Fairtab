@@ -18,7 +18,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       const initRes = await circleClient.createUserPinWithWallets({
         userToken,
-        blockchains: [Blockchain.ARC],
+        blockchains: [Blockchain.Arc],
       })
       return res.status(200).json({ challengeId: initRes.data?.challengeId })
     } catch (inner) {

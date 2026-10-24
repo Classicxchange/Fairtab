@@ -17,7 +17,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const result = await circleClient.listWallets({
       userToken,
-      blockchain: Blockchain.ARC,
+      blockchain: Blockchain.Arc,
     })
     const wallets = result.data?.wallets?.map(w => ({ id: w.id, address: w.address })) ?? []
     return res.status(200).json({ wallets })

@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { restoreCircleSession, clearCredential } from '@/CircleWalletAuth'
 import { SignInModal } from '@/SignInModal'
+import { type SeedWalletSession, clearSeedWallet } from '@/SeedWalletAuth'
 import { AccountView, type AccountSession } from '@/AccountView'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -1202,6 +1203,9 @@ export default function App() {
     } catch { return null }
   })
 
+  // ── Seed wallet session ────────────────────────────────────────────────────
+  const [seedSession, setSeedSession] = useState<SeedWalletSession | null>(null)
+
   // ── Circle Wallet (passkey smart account) ──────────────────────────────────
   const [circleAddress, setCircleAddress] = useState<`0x${string}` | null>(null)
   const [, setCircleBundler] = useState<ReturnType<typeof import('viem/account-abstraction').createBundlerClient> | null>(null)
@@ -1216,8 +1220,8 @@ export default function App() {
     })
   }, [])
 
-  // Unified address: Circle passkey > social (Google/email) > MetaMask
-  const address = circleAddress ?? (socialSession?.address as `0x${string}` | undefined) ?? wagmiAddress
+  // Unified address: seed wallet > Circle passkey > social (Google/email) > MetaMask
+  const address = seedSession?.address ?? circleAddress ?? (socialSession?.address as `0x${string}` | undefined) ?? wagmiAddress
 
   const { data: billCount, refetch: refetchCount } = useReadContract({
     address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'billCount', chainId: CHAIN_ID,
@@ -1287,16 +1291,20 @@ export default function App() {
               wagmiAddress={wagmiAddress}
               circleAddress={circleAddress ?? undefined}
               socialSession={socialSession}
+              seedSession={seedSession}
+              onSeedSignedIn={s => setSeedSession(s)}
               onSocialSignedIn={(session) => {
                 setSocialSession(session)
                 localStorage.setItem('fairtab_session_v2', JSON.stringify(session))
               }}
               onCircleConnected={(addr) => setCircleAddress(addr)}
               onSignOut={() => {
+                setSeedSession(null)
                 setSocialSession(null)
                 localStorage.removeItem('fairtab_session_v2')
                 setCircleAddress(null)
                 clearCredential()
+                clearSeedWallet()
               }}
             />
           </div>

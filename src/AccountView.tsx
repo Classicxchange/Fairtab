@@ -36,7 +36,7 @@ const clientUrl  = import.meta.env.VITE_CLIENT_URL        as string | undefined
 export interface AccountSession {
   address: string
   username: string
-  method: 'google' | 'email' | 'passkey'
+  method: 'google' | 'email' | 'passkey' | 'seed-wallet'
   /** only set for user-controlled wallets */
   userToken?: string
   encryptionKey?: string
