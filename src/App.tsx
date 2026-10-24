@@ -911,13 +911,12 @@ function BillLoader({ id, refetch, filter, address: walletAddr, onVisible, onInv
   const { data: billData } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getBill', args: [id], chainId: CHAIN_ID })
   const { data: sharesData } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getShares', args: [id], chainId: CHAIN_ID })
   const { data: metaData } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getBillMeta', args: [id], chainId: CHAIN_ID })
-  const { data: myStatusRaw } = useReadContract({
+  const { data: myStatusRaw, isFetched: myStatusFetched } = useReadContract({
     address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getParticipantStatus',
     args: walletAddr ? [id, walletAddr] : undefined,
-    query: { enabled: !!walletAddr }, chainId: CHAIN_ID,
+    query: { enabled: !!walletAddr, retry: false }, chainId: CHAIN_ID,
   })
   const myStatus = (myStatusRaw as ParticipantStatus | undefined)
-  const myStatusLoaded = myStatusRaw !== undefined
 
   if (!billData || !sharesData) return (
     <div className="rounded-2xl h-32 animate-pulse" style={{ background: 'var(--surface-muted)' }} />
@@ -935,32 +934,39 @@ function BillLoader({ id, refetch, filter, address: walletAddr, onVisible, onInv
     const isCreator = creator.toLowerCase() === addr
     const isPayee  = payee.toLowerCase() === addr
     const isParticipant = shares.some(s => s.participant.toLowerCase() === addr)
+
+    // Not a member of this bill at all — hide completely
     if (!isCreator && !isPayee && !isParticipant) return null
 
-    // Wait for participant status before filtering to avoid race where Pending slips into "I Owe"
-    if (isParticipant && !isCreator && !myStatusLoaded) {
+    // Wait for status to resolve before making any filter decision for participants
+    // This prevents pending invites from briefly flashing in All / I Owe tabs
+    if (isParticipant && !isCreator && !myStatusFetched) {
       return <div className="rounded-2xl h-32 animate-pulse" style={{ background: 'var(--surface-muted)' }} />
     }
 
+    // Status 0 = Pending (not yet accepted)
     const isPending = myStatus === 0 && isParticipant && !isCreator
 
     // Sub-filter within member bills
     if (filter === 'invites') {
       if (!isPending) return null
       onInvite?.(id)
-    } else if (filter !== 'all') {
-      // Hide pending invites from All / I Owe / Created tabs
-      if (isPending) return null
-      const isDone = status === 1 || status === 2
-      if (filter === 'created' && !isCreator) return null
-      if (filter === 'owe' && (!isParticipant || isDone)) return null
-      if (filter === 'done' && !isDone) return null
     } else {
-      // 'all' tab: hide pending invites (they live in Invites tab only)
+      // All other tabs: pending invites are invisible — they only live in Invites tab
       if (isPending) return null
+
+      if (filter === 'created' && !isCreator) return null
+      if (filter === 'owe') {
+        const isDone = status === 1 || status === 2
+        if (!isParticipant || isDone) return null
+      }
+      if (filter === 'done') {
+        const isDone = status === 1 || status === 2
+        if (!isDone) return null
+      }
+      // Notify parent that this bill is visible (parent deduplicates)
+      onVisible?.(id)
     }
-    // Notify parent that this bill is visible (parent deduplicates)
-    if (filter !== 'invites') onVisible?.(id)
   }
 
   return <BillCard bill={bill} refetch={refetch} myParticipantStatus={myStatus} />
@@ -1084,13 +1090,14 @@ function BillParticipantChecker({ id, walletAddr, onResult }: {
 }) {
   const { data: billData } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getBill', args: [id], chainId: CHAIN_ID })
   const { data: sharesData } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getShares', args: [id], chainId: CHAIN_ID })
-  const { data: myStatusRaw } = useReadContract({
+  const { data: myStatusRaw, isFetched: myStatusFetched } = useReadContract({
     address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getParticipantStatus',
     args: [id, walletAddr as `0x${string}`], chainId: CHAIN_ID,
+    query: { retry: false },
   })
   const notified = useRef(false)
   useEffect(() => {
-    if (!billData || !sharesData || myStatusRaw === undefined || notified.current) return
+    if (!billData || !sharesData || !myStatusFetched || notified.current) return
     const bd = billData as unknown[]
     const creator = (bd[0] as string).toLowerCase()
     const status = bd[4] as number
@@ -1107,7 +1114,7 @@ function BillParticipantChecker({ id, walletAddr, onResult }: {
     const isNewBill = !isCreator && participantStatus === 1
     notified.current = true
     onResult(id, isNewBill, hasUnpaidShare, isPendingInvite)
-  }, [billData, sharesData, myStatusRaw, walletAddr, id, onResult])
+  }, [billData, sharesData, myStatusFetched, myStatusRaw, walletAddr, id, onResult])
   return null
 }
 
@@ -1550,36 +1557,39 @@ export default function App() {
                     {address && (
                       <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
                         {([
-                          { id: 'all',     label: 'All',     icon: List            },
-                          { id: 'created', label: 'Created', icon: PenLine         },
-                          { id: 'owe',     label: 'I Owe',   icon: ArrowDownCircle, badge: owedBillCount },
-                          { id: 'done',    label: 'Done',    icon: CircleCheckBig  },
-                          { id: 'invites', label: 'Invites', icon: Bell,            badge: inviteBillCount },
-                        ] as Array<{ id: 'all'|'created'|'owe'|'done'|'invites', label: string, icon: React.ElementType, badge?: number }>).map(({ id: f, label: fl, icon: FilterIcon, badge }) => (
-                          <button key={f} onClick={() => setFilter(f)}
-                            className="relative flex items-center gap-1.5 shrink-0 rounded-2xl px-4 py-2 text-xs font-semibold transition-all hover:scale-105"
-                            style={{
-                              background: filter === f ? 'var(--accent)' : 'var(--surface)',
-                              color: filter === f ? '#fff' : 'var(--ink-2)',
-                              border: filter === f ? 'none' : '1px solid var(--border)',
-                              boxShadow: filter === f ? '0 2px 12px rgba(79,110,247,0.25)' : 'none',
-                            }}>
-                            <FilterIcon className="size-3.5" />
-                            {fl}
-                            {f === 'all' && userBillCount > 0 && (
-                              <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold"
-                                style={{ background: filter === f ? 'rgba(255,255,255,0.25)' : 'var(--surface-muted)', color: filter === f ? '#fff' : 'var(--muted)' }}>
-                                {userBillCount}
-                              </span>
-                            )}
-                            {badge != null && badge > 0 && (
-                              <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full text-[9px] font-bold"
-                                style={{ background: 'var(--danger)', color: '#fff' }}>
-                                {badge}
-                              </span>
-                            )}
-                          </button>
-                        ))}
+                          { id: 'all',     label: 'All',     icon: List,            count: userBillCount   },
+                          { id: 'created', label: 'Created', icon: PenLine,         count: 0               },
+                          { id: 'owe',     label: 'I Owe',   icon: ArrowDownCircle, count: owedBillCount   },
+                          { id: 'done',    label: 'Done',    icon: CircleCheckBig,  count: 0               },
+                          { id: 'invites', label: 'Invites', icon: Bell,            count: inviteBillCount },
+                        ] as Array<{ id: 'all'|'created'|'owe'|'done'|'invites', label: string, icon: React.ElementType, count: number }>).map(({ id: f, label: fl, icon: FilterIcon, count: tabCount }) => {
+                          const active = filter === f
+                          const showBadge = tabCount > 0
+                          return (
+                            <button key={f} onClick={() => setFilter(f)}
+                              className="relative flex items-center gap-1.5 shrink-0 rounded-2xl px-3 py-2 text-xs font-semibold transition-all hover:scale-105 active:scale-95"
+                              style={{
+                                background: active ? 'var(--accent)' : 'var(--surface)',
+                                color: active ? '#fff' : 'var(--ink-2)',
+                                border: active ? 'none' : '1px solid var(--border)',
+                                boxShadow: active ? '0 2px 12px rgba(79,110,247,0.25)' : 'none',
+                              }}>
+                              <FilterIcon className="size-3.5 shrink-0" />
+                              <span>{fl}</span>
+                              {showBadge && (
+                                <span className="inline-flex items-center justify-center rounded-full min-w-[18px] h-[18px] px-1 text-[10px] font-bold leading-none"
+                                  style={{
+                                    background: (f === 'invites' || f === 'owe') && !active
+                                      ? 'var(--danger)'
+                                      : active ? 'rgba(255,255,255,0.28)' : 'var(--surface-muted)',
+                                    color: (f === 'invites' || f === 'owe') && !active ? '#fff' : active ? '#fff' : 'var(--ink-2)',
+                                  }}>
+                                  {tabCount}
+                                </span>
+                              )}
+                            </button>
+                          )
+                        })}
                       </div>
                     )}
                   </div>
