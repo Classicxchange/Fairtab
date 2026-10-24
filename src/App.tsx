@@ -5,6 +5,8 @@ import { type AccountSession } from '@/AccountView'
 import { WalletDropdown } from '@/WalletDropdown'
 import { AccountPage } from '@/AccountPage'
 import { SignInPage } from '@/SignInPage'
+import { SendPage } from '@/SendPage'
+import { CreateBillPage } from '@/CreateBillPage'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   useAccount,
@@ -14,14 +16,14 @@ import {
   useSwitchChain,
 } from 'wagmi'
 import { ConnectKitButton } from 'connectkit'
-import { erc20Abi, parseUnits, isAddress } from 'viem'
+import { erc20Abi, parseUnits } from 'viem'
 import { arcChain, IS_MAINNET } from '@/config'
 import {
   Plus, ChevronDown, ChevronUp, ExternalLink, Clock,
   CheckCircle2, XCircle, AlertTriangle, Loader2, Receipt,
-  Users, RefreshCw, ArrowRight, Wallet,
+  Users, RefreshCw, Wallet,
   Send, Copy, QrCode, Link2, LayoutGrid,
-  Sun, Moon, Share2, Tag, UserCircle,
+  Sun, Moon, Share2, UserCircle,
 } from 'lucide-react'
 import { TokenUSDC } from '@web3icons/react'
 import { toast } from 'sonner'
@@ -78,15 +80,6 @@ function bytes32ToLabel(hex: `0x${string}`): string {
     const bytes = hex.replace('0x', '').match(/.{2}/g)?.map(b => parseInt(b, 16)) ?? []
     return new TextDecoder().decode(new Uint8Array(bytes)).replace(/\0+$/, '').trim()
   } catch { return '' }
-}
-
-// string → bytes32 hex for contract call (byte-accurate truncation for multi-byte chars)
-function labelToBytes32(s: string): `0x${string}` {
-  const enc = new TextEncoder().encode(s)
-  const truncated = enc.slice(0, 32) // byte-accurate, not char-accurate
-  const padded = new Uint8Array(32)
-  padded.set(truncated)
-  return ('0x' + Array.from(padded).map(b => b.toString(16).padStart(2, '0')).join('')) as `0x${string}`
 }
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
@@ -190,259 +183,6 @@ function TxButton({ label, onClick, disabled, isPending, isConfirming, danger, o
 // ─── Background — clean solid canvas ─────────────────────────────────────────
 function ArcBg() {
   return <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0, background: 'var(--bg)' }} />
-}
-
-// ─── Create Bill Sheet ────────────────────────────────────────────────────────
-interface ParticipantRow { address: string; value: string }
-
-function CreateBillSheet({ open, onClose, onCreated }: {
-  open: boolean; onClose: () => void; onCreated: () => void
-}) {
-  const { address, chainId } = useAccount()
-  const { switchChain } = useSwitchChain()
-  const wrongChain = chainId !== CHAIN_ID
-
-  const [billLabel, setBillLabel] = useState('')
-  const [payee, setPayee] = useState('')
-  const [totalAmount, setTotalAmount] = useState('')
-  const [usePercentages, setUsePercentages] = useState(false)
-  const [deadline, setDeadline] = useState('')
-  const [recurring, setRecurring] = useState(false)
-  const [recurDays, setRecurDays] = useState('30')
-  const [cancelThreshold, setCancelThreshold] = useState('1')
-  const [rows, setRows] = useState<ParticipantRow[]>([{ address: '', value: '' }, { address: '', value: '' }])
-
-  const { writeContract, data: hash, isPending, isError, error, reset } = useWriteContract()
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash })
-
-  const addRow = () => setRows(r => [...r, { address: '', value: '' }])
-  const removeRow = (i: number) => setRows(r => r.filter((_, idx) => idx !== i))
-  const updateRow = (i: number, f: keyof ParticipantRow, v: string) =>
-    setRows(r => r.map((row, idx) => idx === i ? { ...row, [f]: v } : row))
-
-  const handleCreate = useCallback(() => {
-    if (wrongChain) { switchChain({ chainId: CHAIN_ID }); return }
-    if (!address || !totalAmount || !payee) return
-    // Validate all addresses before submitting
-    if (!isAddress(payee)) { toast.error('Payee is not a valid address'); return }
-    const invalidIdx = rows.findIndex(r => !isAddress(r.address))
-    if (invalidIdx >= 0) { toast.error(`Participant ${invalidIdx + 1} has an invalid address`); return }
-    const dec = usdcDecimalsFor(CHAIN_ID)
-    const totalRaw = parseUnits(totalAmount, dec)
-    const participants = rows.map(r => r.address as `0x${string}`)
-    const amounts: bigint[] = usePercentages
-      ? rows.map(r => BigInt(Math.round(parseFloat(r.value || '0'))))
-      : rows.map(r => { const v = parseFloat(r.value || '0'); return parseUnits(v.toFixed(dec), dec) })
-    writeContract({
-      address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'createBill',
-      args: [
-        totalRaw, labelToBytes32(billLabel),
-        payee, participants, amounts, usePercentages,
-        deadline ? BigInt(Math.floor(new Date(deadline).getTime() / 1000)) : 0n,
-        recurring, recurring ? BigInt(parseInt(recurDays) * 86400) : 0n,
-        parseInt(cancelThreshold),
-      ],
-    })
-  }, [address, wrongChain, switchChain, billLabel, payee, totalAmount, usePercentages, rows, deadline, recurring, recurDays, cancelThreshold, writeContract])
-
-  if (isSuccess) {
-    return (
-      <AnimatePresence>
-        {open && (
-          <motion.div className="fixed inset-0 z-50 flex items-end justify-center"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            onClick={onClose}>
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-            <motion.section className="relative w-full max-w-lg overflow-hidden rounded-t-3xl"
-              style={glass.sheet}
-              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-              transition={springs.sheet} onClick={e => e.stopPropagation()}>
-              <div style={{ height: 1, background: 'var(--border)' }} />
-              <div className="flex justify-center pt-3 pb-1">
-                <div className="h-1 w-10 rounded-full" style={{ background: 'var(--border-strong)' }} />
-              </div>
-              <div className="px-6 pb-8 pt-4 flex flex-col items-center gap-4 text-center">
-                <div className="flex size-14 items-center justify-center rounded-2xl"
-                  style={{ background: 'var(--success-bg)' }}>
-                  <CheckCircle2 className="size-7" style={{ color: 'var(--success)' }} />
-                </div>
-                <div>
-                  <p className="display text-xl font-bold" style={{ color: 'var(--ink)' }}>Bill created!</p>
-                  {hash && (
-                    <a href={buildTxExplorerUrl(CHAIN_ID, hash)} target="_blank" rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-xs mt-1.5"
-                      style={{ color: 'var(--accent)' }}>
-                      View on ArcScan <ExternalLink className="size-3" />
-                    </a>
-                  )}
-                </div>
-                <button onClick={() => { reset(); onCreated(); onClose() }}
-                  className="rounded-2xl px-6 py-2.5 text-sm font-semibold"
-                  style={{ background: 'var(--accent)', color: 'var(--accent-dark)' }}>
-                  Done
-                </button>
-              </div>
-            </motion.section>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    )
-  }
-
-  return (
-    <AnimatePresence>
-      {open && (
-        <motion.div className="fixed inset-0 z-50 flex items-end justify-center"
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          onClick={onClose}>
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-          <motion.section className="relative w-full max-w-lg overflow-hidden rounded-t-3xl"
-            style={glass.sheet}
-            initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-            transition={springs.sheet} onClick={e => e.stopPropagation()}>
-            <div style={{ height: 1, background: 'var(--border)' }} />
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="h-1 w-10 rounded-full" style={{ background: 'var(--border-strong)' }} />
-            </div>
-            <div className="overflow-y-auto" style={{ maxHeight: '85dvh' }}>
-              <div className="px-6 pt-2 pb-8 flex flex-col gap-4">
-                <h2 className="display text-2xl font-bold" style={{ color: 'var(--ink)' }}>New Bill</h2>
-
-                {/* Label */}
-                <div className="rounded-2xl p-4" style={glass.inner}>
-                  <p className="mb-1.5 text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Bill Name</p>
-                  <div className="flex items-center gap-2">
-                    <Tag className="size-4 shrink-0" style={{ color: 'var(--subtle)' }} />
-                    <input value={billLabel} onChange={e => setBillLabel(e.target.value.slice(0, 32))}
-                      placeholder="e.g. October Rent, Netflix, Electricity…"
-                      className="flex-1 bg-transparent text-sm font-medium outline-none placeholder:opacity-30"
-                      style={{ color: 'var(--ink)' }} />
-                    <span className="text-xs tabular-nums" style={{ color: 'var(--subtle)' }}>{billLabel.length}/32</span>
-                  </div>
-                </div>
-
-                {/* Amount */}
-                <div className="rounded-2xl p-4" style={glass.inner}>
-                  <p className="mb-1 text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Total Amount</p>
-                  <div className="flex items-center gap-2">
-                    <TokenUSDC variant="branded" size={22} />
-                    <input inputMode="decimal" value={totalAmount}
-                      onChange={e => setTotalAmount(e.target.value.replace(/[^0-9.]/g, ''))}
-                      placeholder="0.00"
-                      className="display flex-1 bg-transparent text-3xl font-bold tabular-nums outline-none placeholder:opacity-20"
-                      style={{ color: 'var(--ink)' }} />
-                    <span className="text-sm font-medium" style={{ color: 'var(--subtle)' }}>USDC</span>
-                  </div>
-                </div>
-
-                {/* Payee */}
-                <div className="rounded-2xl p-4" style={glass.inner}>
-                  <p className="mb-1.5 text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Payee Address</p>
-                  <input value={payee} onChange={e => setPayee(e.target.value)}
-                    placeholder="0x… landlord or payee"
-                    className="mono w-full bg-transparent text-sm outline-none placeholder:opacity-30"
-                    style={{ color: 'var(--ink)' }} />
-                </div>
-
-                {/* Split mode */}
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium" style={{ color: 'var(--ink-2)' }}>Split by</span>
-                  <div className="flex rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-strong)' }}>
-                    {['Fixed USDC', '% Shares'].map((lbl, i) => (
-                      <button key={lbl} onClick={() => setUsePercentages(i === 1)}
-                        className="px-3 py-1.5 text-sm font-semibold transition-all"
-                        style={{ background: usePercentages === (i === 1) ? 'var(--accent)' : 'transparent', color: usePercentages === (i === 1) ? 'var(--accent-dark)' : 'var(--muted)' }}>
-                        {lbl}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Participants */}
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Participants</span>
-                    <button onClick={addRow} disabled={rows.length >= 20}
-                      className="flex items-center gap-1 text-xs font-semibold disabled:opacity-40"
-                      style={{ color: 'var(--accent)' }}>
-                      <Plus className="size-3" /> Add
-                    </button>
-                  </div>
-                  {rows.map((row, i) => (
-                    <div key={i} className="flex items-center gap-2" style={glass.inner}>
-                      <div className="flex-1 p-3">
-                        <input value={row.address} onChange={e => updateRow(i, 'address', e.target.value)}
-                          placeholder={`Wallet ${i + 1} (0x…)`}
-                          className="mono w-full bg-transparent text-xs outline-none placeholder:opacity-30"
-                          style={{ color: 'var(--ink)' }} />
-                      </div>
-                      <div className="w-28 border-l p-3" style={{ borderColor: 'var(--border)' }}>
-                        <input inputMode="decimal" value={row.value}
-                          onChange={e => updateRow(i, 'value', e.target.value.replace(/[^0-9.]/g, ''))}
-                          placeholder={usePercentages ? '5000' : '50.00'}
-                          className="w-full bg-transparent text-right text-sm font-semibold tabular-nums outline-none placeholder:opacity-30"
-                          style={{ color: 'var(--ink)' }} />
-                        <p className="text-right text-xs" style={{ color: 'var(--subtle)' }}>{usePercentages ? 'bps' : 'USDC'}</p>
-                      </div>
-                      {rows.length > 1 && (
-                        <button onClick={() => removeRow(i)} className="p-2 pr-3" style={{ color: 'var(--danger)' }}>
-                          <XCircle className="size-4" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  {usePercentages && <p className="text-xs" style={{ color: 'var(--muted)' }}>Basis points — numbers that sum to 10 000 (5000 = 50%)</p>}
-                </div>
-
-                {/* Options */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-2xl p-3" style={glass.inner}>
-                    <p className="mb-1 text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Deadline</p>
-                    <input type="date" value={deadline} onChange={e => setDeadline(e.target.value)}
-                      className="w-full bg-transparent text-sm outline-none" style={{ color: 'var(--ink)', colorScheme: 'dark' }} />
-                  </div>
-                  <div className="rounded-2xl p-3" style={glass.inner}>
-                    <p className="mb-1 text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Cancel Quorum</p>
-                    <input type="number" min={1} max={rows.length} value={cancelThreshold}
-                      onChange={e => setCancelThreshold(e.target.value)}
-                      className="w-full bg-transparent text-sm font-semibold tabular-nums outline-none" style={{ color: 'var(--ink)' }} />
-                    <p className="text-xs" style={{ color: 'var(--subtle)' }}>of {rows.length} votes</p>
-                  </div>
-                </div>
-
-                {/* Recurring toggle */}
-                <div className="flex items-center gap-3">
-                  <button onClick={() => setRecurring(r => !r)}
-                    className="flex size-5 shrink-0 items-center justify-center rounded"
-                    style={{ background: recurring ? 'var(--accent)' : 'transparent', border: `2px solid ${recurring ? 'var(--accent)' : 'var(--border-strong)'}` }}>
-                    {recurring && <CheckCircle2 className="size-3" style={{ color: 'var(--accent-dark)' }} />}
-                  </button>
-                  <span className="text-sm font-medium" style={{ color: 'var(--ink-2)' }}>Recurring every</span>
-                  <input disabled={!recurring} type="number" min={1} value={recurDays}
-                    onChange={e => setRecurDays(e.target.value)}
-                    className="w-16 rounded-xl px-2 py-1 text-center text-sm font-semibold tabular-nums outline-none disabled:opacity-40"
-                    style={{ background: 'var(--surface-muted)', color: 'var(--ink)', border: '1px solid var(--border)' }} />
-                  <span className="text-sm" style={{ color: 'var(--muted)' }}>days</span>
-                </div>
-
-                {isError && (
-                  <div className="rounded-xl p-3 text-xs" style={{ background: 'var(--danger-bg)', color: 'var(--danger)' }}>
-                    {error?.message?.includes('user rejected') ? 'Cancelled.' : error?.message?.slice(0, 120)}
-                  </div>
-                )}
-
-                <TxButton
-                  label={wrongChain ? 'Switch to Arc Testnet' : !address ? 'Connect Wallet' : 'Create Bill'}
-                  onClick={handleCreate}
-                  disabled={!address || !totalAmount || !payee || rows.some(r => !r.address)}
-                  isPending={isPending} isConfirming={isConfirming} />
-              </div>
-            </div>
-          </motion.section>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  )
 }
 
 // ─── Pay Sheet ────────────────────────────────────────────────────────────────
@@ -905,144 +645,6 @@ function BillLoader({ id, refetch, filter, address: walletAddr }: {
   return <BillCard bill={bill} refetch={refetch} />
 }
 
-// ─── Send View ────────────────────────────────────────────────────────────────
-function SendView() {
-  const { address, chainId } = useAccount()
-  const { switchChain } = useSwitchChain()
-  const wrongChain = chainId !== CHAIN_ID
-  const dec = usdcDecimalsFor(CHAIN_ID)
-
-  const urlP = useMemo(() => new URLSearchParams(window.location.search), [])
-  const [to, setTo] = useState(urlP.get('to') ?? '')
-  const [amount, setAmount] = useState(urlP.get('amount') ?? '')
-  const [memo, setMemo] = useState(urlP.get('memo') ?? '')
-  const [approveDone, setApproveDone] = useState(false)
-
-  const toValid = isAddress(to)
-  const amountRaw = useMemo(() => {
-    try { const v = parseFloat(amount); if (!v || v <= 0) return 0n; return parseUnits(v.toFixed(dec), dec) }
-    catch { return 0n }
-  }, [amount, dec])
-  const sendValid = toValid && amountRaw > 0n
-
-  const { data: balance } = useReadContract({
-    address: USDC_ADDRESS, abi: erc20Abi, functionName: 'balanceOf',
-    args: address ? [address] : undefined,
-    query: { enabled: !!address }, chainId: CHAIN_ID,
-  })
-  const { data: allowance, refetch: refetchAllowance } = useReadContract({
-    address: USDC_ADDRESS, abi: erc20Abi, functionName: 'allowance',
-    args: address ? [address, to as `0x${string}`] : undefined,
-    query: { enabled: !!address && toValid }, chainId: CHAIN_ID,
-  })
-  const needsApprove = sendValid && !approveDone && (allowance === undefined || allowance < amountRaw)
-
-  const ensureChain = useCallback(() => { if (wrongChain) switchChain({ chainId: CHAIN_ID }); return !wrongChain }, [wrongChain, switchChain])
-
-  const { writeContract: writeApprove, data: approveHash, isPending: approvePending } = useWriteContract()
-  const { isLoading: approveConfirming, isSuccess: approveSuccess } = useWaitForTransactionReceipt({ hash: approveHash })
-  const { writeContract: writeSend, data: sendHash, isPending: sendPending, reset: resetSend } = useWriteContract()
-  const { isLoading: sendConfirming, isSuccess: sendSuccess } = useWaitForTransactionReceipt({ hash: sendHash })
-
-  const handleApprove = useCallback(() => {
-    if (!ensureChain() || !sendValid) return
-    writeApprove({ address: USDC_ADDRESS, abi: erc20Abi, functionName: 'approve', args: [to, amountRaw] })
-  }, [ensureChain, sendValid, to, amountRaw, writeApprove])
-
-  const handleSend = useCallback(() => {
-    if (!ensureChain() || !sendValid) return
-    writeSend({ address: USDC_ADDRESS, abi: erc20Abi, functionName: 'transfer', args: [to, amountRaw] })
-  }, [ensureChain, sendValid, to, amountRaw, writeSend])
-
-  if (approveSuccess && !approveDone) { setApproveDone(true); void refetchAllowance() }
-  if (sendSuccess) { toast.success(`Sent ${amount} USDC`); setAmount(''); setTo(''); setMemo(''); setApproveDone(false); resetSend() }
-
-  return (
-    <motion.div className="flex flex-col gap-5 max-w-lg" {...fadeUp}>
-      <div>
-        <h2 className="display text-2xl font-bold" style={{ color: 'var(--ink)', letterSpacing: '-0.04em' }}>Send USDC</h2>
-        <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>Send USDC directly to any wallet address.</p>
-      </div>
-
-      {/* Balance pill */}
-      {address && balance !== undefined && (
-        <div className="flex items-center gap-2 rounded-2xl px-4 py-3" style={glass.inner}>
-          <TokenUSDC variant="branded" size={20} />
-          <span className="text-sm" style={{ color: 'var(--muted)' }}>Your balance</span>
-          <span className="mono ml-auto text-sm font-semibold tabular-nums" style={{ color: 'var(--ink)' }}>
-            {fmt(balance)} USDC
-          </span>
-        </div>
-      )}
-
-      {/* Prefill warning — shown when ?to= was set via a link */}
-      {urlP.get('to') && (
-        <div className="rounded-xl px-4 py-3 text-xs font-medium flex items-start gap-2" style={{ background: 'var(--warning-bg)', color: 'var(--warning)', border: '1px solid var(--warning-border)' }}>
-          <span>⚠</span>
-          <span>This payment was pre-filled from a link. Verify the recipient address before sending.</span>
-        </div>
-      )}
-
-      {/* Recipient */}
-      <div className="rounded-2xl p-4 flex flex-col gap-1" style={glass.card}>
-        <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--muted)' }}>Recipient</p>
-        <input value={to} onChange={e => { setTo(e.target.value); setApproveDone(false) }}
-          placeholder="0x… wallet address"
-          className="mono w-full bg-transparent text-sm outline-none placeholder:opacity-30"
-          style={{ color: toValid || !to ? 'var(--ink)' : 'var(--danger)' }} />
-        {to && !toValid && <p className="text-xs" style={{ color: 'var(--danger)' }}>Invalid address</p>}
-      </div>
-
-      {/* Amount */}
-      <div className="rounded-2xl p-4" style={glass.card}>
-        <p className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--muted)' }}>Amount</p>
-        <div className="flex items-center gap-2">
-          <TokenUSDC variant="branded" size={22} />
-          <input inputMode="decimal" value={amount}
-            onChange={e => { setAmount(e.target.value.replace(/[^0-9.]/g, '')); setApproveDone(false) }}
-            placeholder="0.00"
-            className="display flex-1 bg-transparent text-3xl font-bold tabular-nums outline-none placeholder:opacity-20"
-            style={{ color: 'var(--ink)' }} />
-          <span className="text-sm" style={{ color: 'var(--subtle)' }}>USDC</span>
-        </div>
-        {balance !== undefined && amountRaw > (balance) && (
-          <p className="mt-1 text-xs" style={{ color: 'var(--danger)' }}>Exceeds balance</p>
-        )}
-      </div>
-
-      {/* Memo (optional) */}
-      <div className="rounded-2xl px-4 py-3" style={glass.inner}>
-        <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--muted)' }}>Memo <span style={{ color: 'var(--subtle)' }}>(optional)</span></p>
-        <input value={memo} onChange={e => setMemo(e.target.value)} maxLength={80}
-          placeholder="e.g. Rent – October"
-          className="w-full bg-transparent text-sm outline-none placeholder:opacity-30"
-          style={{ color: 'var(--ink)' }} />
-      </div>
-
-      {!address
-        ? <ConnectKitButton />
-        : needsApprove
-          ? <TxButton label="Allow USDC" onClick={handleApprove} disabled={!sendValid}
-              isPending={approvePending} isConfirming={approveConfirming} />
-          : <TxButton label={amount ? `Send ${amount} USDC` : 'Enter amount'}
-              onClick={handleSend} disabled={!sendValid || amountRaw > ((balance as bigint) ?? 0n)}
-              isPending={sendPending} isConfirming={sendConfirming} />
-      }
-
-      {sendHash && (
-        <div className="flex flex-col items-center gap-2 rounded-2xl p-4" style={{ ...glass.inner, background: 'var(--success-bg)' }}>
-          <CheckCircle2 className="size-5" style={{ color: 'var(--success)' }} />
-          <p className="text-sm font-semibold" style={{ color: 'var(--success)' }}>Transaction confirmed!</p>
-          <a href={buildTxExplorerUrl(CHAIN_ID, sendHash)} target="_blank" rel="noreferrer"
-            className="flex items-center gap-1 text-xs" style={{ color: 'var(--accent)' }}>
-            View on ArcScan <ExternalLink className="size-3" />
-          </a>
-        </div>
-      )}
-    </motion.div>
-  )
-}
-
 // ─── Receive View ─────────────────────────────────────────────────────────────
 function ReceiveView({ unifiedAddress }: { unifiedAddress?: `0x${string}` }) {
   const { address: wagmiAddr } = useAccount()
@@ -1426,7 +1028,7 @@ export default function App() {
                 <motion.div key="send"
                   initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}
                   transition={{ duration: 0.18 }}>
-                  <SendView />
+                  <SendPage unifiedAddress={address} seedSession={seedSession} />
                 </motion.div>
               )}
               {tab === 'receive' && (
@@ -1450,23 +1052,42 @@ export default function App() {
                     </button>
                   </div>
 
-                  {/* Bills header row */}
-                  <div className="flex items-center justify-between gap-3 flex-wrap">
-                    <h2 className="display text-xl font-bold" style={{ color: 'var(--ink)' }}>
-                      Bills
-                    </h2>
+                  {/* Bills header */}
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className="display text-2xl font-bold" style={{ color: 'var(--ink)', letterSpacing: '-0.04em' }}>Bills</h2>
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>Onchain shared expenses on Arc</p>
+                      </div>
+                      <div className="flex size-11 items-center justify-center rounded-2xl"
+                        style={{ background: 'var(--accent)', boxShadow: '0 4px 16px rgba(79,110,247,0.3)' }}>
+                        <Receipt className="size-5" style={{ color: '#fff' }} />
+                      </div>
+                    </div>
+                    {/* Filter chips */}
                     {address && (
-                      <div className="flex rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-strong)' }}>
+                      <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
                         {([
-                          { id: 'all',     label: 'All'     },
-                          { id: 'created', label: 'Created' },
-                          { id: 'owe',     label: 'I Owe'   },
-                          { id: 'done',    label: 'Done'    },
-                        ] as const).map(({ id: f, label: fl }) => (
+                          { id: 'all',     label: 'All',     emoji: '📋' },
+                          { id: 'created', label: 'Created', emoji: '✏️' },
+                          { id: 'owe',     label: 'I Owe',   emoji: '💸' },
+                          { id: 'done',    label: 'Done',    emoji: '✅' },
+                        ] as const).map(({ id: f, label: fl, emoji }) => (
                           <button key={f} onClick={() => setFilter(f)}
-                            className="px-3 py-1.5 text-xs font-semibold transition-all"
-                            style={{ background: filter === f ? 'var(--accent)' : 'transparent', color: filter === f ? '#fff' : 'var(--subtle)' }}>
-                            {fl}
+                            className="flex items-center gap-1.5 shrink-0 rounded-2xl px-4 py-2 text-xs font-semibold transition-all hover:scale-105"
+                            style={{
+                              background: filter === f ? 'var(--accent)' : 'var(--surface)',
+                              color: filter === f ? '#fff' : 'var(--ink-2)',
+                              border: filter === f ? 'none' : '1px solid var(--border)',
+                              boxShadow: filter === f ? '0 2px 12px rgba(79,110,247,0.25)' : 'none',
+                            }}>
+                            <span>{emoji}</span> {fl}
+                            {f === 'all' && count > 0 && (
+                              <span className="rounded-full px-1.5 py-0.5 text-[10px] font-bold"
+                                style={{ background: filter === f ? 'rgba(255,255,255,0.25)' : 'var(--surface-muted)', color: filter === f ? '#fff' : 'var(--muted)' }}>
+                                {count}
+                              </span>
+                            )}
                           </button>
                         ))}
                       </div>
@@ -1487,20 +1108,21 @@ export default function App() {
                       <ConnectKitButton />
                     </motion.div>
                   ) : count === 0 ? (
-                    <motion.div className="flex flex-col items-center justify-center py-24 gap-5" style={glass.card} {...fadeUp}>
-                      <div className="flex size-16 items-center justify-center rounded-3xl"
-                        style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)' }}>
-                        <Receipt className="size-7" style={{ color: 'var(--subtle)' }} />
+                    <motion.div className="flex flex-col items-center justify-center py-20 gap-5 rounded-3xl"
+                      style={{ background: 'linear-gradient(135deg,rgba(79,110,247,0.06),rgba(79,110,247,0.01))', border: '1px dashed rgba(79,110,247,0.2)' }} {...fadeUp}>
+                      <div className="text-6xl">🧾</div>
+                      <div className="text-center px-6">
+                        <p className="display font-bold text-xl mb-1" style={{ color: 'var(--ink)' }}>No bills yet</p>
+                        <p className="text-sm" style={{ color: 'var(--muted)' }}>Split your first shared expense with roommates, friends, or family.</p>
                       </div>
-                      <div className="text-center">
-                        <p className="display font-semibold text-lg" style={{ color: 'var(--ink)' }}>No bills yet</p>
-                        <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>Create the first one to get started.</p>
+                      <div className="flex flex-col items-center gap-3 w-full px-8">
+                        <button onClick={() => setShowCreate(true)}
+                          className="w-full flex items-center justify-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-bold transition-all hover:scale-[1.02] active:scale-[0.98]"
+                          style={{ background: 'var(--accent)', color: '#fff', boxShadow: '0 4px 16px rgba(79,110,247,0.3)' }}>
+                          <Plus className="size-4" /> Create your first bill
+                        </button>
+                        <p className="text-xs" style={{ color: 'var(--subtle)' }}>Rent · Utilities · Netflix · Groceries · and more</p>
                       </div>
-                      <button onClick={() => setShowCreate(true)}
-                        className="flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold"
-                        style={{ background: 'var(--accent)', color: '#fff' }}>
-                        <ArrowRight className="size-4" /> Create a Bill
-                      </button>
                     </motion.div>
                   ) : (
                     <div className="grid gap-4 sm:grid-cols-2">
@@ -1547,9 +1169,15 @@ export default function App() {
       {/* ── Payout ready toast (fires once on wallet connect) ──── */}
       <PayoutReadyToaster count={count} address={address} />
 
-      {/* ── Create Bill Sheet ─────────────────────────────────────── */}
-      <CreateBillSheet open={showCreate} onClose={() => setShowCreate(false)}
-        onCreated={() => { setShowCreate(false); refetch() }} />
+      {/* ── Create Bill Page (full-screen) ───────────────────────── */}
+      <AnimatePresence>
+        {showCreate && (
+          <CreateBillPage
+            onClose={() => setShowCreate(false)}
+            onCreated={() => { setShowCreate(false); void refetch() }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }

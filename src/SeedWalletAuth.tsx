@@ -29,6 +29,8 @@ import type { Hex } from 'viem'
 export interface SeedWalletSession {
   address: Hex
   method: 'seed-wallet'
+  /** In-memory only — private key for signing. Never persisted. */
+  privateKey?: Hex
 }
 
 type Step =
@@ -258,7 +260,7 @@ export function SeedWalletAuth({ session, onSignedIn, onSignOut }: Props) {
     try {
       const blob = await encryptWallet({ mnemonic: mn, privateKey: pk, address: addr }, pw)
       saveBlob(blob)
-      onSignedIn({ address: addr, method: 'seed-wallet' })
+      onSignedIn({ address: addr, method: 'seed-wallet', privateKey: pk })
       setStep('done')
       toast.success('Wallet ready!')
     } catch (e) {
@@ -306,7 +308,7 @@ export function SeedWalletAuth({ session, onSignedIn, onSignOut }: Props) {
     setLoading(true); setError(null)
     try {
       const payload = await decryptWallet(blob, unlockPw)
-      onSignedIn({ address: payload.address, method: 'seed-wallet' })
+      onSignedIn({ address: payload.address, method: 'seed-wallet', privateKey: payload.privateKey })
       setStep('done')
       toast.success('Wallet unlocked!')
     } catch {
