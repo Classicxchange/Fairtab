@@ -800,14 +800,15 @@ function BillLoader({ id, refetch, filter, address: walletAddr, onVisible, onInv
   const { data: billData } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getBill', args: [id], chainId: CHAIN_ID })
   const { data: sharesData } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getShares', args: [id], chainId: CHAIN_ID })
   const { data: metaData } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getBillMeta', args: [id], chainId: CHAIN_ID })
-  const { data: myStatusRaw } = useReadContract({
+  const { data: myStatusRaw, isError: myStatusError, isFetched: myStatusFetched } = useReadContract({
     address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getParticipantStatus',
     args: walletAddr ? [id, walletAddr] : undefined,
-    query: { enabled: !!walletAddr }, chainId: CHAIN_ID,
+    query: { enabled: !!walletAddr, retry: false }, chainId: CHAIN_ID,
   })
-  const myStatus = (myStatusRaw as ParticipantStatus | undefined)
-  // Don't resolve status as undefined yet — wait for it to load before filtering
-  const myStatusLoaded = myStatusRaw !== undefined
+  // If the contract doesn't support getParticipantStatus (reverts), treat everyone as Accepted (1).
+  // myStatusSettled = true once we have a result OR a confirmed error — never block on it.
+  const myStatusSettled = myStatusFetched || myStatusError
+  const myStatus: ParticipantStatus = myStatusError || myStatusRaw === undefined ? 1 : (myStatusRaw as ParticipantStatus)
 
   if (!billData || !sharesData) return (
     <div className="rounded-2xl h-32 animate-pulse" style={{ background: 'var(--surface-muted)' }} />
@@ -827,9 +828,9 @@ function BillLoader({ id, refetch, filter, address: walletAddr, onVisible, onInv
     const isParticipant = shares.some(s => s.participant.toLowerCase() === addr)
     if (!isCreator && !isPayee && !isParticipant) return null
 
-    // Wait for participant status to load before filtering — prevents a race
-    // where undefined status lets a Pending invite slip through to "I Owe"
-    if (isParticipant && !isCreator && !myStatusLoaded) {
+    // Wait for participant status to settle (success OR confirmed error) before filtering.
+    // This prevents a race where undefined status lets a Pending invite slip through to "I Owe".
+    if (isParticipant && !isCreator && !myStatusSettled) {
       return <div className="rounded-2xl h-32 animate-pulse" style={{ background: 'var(--surface-muted)' }} />
     }
 
@@ -975,13 +976,15 @@ function BillParticipantChecker({ id, walletAddr, onResult }: {
 }) {
   const { data: billData } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getBill', args: [id], chainId: CHAIN_ID })
   const { data: sharesData } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getShares', args: [id], chainId: CHAIN_ID })
-  const { data: myStatusRaw } = useReadContract({
+  const { data: myStatusRaw, isError: myStatusError, isFetched: myStatusFetched } = useReadContract({
     address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getParticipantStatus',
     args: [id, walletAddr as `0x${string}`], chainId: CHAIN_ID,
+    query: { retry: false },
   })
   const notified = useRef(false)
   useEffect(() => {
-    if (!billData || !sharesData || myStatusRaw === undefined || notified.current) return
+    // Settle once we have data OR a confirmed error (contract doesn't support the function)
+    if (!billData || !sharesData || (!myStatusFetched && !myStatusError) || notified.current) return
     const bd = billData as unknown[]
     const creator = (bd[0] as string).toLowerCase()
     const status = bd[4] as number
@@ -990,7 +993,8 @@ function BillParticipantChecker({ id, walletAddr, onResult }: {
     const myShare = shares.find(s => s.participant.toLowerCase() === addr)
     if (!myShare) return
     const isCreator = creator === addr
-    const participantStatus = myStatusRaw as number // 0=Pending, 1=Accepted, 2=Rejected
+    // If contract reverts, treat as Accepted (no invite system on this deployment)
+    const participantStatus = myStatusError ? 1 : (myStatusRaw as number ?? 1)
     const isPendingInvite = !isCreator && participantStatus === 0
     // Only count as owed/active if participant has accepted
     const hasUnpaidShare = !isPendingInvite && status === 0 && myShare.contributed < myShare.amount
@@ -998,7 +1002,7 @@ function BillParticipantChecker({ id, walletAddr, onResult }: {
     const isNewBill = !isCreator && participantStatus === 1
     notified.current = true
     onResult(id, isNewBill, hasUnpaidShare, isPendingInvite)
-  }, [billData, sharesData, myStatusRaw, walletAddr, id, onResult])
+  }, [billData, sharesData, myStatusRaw, myStatusError, myStatusFetched, walletAddr, id, onResult])
   return null
 }
 
