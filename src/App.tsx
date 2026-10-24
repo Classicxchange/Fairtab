@@ -186,6 +186,81 @@ function ArcBg() {
   return <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0, background: 'var(--bg)' }} />
 }
 
+// ─── Balance Card ─────────────────────────────────────────────────────────────
+function BalanceCard({ address, onSend, onReceive }: {
+  address?: `0x${string}`
+  onSend: () => void
+  onReceive: () => void
+}) {
+  const { data: balance, isLoading } = useReadContract({
+    address: USDC_ADDRESS, abi: erc20Abi, functionName: 'balanceOf',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address }, chainId: CHAIN_ID,
+  })
+
+  if (!address) return null
+
+  const balStr = balance !== undefined ? fmt(balance) : '—'
+
+  return (
+    <motion.div
+      className="relative overflow-hidden rounded-3xl p-5"
+      style={{
+        background: 'linear-gradient(135deg, #2563eb 0%, #4f46e5 60%, #7c3aed 100%)',
+        boxShadow: '0 8px 32px rgba(37,99,235,0.35)',
+      }}
+      {...fadeUp}>
+      {/* Decorative circles */}
+      <div className="absolute -top-6 -right-6 size-28 rounded-full opacity-20"
+        style={{ background: 'rgba(255,255,255,0.3)' }} />
+      <div className="absolute -bottom-4 -left-4 size-20 rounded-full opacity-10"
+        style={{ background: 'rgba(255,255,255,0.4)' }} />
+
+      {/* Network badge */}
+      <div className="relative flex items-center justify-between mb-4">
+        <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
+          style={{ background: 'rgba(255,255,255,0.18)', color: '#fff' }}>
+          {IS_MAINNET ? 'Arc Mainnet' : 'Arc Testnet'}
+        </span>
+        <TokenUSDC variant="branded" size={22} />
+      </div>
+
+      {/* Balance */}
+      <div className="relative mb-5">
+        <p className="text-xs font-semibold mb-1" style={{ color: 'rgba(255,255,255,0.65)' }}>USDC Balance</p>
+        {isLoading
+          ? <div className="h-9 w-32 rounded-xl animate-pulse" style={{ background: 'rgba(255,255,255,0.15)' }} />
+          : (
+            <div className="flex items-end gap-2">
+              <span className="display text-4xl font-bold tabular-nums" style={{ color: '#fff', letterSpacing: '-0.04em' }}>
+                {balStr}
+              </span>
+              <span className="mb-1 text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.6)' }}>USDC</span>
+            </div>
+          )
+        }
+        <p className="mono text-xs mt-1.5 truncate" style={{ color: 'rgba(255,255,255,0.45)' }}>
+          {address.slice(0, 10)}…{address.slice(-8)}
+        </p>
+      </div>
+
+      {/* Actions */}
+      <div className="relative flex gap-2">
+        <button onClick={onSend}
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-2xl py-2.5 text-sm font-bold transition-all hover:scale-[1.02] active:scale-[0.98]"
+          style={{ background: 'rgba(255,255,255,0.22)', color: '#fff', backdropFilter: 'blur(8px)' }}>
+          <Send className="size-4" /> Send
+        </button>
+        <button onClick={onReceive}
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-2xl py-2.5 text-sm font-bold transition-all hover:scale-[1.02] active:scale-[0.98]"
+          style={{ background: 'rgba(255,255,255,0.22)', color: '#fff', backdropFilter: 'blur(8px)' }}>
+          <QrCode className="size-4" /> Receive
+        </button>
+      </div>
+    </motion.div>
+  )
+}
+
 // ─── Pay Sheet ────────────────────────────────────────────────────────────────
 function PaySheet({ bill, open, onClose, onPaid }: {
   bill: BillSummary; open: boolean; onClose: () => void; onPaid: () => void
@@ -1001,6 +1076,15 @@ export default function App() {
               </>
             )}
 
+            {/* Desktop balance card */}
+            {address && (
+              <BalanceCard
+                address={address}
+                onSend={() => setTab('send')}
+                onReceive={() => setTab('receive')}
+              />
+            )}
+
             <p className="text-center text-xs" style={{ color: 'var(--subtle)' }}>
               Settled onchain · {IS_MAINNET ? 'Arc Mainnet' : 'Arc Testnet'}
             </p>
@@ -1008,6 +1092,17 @@ export default function App() {
 
           {/* ── Main content ────────────────────────────────────── */}
           <main className="flex-1 min-w-0 flex flex-col gap-6">
+            {/* Mobile balance card — shown above tab bar */}
+            {address && (
+              <div className="md:hidden">
+                <BalanceCard
+                  address={address}
+                  onSend={() => setTab('send')}
+                  onReceive={() => setTab('receive')}
+                />
+              </div>
+            )}
+
             {/* Mobile tab bar */}
             <div className="md:hidden flex rounded-2xl overflow-hidden p-1 gap-1"
               style={{ background: 'var(--surface-strong)', border: '1px solid var(--border)' }}>

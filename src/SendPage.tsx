@@ -18,6 +18,7 @@ import { arcChain, IS_MAINNET } from '@/config'
 import type { Chain } from 'viem'
 import { type SeedWalletSession } from '@/SeedWalletAuth'
 import { privateKeyToAccount } from 'viem/accounts'
+import { TxConfirmModal, type TxDetail } from '@/TxConfirmModal'
 
 const CHAIN_ID = arcChain.id
 const USDC_ADDRESS = getUsdc(CHAIN_ID)!.address as `0x${string}`
@@ -58,6 +59,7 @@ export function SendPage({ unifiedAddress, seedSession }: Props) {
   const [seedSending, setSeedSending] = useState(false)
   const [seedTxHash, setSeedTxHash] = useState<`0x${string}` | null>(null)
   const [step, setStep] = useState<'form' | 'confirm' | 'success'>('form')
+  const [showTxModal, setShowTxModal] = useState(false)
 
   const toValid = isAddress(to)
   const amountRaw = useMemo(() => {
@@ -120,12 +122,14 @@ export function SendPage({ unifiedAddress, seedSession }: Props) {
         chain: viemChain,
       })
       setSeedTxHash(txHash)
+      setShowTxModal(false)
       await publicClient.waitForTransactionReceipt({ hash: txHash })
       toast.success(`Sent ${amount} USDC`)
       setStep('success')
       void refetchBalance()
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e)
+      setShowTxModal(false)
       toast.error(msg.includes('rejected') ? 'Cancelled.' : 'Send failed: ' + msg.slice(0, 80))
     } finally {
       setSeedSending(false)
@@ -227,12 +231,12 @@ export function SendPage({ unifiedAddress, seedSession }: Props) {
         </div>
 
         <button
-          onClick={seedSession ? handleSeedSend : (needsApprove ? handleApprove : handleWagmiSend)}
+          onClick={seedSession ? () => setShowTxModal(true) : (needsApprove ? handleApprove : handleWagmiSend)}
           disabled={busy || exceedsBalance}
           className="w-full flex items-center justify-center gap-2 rounded-2xl py-4 text-base font-bold transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ background: 'var(--accent)', color: '#fff', boxShadow: '0 4px 20px rgba(79,110,247,0.3)' }}>
           {busy
-            ? <><Loader2 className="size-5 animate-spin" /> {sendPending || seedSending ? 'Confirm in wallet…' : 'Confirming…'}</>
+            ? <><Loader2 className="size-5 animate-spin" /> {sendPending || seedSending ? 'Signing…' : 'Confirming…'}</>
             : needsApprove
               ? <><CheckCircle2 className="size-5" /> Allow USDC</>
               : <><Send className="size-5" /> Confirm send {amount} USDC</>
@@ -395,6 +399,25 @@ export function SendPage({ unifiedAddress, seedSession }: Props) {
         <ScanLine className="size-3.5" />
         You can also scan a QR code from the Receive tab to auto-fill the address
       </p>
+
+      {/* Seed wallet tx confirmation modal */}
+      {seedSession && (
+        <TxConfirmModal
+          open={showTxModal}
+          fromAddress={seedSession.address}
+          isPending={seedSending}
+          detail={{
+            action: 'Send USDC',
+            amount: `${amount} USDC`,
+            to: to.length > 10 ? `${to.slice(0, 8)}…${to.slice(-6)}` : to,
+            rows: [
+              ...(memo ? [{ label: 'Memo', value: memo }] : []),
+            ],
+          } satisfies TxDetail}
+          onConfirm={() => { void handleSeedSend() }}
+          onCancel={() => setShowTxModal(false)}
+        />
+      )}
     </motion.div>
   )
 }

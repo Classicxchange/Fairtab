@@ -9,6 +9,7 @@ import {
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import type { SeedWalletSession } from '@/SeedWalletAuth'
+import { TxConfirmModal, type TxDetail } from '@/TxConfirmModal'
 import { TokenUSDC } from '@web3icons/react'
 import {
   Plus, XCircle, CheckCircle2, Loader2, ExternalLink, Tag, Users,
@@ -101,6 +102,7 @@ export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
   const [seedHash, setSeedHash] = useState<`0x${string}` | null>(null)
   const [seedSuccess, setSeedSuccess] = useState(false)
   const [seedError, setSeedError] = useState<string | null>(null)
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
 
   const { writeContract, data: wagmiHash, isPending: wagmiPending, isError: wagmiIsError, error: wagmiError, reset: wagmiReset } = useWriteContract()
   const { isLoading: wagmiConfirming, isSuccess: wagmiSuccess } = useWaitForTransactionReceipt({ hash: wagmiHash })
@@ -150,12 +152,14 @@ export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
       const data = encodeFunctionData({ abi: CONTRACT_ABI, functionName: 'createBill', args: buildArgs() })
       const txHash = await walletClient.sendTransaction({ to: CONTRACT_ADDRESS, data, value: 0n, chain: viemChain })
       setSeedHash(txHash)
+      setShowConfirmModal(false)
       await publicClient.waitForTransactionReceipt({ hash: txHash })
       setSeedSuccess(true)
       toast.success('Bill created!')
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e)
       setSeedError(msg.includes('rejected') ? 'Transaction cancelled.' : msg.slice(0, 150))
+      setShowConfirmModal(false)
       toast.error('Failed to create bill')
     } finally { setSeedPending(false) }
   }, [seedSession, buildArgs])
@@ -166,7 +170,8 @@ export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
     const invalidIdx = rows.findIndex(r => !isAddress(r.address))
     if (invalidIdx >= 0) { toast.error(`Participant ${invalidIdx + 1} has an invalid address`); return }
     if (seedSession?.privateKey) {
-      void handleSeedCreate()
+      // Show confirmation modal before signing
+      setShowConfirmModal(true)
       return
     }
     if (wrongChain) { switchChain({ chainId: CHAIN_ID }); return }
@@ -174,7 +179,7 @@ export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
       address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'createBill',
       args: buildArgs(),
     })
-  }, [address, wrongChain, switchChain, payee, totalAmount, rows, seedSession, handleSeedCreate, buildArgs, writeContract])
+  }, [address, wrongChain, switchChain, payee, totalAmount, rows, seedSession, buildArgs, writeContract])
 
   // Step validation
   const step1Valid = billLabel.length > 0 && totalAmount !== '' && parseFloat(totalAmount) > 0
@@ -659,6 +664,27 @@ export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
             <ArrowRight className="size-5" />
           </button>
         </div>
+      )}
+
+      {/* ── Seed wallet transaction confirmation modal ── */}
+      {seedSession && (
+        <TxConfirmModal
+          open={showConfirmModal}
+          fromAddress={seedSession.address}
+          isPending={seedPending}
+          detail={{
+            action: 'Create bill',
+            amount: totalAmount ? `${totalAmount} USDC` : undefined,
+            to: 'Bill Splitter contract',
+            rows: [
+              { label: 'Participants', value: `${rows.length} wallet${rows.length !== 1 ? 's' : ''}` },
+              { label: 'Split', value: usePercentages ? '% shares' : 'Fixed USDC' },
+              ...(deadline ? [{ label: 'Deadline', value: new Date(deadline).toLocaleDateString() }] : []),
+            ],
+          } satisfies TxDetail}
+          onConfirm={() => { void handleSeedCreate() }}
+          onCancel={() => setShowConfirmModal(false)}
+        />
       )}
     </motion.div>
   )
