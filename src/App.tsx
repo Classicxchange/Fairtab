@@ -806,6 +806,8 @@ function BillLoader({ id, refetch, filter, address: walletAddr, onVisible, onInv
     query: { enabled: !!walletAddr }, chainId: CHAIN_ID,
   })
   const myStatus = (myStatusRaw as ParticipantStatus | undefined)
+  // Don't resolve status as undefined yet — wait for it to load before filtering
+  const myStatusLoaded = myStatusRaw !== undefined
 
   if (!billData || !sharesData) return (
     <div className="rounded-2xl h-32 animate-pulse" style={{ background: 'var(--surface-muted)' }} />
@@ -824,6 +826,12 @@ function BillLoader({ id, refetch, filter, address: walletAddr, onVisible, onInv
     const isPayee  = payee.toLowerCase() === addr
     const isParticipant = shares.some(s => s.participant.toLowerCase() === addr)
     if (!isCreator && !isPayee && !isParticipant) return null
+
+    // Wait for participant status to load before filtering — prevents a race
+    // where undefined status lets a Pending invite slip through to "I Owe"
+    if (isParticipant && !isCreator && !myStatusLoaded) {
+      return <div className="rounded-2xl h-32 animate-pulse" style={{ background: 'var(--surface-muted)' }} />
+    }
 
     const isPending = myStatus === 0 && isParticipant && !isCreator
 
@@ -963,13 +971,17 @@ function ReceiveView({ unifiedAddress }: { unifiedAddress?: `0x${string}` }) {
 function BillParticipantChecker({ id, walletAddr, onResult }: {
   id: bigint
   walletAddr: string
-  onResult: (id: bigint, isNewBill: boolean, hasUnpaidShare: boolean) => void
+  onResult: (id: bigint, isNewBill: boolean, hasUnpaidShare: boolean, isPendingInvite: boolean) => void
 }) {
   const { data: billData } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getBill', args: [id], chainId: CHAIN_ID })
   const { data: sharesData } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getShares', args: [id], chainId: CHAIN_ID })
+  const { data: myStatusRaw } = useReadContract({
+    address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getParticipantStatus',
+    args: [id, walletAddr as `0x${string}`], chainId: CHAIN_ID,
+  })
   const notified = useRef(false)
   useEffect(() => {
-    if (!billData || !sharesData || notified.current) return
+    if (!billData || !sharesData || myStatusRaw === undefined || notified.current) return
     const bd = billData as unknown[]
     const creator = (bd[0] as string).toLowerCase()
     const status = bd[4] as number
@@ -977,14 +989,16 @@ function BillParticipantChecker({ id, walletAddr, onResult }: {
     const shares = sharesData as Array<{ participant: string; amount: bigint; contributed: bigint }>
     const myShare = shares.find(s => s.participant.toLowerCase() === addr)
     if (!myShare) return
-    const isParticipant = true
     const isCreator = creator === addr
-    const hasUnpaidShare = status === 0 && myShare.contributed < myShare.amount
-    // A "new bill" = user is participant but not creator
-    const isNewBill = isParticipant && !isCreator
+    const participantStatus = myStatusRaw as number // 0=Pending, 1=Accepted, 2=Rejected
+    const isPendingInvite = !isCreator && participantStatus === 0
+    // Only count as owed/active if participant has accepted
+    const hasUnpaidShare = !isPendingInvite && status === 0 && myShare.contributed < myShare.amount
+    // A "new bill" = user is participant (non-creator) and accepted
+    const isNewBill = !isCreator && participantStatus === 1
     notified.current = true
-    onResult(id, isNewBill, hasUnpaidShare)
-  }, [billData, sharesData, walletAddr, id, onResult])
+    onResult(id, isNewBill, hasUnpaidShare, isPendingInvite)
+  }, [billData, sharesData, myStatusRaw, walletAddr, id, onResult])
   return null
 }
 
@@ -994,40 +1008,66 @@ function BillNotificationScanner({ count, address: walletAddr, onOwedCount }: {
   onOwedCount: (n: number) => void
 }) {
   const toastedRef = useRef(false)
+  const inviteToastedRef = useRef(false)
   const seenKey = `fairtab_seen_bills_${walletAddr ?? ''}`
+  const seenInviteKey = `fairtab_seen_invites_${walletAddr ?? ''}`
   const newBillIds = useRef<bigint[]>([])
+  const newInviteIds = useRef<bigint[]>([])
   const owedCount = useRef(0)
   const resolvedCount = useRef(0)
 
   const ids = useMemo(() => Array.from({ length: count }, (_, i) => BigInt(i)), [count])
 
-  const handleResult = useCallback((id: bigint, isNewBill: boolean, hasUnpaidShare: boolean) => {
+  const handleResult = useCallback((id: bigint, isNewBill: boolean, hasUnpaidShare: boolean, isPendingInvite: boolean) => {
     resolvedCount.current++
     if (hasUnpaidShare) { owedCount.current++; onOwedCount(owedCount.current) }
-    if (isNewBill) {
+
+    if (isPendingInvite) {
+      // Pending invite: track separately, show Invites toast
+      try {
+        const seen = (JSON.parse(localStorage.getItem(seenInviteKey) ?? '[]') as unknown) as string[]
+        if (!seen.includes(id.toString())) newInviteIds.current.push(id)
+      } catch { newInviteIds.current.push(id) }
+    } else if (isNewBill) {
+      // Accepted bill the user is part of
       try {
         const seen = (JSON.parse(localStorage.getItem(seenKey) ?? '[]') as unknown) as string[]
-        const idStr = id.toString()
-        if (!seen.includes(idStr)) newBillIds.current.push(id)
+        if (!seen.includes(id.toString())) newBillIds.current.push(id)
       } catch { newBillIds.current.push(id) }
     }
-    // After all resolved, fire toast for unseen new bills
-    if (resolvedCount.current === count && newBillIds.current.length > 0 && !toastedRef.current) {
+
+    if (resolvedCount.current !== count) return
+
+    // Fire invite toast for unseen pending invites
+    if (newInviteIds.current.length > 0 && !inviteToastedRef.current) {
+      inviteToastedRef.current = true
+      const n = newInviteIds.current.length
+      toast(`You have ${n} pending bill invite${n > 1 ? 's' : ''}`, {
+        description: 'Open the "Invites" tab to accept or decline.',
+        duration: 8000,
+        action: { label: 'View', onClick: () => {} },
+      })
+      try {
+        const seen = (JSON.parse(localStorage.getItem(seenInviteKey) ?? '[]') as unknown) as string[]
+        localStorage.setItem(seenInviteKey, JSON.stringify([...new Set([...seen, ...newInviteIds.current.map(i => i.toString())])]))
+      } catch {}
+    }
+
+    // Fire "added to bills" toast for accepted bills
+    if (newBillIds.current.length > 0 && !toastedRef.current) {
       toastedRef.current = true
       const n = newBillIds.current.length
-      toast(`You've been added to ${n} new bill${n > 1 ? 's' : ''}`, {
+      toast(`You've been added to ${n} bill${n > 1 ? 's' : ''}`, {
         description: 'Open the "I Owe" tab to see your shares.',
         duration: 8000,
         action: { label: 'View', onClick: () => {} },
       })
-      // Mark all as seen
       try {
         const seen = (JSON.parse(localStorage.getItem(seenKey) ?? '[]') as unknown) as string[]
-        const updated = [...new Set([...seen, ...newBillIds.current.map(i => i.toString())])]
-        localStorage.setItem(seenKey, JSON.stringify(updated))
+        localStorage.setItem(seenKey, JSON.stringify([...new Set([...seen, ...newBillIds.current.map(i => i.toString())])]))
       } catch {}
     }
-  }, [count, seenKey, onOwedCount])
+  }, [count, seenKey, seenInviteKey, onOwedCount])
 
   if (!walletAddr || count === 0) return null
   return (
