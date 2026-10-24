@@ -122,6 +122,9 @@ contract HouseholdBillSplitter is Ownable2Step, ReentrancyGuard {
     mapping(uint256 => mapping(address => uint8)) public payoutRedirectCandidateVotes;
     mapping(uint256 => mapping(address => bool)) public payoutReclaimClaimed;
     mapping(uint256 => uint8) public payoutReclaimCount;
+    /// @dev Snapshot of total eligible reclaimers at the time the first reclaim is made.
+    ///      Stored so every claimant uses the same denominator even if shares change.
+    mapping(uint256 => uint8) public payoutReclaimEligibleSnapshot;
     mapping(uint256 => mapping(address => bool)) private _hasVotedRedirect;
     mapping(uint256 => mapping(address => address)) private _redirectVoteChoice;
     mapping(uint256 => uint8) public payoutRedirectVotes;
@@ -146,6 +149,16 @@ contract HouseholdBillSplitter is Ownable2Step, ReentrancyGuard {
         if (usdc_.code.length == 0) revert InvalidBillParams("usdc_ must be a contract");
         usdc = usdc_;
     }
+
+    /// @notice Minimum cancel threshold as a fraction of eligible voters (numerator/denominator = 51/100 → majority).
+    /// Prevents single-actor cancellation by requiring at least a majority of eligible voters.
+    uint8 public constant MIN_CANCEL_THRESHOLD_NUMERATOR = 51;
+    uint8 public constant MIN_CANCEL_THRESHOLD_DENOMINATOR = 100;
+
+    /// @notice Minimum redirect quorum: strictly more than half of contributors must agree.
+    /// Prevents a single participant from redirecting the payout to themselves.
+    uint8 public constant MIN_REDIRECT_QUORUM_NUMERATOR = 51;
+    uint8 public constant MIN_REDIRECT_QUORUM_DENOMINATOR = 100;
 
     /// @notice Creates a bill with up to MAX_PARTICIPANTS participants.
     function createBill(
@@ -242,6 +255,8 @@ contract HouseholdBillSplitter is Ownable2Step, ReentrancyGuard {
 
     function acceptInvite(uint256 billId) external {
         Bill storage bill = _activeBill(billId);
+        // Block accepting invites on expired bills — post-deadline path is claimExpiredRefund.
+        if (bill.deadline != 0 && block.timestamp > bill.deadline) revert DeadlineExpired(billId);
         if (participantStatus[billId][msg.sender] != ParticipantStatus.Pending) {
             revert InviteNotPending(billId, msg.sender);
         }
@@ -316,15 +331,8 @@ contract HouseholdBillSplitter is Ownable2Step, ReentrancyGuard {
     function voteCancel(uint256 billId) external {
         Bill storage bill = _activeBill(billId);
 
-        bool isCreator = msg.sender == bill.creator;
-        bool isParticipant_ = _isParticipant(bill, msg.sender);
-        if (!isCreator && !isParticipant_) revert NotAuthorizedToCancel(billId, msg.sender);
-
-        if (cancelVoted[billId][msg.sender]) revert AlreadyVotedCancel(billId, msg.sender);
-
-        cancelVoted[billId][msg.sender] = true;
-
-        // Only count toward quorum if voter is a participant with amount > 0
+        // Only accepted participants with amount > 0 may vote to cancel.
+        // A non-participant creator has no skin in the game and cannot unilaterally cancel.
         bool eligible = false;
         for (uint256 i = 0; i < bill.shares.length; i++) {
             if (bill.shares[i].participant == msg.sender && bill.shares[i].amount > 0) {
@@ -332,7 +340,14 @@ contract HouseholdBillSplitter is Ownable2Step, ReentrancyGuard {
                 break;
             }
         }
-        if (eligible) bill.cancelVotes += 1;
+        if (!eligible) revert NotAuthorizedToCancel(billId, msg.sender);
+        if (participantStatus[billId][msg.sender] != ParticipantStatus.Accepted)
+            revert NotAuthorizedToCancel(billId, msg.sender);
+
+        if (cancelVoted[billId][msg.sender]) revert AlreadyVotedCancel(billId, msg.sender);
+
+        cancelVoted[billId][msg.sender] = true;
+        bill.cancelVotes += 1;
 
         emit CancelVote(billId, msg.sender);
 
@@ -427,42 +442,51 @@ contract HouseholdBillSplitter is Ownable2Step, ReentrancyGuard {
 
         if (block.timestamp < bill.settledAt + PAYOUT_REDIRECT_GRACE) revert PayoutRedirectNotReady(billId);
 
-        bool isParticipant = false;
+        // Only contributors (contributed > 0) may vote — prevents non-payers from redirecting
+        bool isContributor = false;
+        uint256 totalContributors = 0;
         for (uint256 i = 0; i < bill.shares.length; i++) {
-            if (bill.shares[i].participant == msg.sender && bill.shares[i].amount > 0) {
-                isParticipant = true;
-                break;
+            if (bill.shares[i].contributed > 0) {
+                totalContributors++;
+                if (bill.shares[i].participant == msg.sender) isContributor = true;
             }
         }
-        if (!isParticipant) revert NotParticipant(billId, msg.sender);
+        if (!isContributor) revert NotParticipant(billId, msg.sender);
 
         _validatePayeeAddress(candidate);
+        // Block redirect to the current payee — that would be a no-op and opens self-redirect spam
+        if (candidate == bill.payee) revert InvalidBillParams("candidate is current payee");
+        // Block a participant from redirecting to themselves (theft vector)
+        for (uint256 i = 0; i < bill.shares.length; i++) {
+            if (bill.shares[i].participant == candidate && bill.shares[i].contributed > 0) {
+                revert InvalidBillParams("candidate cannot be a contributor");
+            }
+        }
 
         address previousChoice = _redirectVoteChoice[billId][msg.sender];
         bool isNewVoter = !_hasVotedRedirect[billId][msg.sender];
 
-        // If changing vote to same candidate, no-op
         if (!isNewVoter && previousChoice == candidate) revert AlreadyVotedRedirect(billId, msg.sender);
 
-        // Decrement old candidate tally if changing vote
         if (!isNewVoter && previousChoice != candidate) {
             if (payoutRedirectCandidateVotes[billId][previousChoice] > 0) {
                 payoutRedirectCandidateVotes[billId][previousChoice]--;
             }
-            // Note: payoutRedirectVotes total does NOT change on a vote-change (same voter, just switching)
         } else if (isNewVoter) {
             _hasVotedRedirect[billId][msg.sender] = true;
             payoutRedirectVotes[billId]++;
         }
 
-        // Record new choice
         _redirectVoteChoice[billId][msg.sender] = candidate;
         payoutRedirectCandidateVotes[billId][candidate]++;
 
         emit PayoutRedirectVote(billId, msg.sender, candidate, payoutRedirectVotes[billId]);
 
-        // Check quorum for this specific candidate
-        if (payoutRedirectCandidateVotes[billId][candidate] >= bill.cancelThreshold) {
+        // Quorum: strict majority of contributors (> 50%) must agree on the same candidate.
+        // Uses MIN_REDIRECT_QUORUM (51/100) — much harder to game than cancelThreshold alone.
+        uint256 requiredVotes = (totalContributors * MIN_REDIRECT_QUORUM_NUMERATOR + MIN_REDIRECT_QUORUM_DENOMINATOR - 1) / MIN_REDIRECT_QUORUM_DENOMINATOR;
+        if (requiredVotes == 0) requiredVotes = 1;
+        if (payoutRedirectCandidateVotes[billId][candidate] >= requiredVotes) {
             emit PayeeRedirected(billId, bill.payee, candidate);
             bill.payee = candidate;
         }
@@ -484,11 +508,18 @@ contract HouseholdBillSplitter is Ownable2Step, ReentrancyGuard {
         if (contributed == 0) revert NoReclaimAvailable(billId, msg.sender);
         uint256 reclaimable = (contributed * payoutReclaimBase[billId]) / bill.totalAmount;
         if (reclaimable == 0) revert NoReclaimAvailable(billId, msg.sender);
-        // Count eligible reclaimers (contributed > 0)
-        uint8 eligibleReclaimers = 0;
-        for (uint256 i = 0; i < bill.shares.length; i++) {
-            if (bill.shares[i].contributed > 0) eligibleReclaimers++;
+
+        // Snapshot eligible reclaimers once (on first call) so every claimant uses the same
+        // denominator. This prevents MEV front-running to be the "last claimant" and claim dust.
+        if (payoutReclaimEligibleSnapshot[billId] == 0) {
+            uint8 snap = 0;
+            for (uint256 i = 0; i < bill.shares.length; i++) {
+                if (bill.shares[i].contributed > 0) snap++;
+            }
+            payoutReclaimEligibleSnapshot[billId] = snap;
         }
+        uint8 eligibleReclaimers = payoutReclaimEligibleSnapshot[billId];
+
         payoutReclaimClaimed[billId][msg.sender] = true;
         payoutReclaimCount[billId]++;
         bool isLastClaimant = payoutReclaimCount[billId] == eligibleReclaimers;
@@ -676,7 +707,12 @@ contract HouseholdBillSplitter is Ownable2Step, ReentrancyGuard {
         for (uint256 i = 0; i < bill.shares.length; i++) {
             if (bill.shares[i].amount > 0) eligibleVoters++;
         }
+        // Enforce minimum majority threshold: ceil(eligibleVoters * 51/100) ≥ cancelThreshold.
+        // This prevents a single actor from unilaterally cancelling even with threshold=1.
+        uint256 minThreshold = (eligibleVoters * MIN_CANCEL_THRESHOLD_NUMERATOR + MIN_CANCEL_THRESHOLD_DENOMINATOR - 1) / MIN_CANCEL_THRESHOLD_DENOMINATOR;
+        if (minThreshold == 0) minThreshold = 1;
         if (cancelThreshold == 0 || cancelThreshold > eligibleVoters) revert InvalidBillParams("bad threshold");
+        if (cancelThreshold < minThreshold) revert InvalidBillParams("threshold below minimum majority");
 
         _emitBillCreated(billId, bill);
     }
@@ -766,7 +802,10 @@ contract HouseholdBillSplitter is Ownable2Step, ReentrancyGuard {
             amounts[i] = s.amount;
         }
 
-        uint256 newBillId = _createBill(
+        // NOTE: participants are NOT auto-accepted on spawn. Each must explicitly call
+        // acceptInvite() for the new recurring bill before they can pay.
+        // This preserves consent on every billing cycle.
+        _createBill(
             parent.creator,
             parent.totalAmount,
             parent.label,
@@ -779,12 +818,6 @@ contract HouseholdBillSplitter is Ownable2Step, ReentrancyGuard {
             parent.recurInterval,
             parent.cancelThreshold
         );
-
-        Bill storage newBill = _bills[newBillId];
-        for (uint256 i = 0; i < newBill.shares.length; i++) {
-            Share storage s = newBill.shares[i];
-            participantStatus[newBillId][s.participant] = ParticipantStatus.Accepted;
-        }
     }
 
     function _activeBill(uint256 billId) internal view returns (Bill storage bill) {
