@@ -120,8 +120,13 @@ export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
   const [deadline, setDeadline] = useState(draft?.deadline ?? '')
   const [recurring, setRecurring] = useState(draft?.recurring ?? false)
   const [recurDays, setRecurDays] = useState(draft?.recurDays ?? '30')
-  const [cancelThreshold, setCancelThreshold] = useState(draft?.cancelThreshold ?? '1')
   const [rows, setRows] = useState<ParticipantRow[]>(draft?.rows ?? [{ address: '', value: '' }, { address: '', value: '' }])
+  // Mirror contract: cancelThreshold >= ceil(participants * 51/100), minimum 1
+  const minCancelThreshold = Math.max(1, Math.ceil(rows.length * 51 / 100))
+  const [cancelThreshold, setCancelThreshold] = useState(() => {
+    const saved = draft?.cancelThreshold ? parseInt(draft.cancelThreshold) : 0
+    return String(Math.max(saved || 0, Math.max(1, Math.ceil((draft?.rows?.length ?? 2) * 51 / 100))))
+  })
   const [advancedOpen, setAdvancedOpen] = useState(draft?.advancedOpen ?? false)
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
   const hasDraft = !!draft
@@ -148,8 +153,18 @@ export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
   const error = wagmiError ?? (seedError ? new Error(seedError) : null)
   const reset = () => { wagmiReset(); setSeedHash(null); setSeedSuccess(false); setSeedError(null); clearDraft() }
 
-  const addRow = () => setRows(r => [...r, { address: '', value: '' }])
-  const removeRow = (i: number) => setRows(r => r.filter((_, idx) => idx !== i))
+  const addRow = () => setRows(r => {
+    const next = [...r, { address: '', value: '' }]
+    const min = Math.max(1, Math.ceil(next.length * 51 / 100))
+    setCancelThreshold(t => String(Math.max(parseInt(t) || 1, min)))
+    return next
+  })
+  const removeRow = (i: number) => setRows(r => {
+    const next = r.filter((_, idx) => idx !== i)
+    const min = Math.max(1, Math.ceil(next.length * 51 / 100))
+    setCancelThreshold(t => String(Math.max(Math.min(parseInt(t) || 1, next.length), min)))
+    return next
+  })
   const updateRow = (i: number, f: keyof ParticipantRow, v: string) =>
     setRows(r => r.map((row, idx) => idx === i ? { ...row, [f]: v } : row))
 
@@ -173,9 +188,9 @@ export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
       payee as `0x${string}`, participants, amounts, usePercentages,
       deadline ? BigInt(Math.floor(new Date(deadline).getTime() / 1000)) : 0n,
       recurring, recurring ? BigInt(parseInt(recurDays) * 86400) : 0n,
-      parseInt(cancelThreshold),
+      Math.max(minCancelThreshold, Math.min(rows.length, parseInt(cancelThreshold) || minCancelThreshold)),
     ] as const
-  }, [totalAmount, rows, usePercentages, selectedCategory, billLabel, payee, deadline, recurring, recurDays, cancelThreshold])
+  }, [totalAmount, rows, usePercentages, selectedCategory, billLabel, payee, deadline, recurring, recurDays, cancelThreshold, minCancelThreshold])
 
   // Seed wallet: sign + broadcast via viem directly
   const handleSeedCreate = useCallback(async () => {
@@ -477,10 +492,15 @@ export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
                         <Shield className="size-3.5" style={{ color: 'var(--subtle)' }} />
                         <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Cancel votes</p>
                       </div>
-                      <input type="number" min={1} max={rows.length} value={cancelThreshold}
-                        onChange={e => setCancelThreshold(e.target.value)}
+                      <input type="number" min={minCancelThreshold} max={rows.length} value={cancelThreshold}
+                        onChange={e => {
+                          const v = parseInt(e.target.value) || minCancelThreshold
+                          setCancelThreshold(String(Math.max(minCancelThreshold, Math.min(rows.length, v))))
+                        }}
                         className="w-full bg-transparent text-sm font-semibold tabular-nums outline-none" style={{ color: 'var(--ink)' }} />
-                      <p className="text-xs mt-0.5" style={{ color: 'var(--subtle)' }}>of {rows.length} needed</p>
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--subtle)' }}>
+                        of {rows.length} needed · min {minCancelThreshold}
+                      </p>
                     </div>
                   </div>
 
