@@ -88,8 +88,7 @@ function bytes32ToLabel(hex: `0x${string}`): string {
 const glass = {
   card: {
     background: 'var(--surface)',
-    border: '1px solid var(--border)',
-    borderRadius: '12px',
+    borderRadius: '16px',
     boxShadow: 'var(--shadow)',
   } as React.CSSProperties,
   inner: {
@@ -1071,7 +1070,7 @@ export default function App() {
                       {/* Single unified bill list container */}
                       <motion.div
                         className="overflow-hidden rounded-2xl"
-                        style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}
+                        style={{ background: 'var(--surface)', boxShadow: 'var(--shadow)' }}
                         initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
                         {ids.map((id, i) => (
                           <div key={id.toString()}

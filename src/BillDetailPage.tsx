@@ -308,14 +308,16 @@ export function BillDetailPage({ bill: initialBill, myParticipantStatus, onBack,
 
   const ensureChain = useCallback(() => { if (wrongChain) switchChain({ chainId: CHAIN_ID }); return !wrongChain }, [wrongChain, switchChain])
 
-  // Accept / Decline
+  // Accept / Decline — track locally so the banner hides immediately on confirmation
+  const [acceptedLocally, setAcceptedLocally] = useState(false)
+  const [declinedLocally, setDeclinedLocally] = useState(false)
   const { writeContract: writeAccept, data: acceptHash, isPending: acceptPending } = useWriteContract()
   const { isLoading: acceptConfirming, isSuccess: acceptSuccess } = useWaitForTransactionReceipt({ hash: acceptHash })
   const { writeContract: writeDecline, data: declineHash, isPending: declinePending } = useWriteContract()
   const { isLoading: declineConfirming, isSuccess: declineSuccess } = useWaitForTransactionReceipt({ hash: declineHash })
 
-  if (acceptSuccess) { onRefetch(); toast.success('Bill accepted!') }
-  if (declineSuccess) { onRefetch(); onBack(); toast.success('Bill declined') }
+  if (acceptSuccess && !acceptedLocally) { setAcceptedLocally(true); onRefetch(); toast.success('Bill accepted!') }
+  if (declineSuccess && !declinedLocally) { setDeclinedLocally(true); onRefetch(); onBack(); toast.success('Bill declined') }
 
   // Expire invite
   const { writeContract: writeExpire, data: expireHash, isPending: expirePending } = useWriteContract()
@@ -481,7 +483,7 @@ export function BillDetailPage({ bill: initialBill, myParticipantStatus, onBack,
           <div className="px-4 py-5 flex flex-col gap-4">
 
             {/* ── Meta grid ── */}
-            <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow)' }}>
               <div className="grid grid-cols-2">
                 {/* Creator */}
                 <div className="px-4 py-3.5" style={{ borderBottom: '1px solid var(--border)', borderRight: '1px solid var(--border)' }}>
@@ -539,7 +541,7 @@ export function BillDetailPage({ bill: initialBill, myParticipantStatus, onBack,
             </div>
 
             {/* ── Invite banner ── */}
-            {myParticipantStatus === 0 && bill.status === 0 && !isCreator && (
+            {myParticipantStatus === 0 && bill.status === 0 && !isCreator && !acceptedLocally && !declinedLocally && (
               <AnimatePresence>
                 <motion.div
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
@@ -573,8 +575,8 @@ export function BillDetailPage({ bill: initialBill, myParticipantStatus, onBack,
               </AnimatePresence>
             )}
 
-            {/* ── Pay panel ── */}
-            {address && bill.status === 0 && myShare && !myFullyPaid && !isLate && myParticipantStatus === 1 && (
+            {/* ── Pay panel — show when accepted (either from props or just now) ── */}
+            {address && bill.status === 0 && myShare && !myFullyPaid && !isLate && (myParticipantStatus === 1 || acceptedLocally) && (
               <PayPanel bill={bill} onPaid={() => onRefetch()} />
             )}
 
@@ -701,7 +703,7 @@ export function BillDetailPage({ bill: initialBill, myParticipantStatus, onBack,
               </AnimatePresence>
 
               {/* Participant rows — single container */}
-              <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+              <div className="rounded-2xl overflow-hidden" style={{ boxShadow: 'var(--shadow)' }}>
                 {bill.shares.map((s, i) => (
                   <div key={i} style={{ borderTop: i === 0 ? 'none' : '1px solid var(--border)' }}>
                     <ParticipantDetailRow
@@ -719,7 +721,7 @@ export function BillDetailPage({ bill: initialBill, myParticipantStatus, onBack,
             {/* ── Cancel vote ── */}
             {bill.status === 0 && (isCreator || myShare) && (
               <div className="flex items-center justify-between rounded-2xl px-4 py-3.5"
-                style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                style={{ background: 'var(--surface)', boxShadow: 'var(--shadow)' }}>
                 <div>
                   <p className="text-sm font-semibold" style={{ color: 'var(--ink-2)' }}>Request cancellation</p>
                   <p className="text-xs mt-0.5" style={{ color: 'var(--subtle)' }}>
