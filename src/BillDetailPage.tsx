@@ -2,7 +2,7 @@
  * BillDetailPage — full-screen slide-in detail view for a single bill.
  * Opened when the user taps a bill row in the list.
  */
-import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, ExternalLink, Clock, CheckCircle2, XCircle,
@@ -58,6 +58,30 @@ interface BillSummary {
 const fmt = (raw: bigint) => formatUsdc(raw)
 const fmtAddr = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`
 const STATUS_LABEL: Record<BillStatus, string> = { 0: 'Active', 1: 'Settled', 2: 'Cancelled' }
+
+// Decode raw contract tuple → BillSummary (returns null when data not ready)
+function decodeBill(
+  id: bigint,
+  billData: unknown,
+  sharesData: unknown,
+  metaData: unknown,
+): BillSummary | null {
+  if (!billData || !sharesData) return null
+  const bytes32ToLabel = (h: string) => {
+    try {
+      const hex = h.replace(/^0x/, '')
+      const bytes = new Uint8Array(hex.match(/.{2}/g)!.map(b => parseInt(b, 16)))
+      const end = bytes.indexOf(0)
+      return new TextDecoder().decode(end === -1 ? bytes : bytes.slice(0, end))
+    } catch { return '' }
+  }
+  const [creator, payee, totalAmount, amountPaid, status, deadline, recurring, recurInterval, cancelThreshold, cancelVotes] =
+    billData as [`0x${string}`, `0x${string}`, bigint, bigint, BillStatus, bigint, boolean, bigint, number, number]
+  const shares = (sharesData as Array<{ participant: `0x${string}`; amount: bigint; contributed: bigint }>)
+    .map(s => ({ participant: s.participant, amount: s.amount, contributed: s.contributed }))
+  const [labelHex, payoutRedirectVoteCount] = (metaData ?? ['0x' + '0'.repeat(64), 0]) as [`0x${string}`, number]
+  return { id, creator, payee, totalAmount, amountPaid, status, deadline, recurring, recurInterval, cancelThreshold, cancelVotes, shares, label: bytes32ToLabel(labelHex), payoutRedirectVoteCount }
+}
 
 function useNow(intervalMs = 30_000) {
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000))
@@ -180,7 +204,7 @@ function ParticipantDetailRow({ billId, share, isMe, isCreator, billActive, now,
 }
 
 // ── Pay panel ──────────────────────────────────────────────────────────────
-function PayPanel({ bill, onPaid }: { bill: BillSummary; onPaid: () => void }) {
+function PayPanel({ bill, onPaid }: { bill: BillSummary; onPaid: (hash?: `0x${string}`) => void }) {
   const { address, chainId } = useAccount()
   const { switchChain } = useSwitchChain()
   const wrongChain = chainId !== undefined && chainId !== CHAIN_ID
@@ -211,7 +235,7 @@ function PayPanel({ bill, onPaid }: { bill: BillSummary; onPaid: () => void }) {
   const ensureChain = useCallback(() => { if (wrongChain) switchChain({ chainId: CHAIN_ID }); return !wrongChain }, [wrongChain, switchChain])
 
   if (approveSuccess && !approveDone) { setApproveDone(true); void refetchAllowance() }
-  if (paySuccess) { onPaid(); toast.success('Payment confirmed'); setPayInput(''); setApproveDone(false); resetPay() }
+  if (paySuccess) { onPaid(payHash); toast.success('Payment confirmed'); setPayInput(''); setApproveDone(false); resetPay() }
 
   if (!myShare || myRemaining <= 0n) return null
 
@@ -286,7 +310,7 @@ function PayPanel({ bill, onPaid }: { bill: BillSummary; onPaid: () => void }) {
 }
 
 // ── Main BillDetailPage ────────────────────────────────────────────────────
-export function BillDetailPage({ bill: initialBill, myParticipantStatus, onBack, onRefetch }: {
+export function BillDetailPage({ bill: initialBill, myParticipantStatus: initialMyStatus, onBack, onRefetch }: {
   bill: BillSummary
   myParticipantStatus?: ParticipantStatus
   onBack: () => void
@@ -296,7 +320,64 @@ export function BillDetailPage({ bill: initialBill, myParticipantStatus, onBack,
   const { switchChain } = useSwitchChain()
   const wrongChain = chainId !== undefined && chainId !== CHAIN_ID
   const now = useNow()
-  const bill = initialBill
+
+  // ── Live data queries — poll every 8 s, refetch immediately after any tx ──
+  const POLL = 8_000
+  const { data: billData, refetch: refetchBill } = useReadContract({
+    address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getBill',
+    args: [initialBill.id], chainId: CHAIN_ID,
+    query: { refetchInterval: POLL },
+  })
+  const { data: sharesData, refetch: refetchShares } = useReadContract({
+    address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getShares',
+    args: [initialBill.id], chainId: CHAIN_ID,
+    query: { refetchInterval: POLL },
+  })
+  const { data: metaData, refetch: refetchMeta } = useReadContract({
+    address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getBillMeta',
+    args: [initialBill.id], chainId: CHAIN_ID,
+    query: { refetchInterval: POLL },
+  })
+  const { data: myStatusRaw, refetch: refetchMyStatus } = useReadContract({
+    address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getParticipantStatus',
+    args: address ? [initialBill.id, address] : undefined,
+    query: { enabled: !!address, refetchInterval: POLL },
+    chainId: CHAIN_ID,
+  })
+  const { data: payoutClaimableRaw, refetch: refetchClaimable } = useReadContract({
+    address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'payoutClaimable',
+    args: [initialBill.id], chainId: CHAIN_ID,
+    query: { refetchInterval: POLL },
+  })
+
+  // Merge live data over the prop snapshot — show prop until live data arrives
+  const liveBill = useMemo(
+    () => decodeBill(initialBill.id, billData, sharesData, metaData) ?? initialBill,
+    [billData, sharesData, metaData, initialBill],
+  )
+  const bill = liveBill
+  const myParticipantStatus = (myStatusRaw as ParticipantStatus | undefined) ?? initialMyStatus
+  const payoutClaimableAmt = (payoutClaimableRaw as bigint | undefined) ?? 0n
+
+  // Refetch everything at once after any transaction confirms
+  const refetchAll = useCallback(() => {
+    void refetchBill()
+    void refetchShares()
+    void refetchMeta()
+    void refetchMyStatus()
+    void refetchClaimable()
+    onRefetch()
+  }, [refetchBill, refetchShares, refetchMeta, refetchMyStatus, refetchClaimable, onRefetch])
+
+  // Track last-refreshed timestamp for the live indicator
+  const [lastRefreshed, setLastRefreshed] = useState<number>(() => Math.floor(Date.now() / 1000))
+  const prevBillRef = useRef(initialBill)
+  useEffect(() => {
+    if (bill !== prevBillRef.current) {
+      prevBillRef.current = bill
+      setLastRefreshed(Math.floor(Date.now() / 1000))
+    }
+  }, [bill])
 
   const isCreator = bill.creator.toLowerCase() === address?.toLowerCase()
   const isPayee = bill.payee.toLowerCase() === address?.toLowerCase()
@@ -316,8 +397,8 @@ export function BillDetailPage({ bill: initialBill, myParticipantStatus, onBack,
   const { writeContract: writeDecline, data: declineHash, isPending: declinePending } = useWriteContract()
   const { isLoading: declineConfirming, isSuccess: declineSuccess } = useWaitForTransactionReceipt({ hash: declineHash })
 
-  if (acceptSuccess && !acceptedLocally) { setAcceptedLocally(true); onRefetch(); toast.success('Bill accepted!') }
-  if (declineSuccess && !declinedLocally) { setDeclinedLocally(true); onRefetch(); onBack(); toast.success('Bill declined') }
+  if (acceptSuccess && !acceptedLocally) { setAcceptedLocally(true); refetchAll(); toast.success('Bill accepted!') }
+  if (declineSuccess && !declinedLocally) { setDeclinedLocally(true); refetchAll(); onBack(); toast.success('Bill declined') }
 
   // Expire invite
   const { writeContract: writeExpire, data: expireHash, isPending: expirePending } = useWriteContract()
@@ -328,24 +409,22 @@ export function BillDetailPage({ bill: initialBill, myParticipantStatus, onBack,
     setExpiringParticipant(participant)
     writeExpire({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'expireInvite', args: [bill.id, participant] })
   }, [ensureChain, bill.id, writeExpire])
-  if (expireSuccess) { onRefetch(); setExpiringParticipant(null); toast.success('Expired invite removed') }
+  if (expireSuccess) { refetchAll(); setExpiringParticipant(null); toast.success('Expired invite removed') }
 
   // Vote cancel
   const { writeContract: writeVote, data: voteHash, isPending: votePending } = useWriteContract()
   const { isLoading: voteConfirming, isSuccess: voteSuccess } = useWaitForTransactionReceipt({ hash: voteHash })
-  if (voteSuccess) { onRefetch(); toast.success('Cancel vote submitted') }
+  if (voteSuccess) { refetchAll(); toast.success('Cancel vote submitted') }
 
   // Claim payout
-  const { data: payoutClaimableRaw } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'payoutClaimable', args: [bill.id], chainId: CHAIN_ID })
-  const payoutClaimableAmt = (payoutClaimableRaw as bigint | undefined) ?? 0n
   const { writeContract: writeClaim, data: claimHash, isPending: claimPending } = useWriteContract()
   const { isLoading: claimConfirming, isSuccess: claimSuccess } = useWaitForTransactionReceipt({ hash: claimHash })
-  if (claimSuccess) { onRefetch(); toast.success('Payout claimed!') }
+  if (claimSuccess) { refetchAll(); toast.success('Payout claimed!') }
 
   // Expired refund
   const { writeContract: writeExpiredRefund, data: expiredHash, isPending: expiredPending } = useWriteContract()
   const { isLoading: expiredConfirming, isSuccess: expiredSuccess } = useWaitForTransactionReceipt({ hash: expiredHash })
-  if (expiredSuccess) { onRefetch(); toast.success('Refund claimed!') }
+  if (expiredSuccess) { refetchAll(); toast.success('Refund claimed!') }
 
   // Add participant
   const [showAddParticipant, setShowAddParticipant] = useState(false)
@@ -360,7 +439,7 @@ export function BillDetailPage({ bill: initialBill, myParticipantStatus, onBack,
     const amtRaw = parseUnits(amt.toFixed(usdcDecimalsFor(CHAIN_ID)), usdcDecimalsFor(CHAIN_ID))
     writeAddParticipant({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'addParticipant', args: [bill.id, newParticipantAddr as `0x${string}`, amtRaw] })
   }, [ensureChain, bill.id, newParticipantAddr, newParticipantAmt, writeAddParticipant])
-  if (addPartSuccess) { onRefetch(); setShowAddParticipant(false); setNewParticipantAddr(''); setNewParticipantAmt(''); toast.success('Participant invited') }
+  if (addPartSuccess) { refetchAll(); setShowAddParticipant(false); setNewParticipantAddr(''); setNewParticipantAmt(''); toast.success('Participant invited') }
 
   // Share / copy link — canonical URL is /bill/<id>?contract=<contractAddress>
   const [copied, setCopied] = useState(false)
@@ -404,6 +483,8 @@ export function BillDetailPage({ bill: initialBill, myParticipantStatus, onBack,
             {IS_MAINNET ? 'Arc Mainnet' : 'Arc Testnet'} · Bill #{bill.id.toString()} · {CONTRACT_ADDRESS.slice(0,6)}…{CONTRACT_ADDRESS.slice(-4)}
           </p>
         </div>
+        {/* Live indicator dot */}
+        <div className="flex size-2 shrink-0 rounded-full animate-pulse" style={{ background: 'var(--success)' }} title={`Updated ${Math.max(0, now - lastRefreshed)}s ago`} />
         <button onClick={handleShare}
           className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all active:scale-95"
           style={{
@@ -577,7 +658,7 @@ export function BillDetailPage({ bill: initialBill, myParticipantStatus, onBack,
 
             {/* ── Pay panel — show when accepted (either from props or just now) ── */}
             {address && bill.status === 0 && myShare && !myFullyPaid && !isLate && (myParticipantStatus === 1 || acceptedLocally) && (
-              <PayPanel bill={bill} onPaid={() => onRefetch()} />
+              <PayPanel bill={bill} onPaid={() => refetchAll()} />
             )}
 
             {/* ── Fully paid banner ── */}
