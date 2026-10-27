@@ -232,45 +232,55 @@ function BalanceCard({ address, onSend, onReceive }: {
   )
 }
 
-// ─── Compact Bill Row ─────────────────────────────────────────────────────────
-function BillRow({ bill, myParticipantStatus, onClick }: {
+// ─── Compact Bill Row (rendered inside a shared container) ───────────────────
+function BillRow({ bill, myParticipantStatus, onClick, isLast }: {
   bill: BillSummary
   myParticipantStatus?: ParticipantStatus
   onClick: () => void
+  isLast: boolean
 }) {
   const { address } = useAccount()
   const now = useNow()
   const isCreator = bill.creator.toLowerCase() === address?.toLowerCase()
   const isLate = bill.deadline > 0n && now > Number(bill.deadline) && bill.status === 0
   const progressPct = bill.totalAmount > 0n ? Number((bill.amountPaid * 100n) / bill.totalAmount) : 0
-  const progressColor = bill.status === 2 ? 'var(--danger)' : bill.status === 1 ? 'var(--success)' : progressPct === 100 ? 'var(--success)' : 'var(--accent)'
   const isPendingInvite = myParticipantStatus === 0 && !isCreator && bill.status === 0
 
+  // ring color
+  const ringColor = bill.status === 2 ? 'var(--danger)'
+    : bill.status === 1 ? 'var(--success)'
+    : progressPct === 100 ? 'var(--success)'
+    : isPendingInvite ? 'var(--accent)'
+    : 'var(--accent)'
+
   return (
-    <motion.button
+    <button
       onClick={onClick}
-      className="w-full text-left rounded-2xl px-4 py-3.5 flex items-center gap-3 transition-all hover:scale-[1.005] active:scale-[0.998]"
-      style={glass.card}
-      whileTap={{ scale: 0.997 }}
-      {...fadeUp}>
-      {/* Circular progress */}
-      <div className="relative flex size-12 items-center justify-center shrink-0">
-        <svg className="absolute inset-0 size-12" viewBox="0 0 48 48" fill="none">
-          <circle cx="24" cy="24" r="19" stroke="var(--border)" strokeWidth="3.5" />
-          <circle cx="24" cy="24" r="19"
-            stroke={progressColor} strokeWidth="3.5" strokeLinecap="round"
-            strokeDasharray={`${2 * Math.PI * 19}`}
-            strokeDashoffset={`${2 * Math.PI * 19 * (1 - progressPct / 100)}`}
-            transform="rotate(-90 24 24)"
-            style={{ transition: 'stroke-dashoffset 0.5s ease' }} />
+      className="w-full text-left flex items-center gap-3.5 px-4 py-3.5 transition-colors"
+      style={{
+        borderBottom: isLast ? 'none' : '1px solid var(--border)',
+        background: 'transparent',
+      }}
+      onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-hover)')}
+      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+    >
+      {/* Circular progress ring */}
+      <div className="relative flex size-11 items-center justify-center shrink-0">
+        <svg className="absolute inset-0 size-11 -rotate-90" viewBox="0 0 44 44" fill="none">
+          <circle cx="22" cy="22" r="17" stroke="var(--border)" strokeWidth="3" />
+          <circle cx="22" cy="22" r="17"
+            stroke={ringColor} strokeWidth="3" strokeLinecap="round"
+            strokeDasharray={`${2 * Math.PI * 17}`}
+            strokeDashoffset={`${2 * Math.PI * 17 * (1 - progressPct / 100)}`}
+            style={{ transition: 'stroke-dashoffset 0.6s ease' }} />
         </svg>
-        <span className="display text-[10px] font-bold tabular-nums" style={{ color: 'var(--ink)' }}>{progressPct}%</span>
+        <span className="text-[9px] font-bold tabular-nums" style={{ color: 'var(--ink)' }}>{progressPct}%</span>
       </div>
 
-      {/* Info */}
+      {/* Bill info */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-0.5">
-          <span className="text-sm font-bold truncate" style={{ color: 'var(--ink)' }}>
+        <div className="flex items-center gap-2 mb-0.5 min-w-0">
+          <span className="text-sm font-semibold truncate flex-1 min-w-0" style={{ color: 'var(--ink)' }}>
             {bill.label || `Bill #${bill.id.toString()}`}
           </span>
           {isPendingInvite && (
@@ -282,15 +292,15 @@ function BillRow({ bill, myParticipantStatus, onClick }: {
               style={{ background: 'var(--danger-bg)', color: 'var(--danger)' }}>Late</span>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold tabular-nums" style={{ color: 'var(--ink-2)' }}>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-xs tabular-nums font-medium" style={{ color: 'var(--ink-2)' }}>
             {fmt(bill.totalAmount)} USDC
           </span>
-          <span className="text-[10px]" style={{ color: 'var(--subtle)' }}>·</span>
-          <span className="flex items-center gap-1 text-[10px]" style={{ color: 'var(--muted)' }}>
+          <span style={{ color: 'var(--subtle)', fontSize: 10 }}>·</span>
+          <span className="flex items-center gap-0.5 text-xs" style={{ color: 'var(--muted)' }}>
             <Users className="size-3" />{bill.shares.length}
           </span>
-          <span className="text-[10px]" style={{ color: 'var(--subtle)' }}>·</span>
+          <span style={{ color: 'var(--subtle)', fontSize: 10 }}>·</span>
           <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full"
             style={statusStyle(bill.status)}>
             {STATUS_LABEL[bill.status]}
@@ -299,18 +309,19 @@ function BillRow({ bill, myParticipantStatus, onClick }: {
       </div>
 
       <ChevronRightIcon className="size-4 shrink-0" style={{ color: 'var(--subtle)' }} />
-    </motion.button>
+    </button>
   )
 }
 
 // ─── Bill loader ──────────────────────────────────────────────────────────────
-function BillLoader({ id, filter, address: walletAddr, onVisible, onInvite, onOpen }: {
+function BillLoader({ id, filter, address: walletAddr, onVisible, onInvite, onOpen, isLast }: {
   id: bigint
   filter: 'all' | 'created' | 'owe' | 'done' | 'invites'
   address?: `0x${string}`
   onVisible?: (id: bigint) => void
   onInvite?: (id: bigint) => void
   onOpen: (bill: BillSummary, myStatus: ParticipantStatus | undefined) => void
+  isLast: boolean
 }) {
   const { data: billData } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getBill', args: [id], chainId: CHAIN_ID })
   const { data: sharesData } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getShares', args: [id], chainId: CHAIN_ID })
@@ -367,7 +378,7 @@ function BillLoader({ id, filter, address: walletAddr, onVisible, onInvite, onOp
     }
   }
 
-  return <BillRow bill={bill} myParticipantStatus={myStatus} onClick={() => onOpen(bill, myStatus)} />
+  return <BillRow bill={bill} myParticipantStatus={myStatus} onClick={() => onOpen(bill, myStatus)} isLast={isLast} />
 }
 
 // ─── Receive View ─────────────────────────────────────────────────────────────
@@ -1057,22 +1068,24 @@ export default function App() {
                     </motion.div>
                   ) : (
                     <>
-                      <div className="flex flex-col gap-2">
+                      {/* Single unified bill list container */}
+                      <motion.div
+                        className="overflow-hidden rounded-2xl"
+                        style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}
+                        initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
                         {ids.map((id, i) => (
-                          <motion.div key={id.toString()}
+                          <div key={id.toString()}
                             ref={deepLinkBillId === id ? deepLinkRef : undefined}
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.18, delay: i * 0.03 }}
-                            style={deepLinkBillId === id ? { outline: '2px solid var(--accent)', outlineOffset: 3, borderRadius: 18 } : {}}>
+                            style={deepLinkBillId === id ? { background: 'rgba(79,110,247,0.07)' } : {}}>
                             <BillLoader
                               id={id} filter={filter} address={address}
                               onVisible={handleBillVisible} onInvite={handleInviteBill}
                               onOpen={(bill, myStatus) => setSelectedBill({ bill, myStatus })}
+                              isLast={i === ids.length - 1}
                             />
-                          </motion.div>
+                          </div>
                         ))}
-                      </div>
+                      </motion.div>
 
                       {/* Pagination */}
                       {pageCount > 1 && (
