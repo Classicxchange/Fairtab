@@ -362,13 +362,13 @@ export function BillDetailPage({ bill: initialBill, myParticipantStatus, onBack,
   }, [ensureChain, bill.id, newParticipantAddr, newParticipantAmt, writeAddParticipant])
   if (addPartSuccess) { onRefetch(); setShowAddParticipant(false); setNewParticipantAddr(''); setNewParticipantAmt(''); toast.success('Participant invited') }
 
-  // Share / copy link
+  // Share / copy link — canonical URL is /bill/<id>?contract=<contractAddress>
   const [copied, setCopied] = useState(false)
+  const shareUrl = `${window.location.origin}/bill/${bill.id.toString()}?contract=${CONTRACT_ADDRESS}`
   const handleShare = useCallback(() => {
-    const url = `${window.location.origin}${window.location.pathname}?bill=${bill.id.toString()}`
-    void navigator.clipboard.writeText(url)
+    void navigator.clipboard.writeText(shareUrl)
     setCopied(true); toast.success('Bill link copied!'); setTimeout(() => setCopied(false), 2000)
-  }, [bill.id])
+  }, [shareUrl])
 
   // Hero gradient per status
   const heroGradient = bill.status === 2
@@ -400,8 +400,8 @@ export function BillDetailPage({ bill: initialBill, myParticipantStatus, onBack,
           <h1 className="font-bold text-base truncate" style={{ color: 'var(--ink)', letterSpacing: '-0.02em' }}>
             {bill.label || `Bill #${bill.id.toString()}`}
           </h1>
-          <p className="text-[11px]" style={{ color: 'var(--muted)' }}>
-            {IS_MAINNET ? 'Arc Mainnet' : 'Arc Testnet'} · Bill #{bill.id.toString()}
+          <p className="mono text-[10px] truncate" style={{ color: 'var(--muted)' }}>
+            {IS_MAINNET ? 'Arc Mainnet' : 'Arc Testnet'} · Bill #{bill.id.toString()} · {CONTRACT_ADDRESS.slice(0,6)}…{CONTRACT_ADDRESS.slice(-4)}
           </p>
         </div>
         <button onClick={handleShare}

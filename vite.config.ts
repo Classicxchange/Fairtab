@@ -37,6 +37,8 @@ export default defineConfig({
   server: {
     allowedHosts: true,
     cors: true,
+    // Serve index.html for all SPA routes (e.g. /bill/:id)
+    historyApiFallback: true,
     proxy: {
       // Forward /api/* to the Bun API server
       '/api': {

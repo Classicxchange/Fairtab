@@ -313,7 +313,7 @@ function BillRow({ bill, myParticipantStatus, onClick, isLast }: {
 }
 
 // ─── Bill loader ──────────────────────────────────────────────────────────────
-function BillLoader({ id, filter, address: walletAddr, onVisible, onInvite, onOpen, isLast }: {
+function BillLoader({ id, filter, address: walletAddr, onVisible, onInvite, onOpen, isLast, autoOpen }: {
   id: bigint
   filter: 'all' | 'created' | 'owe' | 'done' | 'invites'
   address?: `0x${string}`
@@ -321,6 +321,7 @@ function BillLoader({ id, filter, address: walletAddr, onVisible, onInvite, onOp
   onInvite?: (id: bigint) => void
   onOpen: (bill: BillSummary, myStatus: ParticipantStatus | undefined) => void
   isLast: boolean
+  autoOpen?: boolean
 }) {
   const { data: billData } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getBill', args: [id], chainId: CHAIN_ID })
   const { data: sharesData } = useReadContract({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getShares', args: [id], chainId: CHAIN_ID })
@@ -331,16 +332,32 @@ function BillLoader({ id, filter, address: walletAddr, onVisible, onInvite, onOp
     query: { enabled: !!walletAddr, retry: false }, chainId: CHAIN_ID,
   })
   const myStatus = (myStatusRaw as ParticipantStatus | undefined)
+  // Auto-open once on deep-link (fires only once when data is ready)
+  const autoOpened = useRef(false)
 
-  if (!billData || !sharesData) return (
-    <div className="rounded-2xl h-16 animate-pulse" style={{ background: 'var(--surface-muted)' }} />
-  )
-  const [creator, payee, totalAmount, amountPaid, status, deadline, recurring, recurInterval, cancelThreshold, cancelVotes] =
-    billData as [`0x${string}`, `0x${string}`, bigint, bigint, BillStatus, bigint, boolean, bigint, number, number]
-  const shares = (sharesData as Array<{ participant: `0x${string}`; amount: bigint; contributed: bigint }>).map(s => ({ participant: s.participant, amount: s.amount, contributed: s.contributed }))
+  // Derive bill object for use in effects — may be undefined if data not yet loaded
+  const billReady = !!(billData && sharesData)
+  const [creator = '', payee = '', totalAmount = 0n, amountPaid = 0n, status = 0, deadline = 0n, recurring = false, recurInterval = 0n, cancelThreshold = 0, cancelVotes = 0] =
+    billData as [`0x${string}`, `0x${string}`, bigint, bigint, BillStatus, bigint, boolean, bigint, number, number] ?? []
+  const shares = billReady
+    ? (sharesData as Array<{ participant: `0x${string}`; amount: bigint; contributed: bigint }>).map(s => ({ participant: s.participant, amount: s.amount, contributed: s.contributed }))
+    : []
   const [labelHex, payoutRedirectVoteCount] = (metaData ?? ['0x' + '0'.repeat(64), 0]) as [`0x${string}`, number]
   const label = bytes32ToLabel(labelHex)
-  const bill: BillSummary = { id, creator, payee, totalAmount, amountPaid, status, deadline, recurring, recurInterval, cancelThreshold, cancelVotes, shares, label, payoutRedirectVoteCount }
+  const bill: BillSummary = { id, creator: creator as `0x${string}`, payee: payee as `0x${string}`, totalAmount, amountPaid, status: status, deadline, recurring, recurInterval, cancelThreshold, cancelVotes, shares, label, payoutRedirectVoteCount }
+
+  // Auto-open on deep-link: must be before any early return (Rules of Hooks)
+  useEffect(() => {
+    if (!autoOpen || !billReady || autoOpened.current) return
+    if (walletAddr && !myStatusFetched) return
+    autoOpened.current = true
+    onOpen(bill, myStatus)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoOpen, billReady, myStatusFetched, walletAddr])
+
+  if (!billReady) return (
+    <div className="rounded-2xl h-16 animate-pulse" style={{ background: 'var(--surface-muted)' }} />
+  )
 
   // Membership gate — always enforce when wallet is connected
   if (walletAddr) {
@@ -695,11 +712,44 @@ export default function App() {
   const [inviteBillCount, setInviteBillCount] = useState(0)
   // Selected bill for detail page
   const [selectedBill, setSelectedBill] = useState<{ bill: BillSummary; myStatus: ParticipantStatus | undefined } | null>(null)
+
+  // ── URL routing ─────────────────────────────────────────────────────────────
+  // Pattern: /bill/<id>?contract=<contractAddress>
   // Parse prefilled params from URL
   const urlParams = useMemo(() => new URLSearchParams(window.location.search), [])
   const prefilledTo = urlParams.get('to')
-  // Deep-link: ?bill=N highlights that bill
-  const deepLinkBillId = useMemo(() => { const b = urlParams.get('bill'); return b != null ? BigInt(b) : null }, [urlParams])
+  // Deep-link: /bill/<id> or legacy ?bill=N
+  const deepLinkBillId = useMemo(() => {
+    const pathMatch = window.location.pathname.match(/^\/bill\/(\d+)$/)
+    if (pathMatch) return BigInt(pathMatch[1])
+    const b = urlParams.get('bill')
+    return b != null ? BigInt(b) : null
+  }, [urlParams])
+
+  // Open a bill: push /bill/<id>?contract=<addr> into history
+  const openBill = useCallback((bill: BillSummary, myStatus: ParticipantStatus | undefined) => {
+    const url = `/bill/${bill.id.toString()}?contract=${CONTRACT_ADDRESS}`
+    window.history.pushState({ billId: bill.id.toString() }, '', url)
+    setSelectedBill({ bill, myStatus })
+  }, [])
+
+  // Close the detail page: pop the URL back to /
+  const closeBill = useCallback(() => {
+    window.history.replaceState({}, '', '/')
+    setSelectedBill(null)
+  }, [])
+
+  // Handle browser back button
+  useEffect(() => {
+    const onPop = () => {
+      // If we navigated back from a bill page, close the detail view
+      if (!window.location.pathname.match(/^\/bill\//)) {
+        setSelectedBill(null)
+      }
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
 
   const { dark, toggle: toggleDark } = useDarkMode()
   const [tab, setTab] = useState<'bills' | 'send' | 'receive' | 'account'>(prefilledTo ? 'send' : 'bills')
@@ -1067,6 +1117,16 @@ export default function App() {
                     </motion.div>
                   ) : (
                     <>
+                      {/* Hidden auto-opener for deep-linked bills not on current page */}
+                      {deepLinkBillId !== null && !ids.includes(deepLinkBillId) && (
+                        <div style={{ display: 'none' }}>
+                          <BillLoader
+                            id={deepLinkBillId} filter="all" address={address}
+                            onOpen={openBill} isLast={false} autoOpen={true}
+                          />
+                        </div>
+                      )}
+
                       {/* Single unified bill list container */}
                       <motion.div
                         className="overflow-hidden rounded-2xl"
@@ -1079,8 +1139,9 @@ export default function App() {
                             <BillLoader
                               id={id} filter={filter} address={address}
                               onVisible={handleBillVisible} onInvite={handleInviteBill}
-                              onOpen={(bill, myStatus) => setSelectedBill({ bill, myStatus })}
+                              onOpen={openBill}
                               isLast={i === ids.length - 1}
+                              autoOpen={deepLinkBillId === id}
                             />
                           </div>
                         ))}
@@ -1151,11 +1212,8 @@ export default function App() {
             key={selectedBill.bill.id.toString()}
             bill={selectedBill.bill}
             myParticipantStatus={selectedBill.myStatus}
-            onBack={() => setSelectedBill(null)}
-            onRefetch={() => {
-              refetch()
-              // Also close if the user declined (bill removed from invites)
-            }}
+            onBack={closeBill}
+            onRefetch={refetch}
           />
         )}
       </AnimatePresence>
