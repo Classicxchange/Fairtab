@@ -26,7 +26,7 @@ import type { Hex } from 'viem'
 const firebaseApiKey     = import.meta.env.VITE_FIREBASE_API_KEY     as string | undefined
 const firebaseAuthDomain = import.meta.env.VITE_FIREBASE_AUTH_DOMAIN as string | undefined
 const firebaseProjectId  = import.meta.env.VITE_FIREBASE_PROJECT_ID  as string | undefined
-const firebaseConfigured = !!(firebaseApiKey && firebaseAuthDomain && firebaseProjectId)
+export const firebaseConfigured = !!(firebaseApiKey && firebaseAuthDomain && firebaseProjectId)
 
 // Detect mobile — popup is unreliable on Android Chrome
 const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
@@ -62,7 +62,7 @@ async function derivePrivateKey(uid: string): Promise<Hex> {
 // ── Session storage ────────────────────────────────────────────────────────────
 const SESSION_KEY = 'fairtab_google_session_v1'
 
-function saveSession(s: AccountSession) {
+export function saveSession(s: AccountSession) {
   const { privateKey: _, ...safe } = s
   localStorage.setItem(SESSION_KEY, JSON.stringify(safe))
 }
@@ -81,7 +81,7 @@ export function clearGoogleSession() {
 // ── Lazy Firebase init ─────────────────────────────────────────────────────────
 let _auth: import('firebase/auth').Auth | null = null
 
-async function getAuth(): Promise<import('firebase/auth').Auth> {
+export async function getFirebaseAuth(): Promise<import('firebase/auth').Auth> {
   if (_auth) return _auth
   const { initializeApp, getApps } = await import('firebase/app')
   const { getAuth: _getAuth }      = await import('firebase/auth')
@@ -95,8 +95,8 @@ async function getAuth(): Promise<import('firebase/auth').Auth> {
   return _auth
 }
 
-// Build a session from a Firebase user
-async function buildSession(user: import('firebase/auth').User): Promise<AccountSession> {
+// Build a session from a Firebase user — exported so App.tsx can use it after redirect
+export async function buildSession(user: import('firebase/auth').User): Promise<AccountSession> {
   const privateKey = await derivePrivateKey(user.uid)
   const account    = privateKeyToAccount(privateKey)
   return {
@@ -161,7 +161,7 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
       try {
         // Check if there's a pending redirect result
         const { getRedirectResult } = await import('firebase/auth')
-        const auth   = await getAuth()
+        const auth   = await getFirebaseAuth()
         const result = await getRedirectResult(auth)
         if (cancelled || !result?.user) return
 
@@ -191,7 +191,7 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
     setLoading(true); setError(null)
     try {
       const { GoogleAuthProvider, signInWithPopup, signInWithRedirect } = await import('firebase/auth')
-      const auth     = await getAuth()
+      const auth     = await getFirebaseAuth()
       const provider = new GoogleAuthProvider()
       provider.addScope('email')
       provider.addScope('profile')

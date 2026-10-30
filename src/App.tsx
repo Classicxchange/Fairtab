@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { restoreCircleSession, clearCredential } from '@/CircleWalletAuth'
 import { type SeedWalletSession, clearSeedWallet } from '@/SeedWalletAuth'
-import { type AccountSession, loadGoogleSession, clearGoogleSession } from '@/AccountView'
+import { type AccountSession, loadGoogleSession, clearGoogleSession, firebaseConfigured, getFirebaseAuth, buildSession, saveSession } from '@/AccountView'
 import { WalletDropdown } from '@/WalletDropdown'
 import { AccountPage, recordSignInTime } from '@/AccountPage'
 import { SignInPage } from '@/SignInPage'
@@ -667,10 +667,39 @@ export default function App() {
   const { address: wagmiAddress, chainId } = useAccount()
   const wrongChain = chainId !== undefined && chainId !== CHAIN_ID
 
-  // ── Social session (Google) — restored from sessionStorage ───────────────
+  // ── Social session (Google) — restored from localStorage ────────────────
   const [socialSession, setSocialSession] = useState<AccountSession | null>(() => {
     return loadGoogleSession()
   })
+
+  // ── Firebase redirect result — check on every page load ──────────────────
+  // After signInWithRedirect, Google sends the user back to fairtab.online.
+  // getRedirectResult() must be called on mount to consume the pending credential.
+  // We block the auth gate until this check completes (fast — ~300ms).
+  // redirectChecked: true immediately if Firebase not configured OR already signed in
+  const [redirectChecked, setRedirectChecked] = useState(
+    () => !firebaseConfigured || !!loadGoogleSession()
+  )
+  useEffect(() => {
+    if (!firebaseConfigured) return
+    if (loadGoogleSession()) return // already handled in useState initializer
+    void (async () => {
+      try {
+        const { getRedirectResult } = await import('firebase/auth')
+        const auth   = await getFirebaseAuth()
+        const result = await getRedirectResult(auth)
+        if (result?.user) {
+          const sess = await buildSession(result.user)
+          saveSession(sess)
+          setSocialSession(sess)
+        }
+      } catch {
+        // No pending redirect or error — proceed normally
+      } finally {
+        setRedirectChecked(true)
+      }
+    })()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Seed wallet session ────────────────────────────────────────────────────
   const [seedSession, setSeedSession] = useState<SeedWalletSession | null>(null)
@@ -796,9 +825,39 @@ export default function App() {
     <div className="relative min-h-dvh" style={{ background: 'transparent' }}>
       <ArcBg />
 
+      {/* ── Firebase redirect check spinner ── briefly shown on return from Google ─ */}
+      <AnimatePresence>
+        {!redirectChecked && (
+          <motion.div
+            key="redirect-check"
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-4"
+            style={{ background: 'var(--bg)' }}
+          >
+            <div className="size-12 rounded-2xl flex items-center justify-center"
+              style={{ background: 'var(--accent)' }}>
+              <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                <rect x="4" y="4" width="8" height="8" rx="2" fill="white"/>
+                <rect x="16" y="4" width="8" height="8" rx="2" fill="white" opacity=".7"/>
+                <rect x="4" y="16" width="8" height="8" rx="2" fill="white" opacity=".7"/>
+                <rect x="16" y="16" width="8" height="8" rx="2" fill="white" opacity=".4"/>
+              </svg>
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <p className="font-bold text-base" style={{ color: 'var(--ink)' }}>Signing you in…</p>
+              <p className="text-sm" style={{ color: 'var(--muted)' }}>Just a moment</p>
+            </div>
+            <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin"
+              style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ── Sign-in page gate ── shown when no wallet is connected ─ */}
       <AnimatePresence>
-        {!address && (
+        {!address && redirectChecked && (
           <motion.div
             key="signin-page"
             initial={{ opacity: 0 }}
