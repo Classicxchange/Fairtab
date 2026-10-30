@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
+import { useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { restoreCircleSession, clearCredential } from '@/CircleWalletAuth'
 import { type SeedWalletSession, clearSeedWallet, hasSeedWallet, getSeedWalletAddress } from '@/SeedWalletAuth'
 import { type AccountSession, loadGoogleSession, clearGoogleSession, saveSession } from '@/AccountView'
@@ -732,45 +733,69 @@ export default function App() {
   const [selectedBill, setSelectedBill] = useState<{ bill: BillSummary; myStatus: ParticipantStatus | undefined } | null>(null)
 
   // ── URL routing ─────────────────────────────────────────────────────────────
-  // Pattern: /bill/<id>?contract=<contractAddress>
-  // Parse prefilled params from URL
-  const urlParams = useMemo(() => new URLSearchParams(window.location.search), [])
+  const navigate  = useNavigate()
+  const location  = useLocation()
+
+  const urlParams = useMemo(() => new URLSearchParams(location.search), [location.search])
   const prefilledTo = urlParams.get('to')
+
+  // Derive the active tab from the pathname
+  type Tab = 'bills' | 'send' | 'receive' | 'account'
+  const tab = useMemo((): Tab => {
+    if (location.pathname === '/app/send')    return 'send'
+    if (location.pathname === '/app/receive') return 'receive'
+    if (location.pathname === '/app/account') return 'account'
+    return 'bills'
+  }, [location.pathname])
+
+  const setTab = useCallback((t: Tab) => {
+    const path = t === 'bills' ? '/app' : `/app/${t}`
+    void navigate(path, { replace: false })
+  }, [navigate])
+
   // Deep-link: /bill/<id> or legacy ?bill=N
   const deepLinkBillId = useMemo(() => {
-    const pathMatch = window.location.pathname.match(/^\/bill\/(\d+)$/)
+    const pathMatch = location.pathname.match(/^\/bill\/(\d+)$/)
     if (pathMatch) return BigInt(pathMatch[1])
     const b = urlParams.get('bill')
     return b != null ? BigInt(b) : null
-  }, [urlParams])
+  }, [location.pathname, urlParams])
 
-  // Open a bill: push /bill/<id>?contract=<addr> into history
+  // Open a bill: navigate to /bill/<id>
   const openBill = useCallback((bill: BillSummary, myStatus: ParticipantStatus | undefined) => {
-    const url = `/bill/${bill.id.toString()}?contract=${CONTRACT_ADDRESS}`
-    window.history.pushState({ billId: bill.id.toString() }, '', url)
+    void navigate(`/bill/${bill.id.toString()}?contract=${CONTRACT_ADDRESS}`)
     setSelectedBill({ bill, myStatus })
-  }, [])
+  }, [navigate])
 
-  // Close the detail page: pop the URL back to /
+  // Close the detail page: go back, or fall back to /app
   const closeBill = useCallback(() => {
-    window.history.replaceState({}, '', '/')
     setSelectedBill(null)
-  }, [])
-
-  // Handle browser back button
-  useEffect(() => {
-    const onPop = () => {
-      // If we navigated back from a bill page, close the detail view
-      if (!window.location.pathname.match(/^\/bill\//)) {
-        setSelectedBill(null)
-      }
+    const histState = window.history.state as { idx?: number } | null
+    if ((histState?.idx ?? 0) > 0) {
+      void navigate(-1)
+    } else {
+      void navigate('/app', { replace: true })
     }
-    window.addEventListener('popstate', onPop)
-    return () => window.removeEventListener('popstate', onPop)
-  }, [])
+  }, [navigate])
+
+  // Sync selectedBill when navigating back past a bill URL (e.g. browser back)
+  const prevPathRef = useRef(location.pathname)
+  useEffect(() => {
+    const prev = prevPathRef.current
+    prevPathRef.current = location.pathname
+    if (prev.match(/^\/bill\//) && !location.pathname.match(/^\/bill\//)) {
+      setSelectedBill(null)
+    }
+  }, [location.pathname])
+
+  // When a ?to= prefill arrives on /app (e.g. from a payment link), redirect to /app/send
+  useEffect(() => {
+    if (address && prefilledTo && location.pathname === '/app') {
+      void navigate(`/app/send?to=${prefilledTo}`, { replace: true })
+    }
+  }, [address, prefilledTo, location.pathname, navigate])
 
   const { dark, toggle: toggleDark } = useDarkMode()
-  const [tab, setTab] = useState<'bills' | 'send' | 'receive' | 'account'>(prefilledTo ? 'send' : 'bills')
 
   const count = billCount != null ? Number(billCount) : 0
 
@@ -847,6 +872,11 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* ── Redirect / → /app when signed in ── */}
+      {address && location.pathname === '/' && (
+        <Navigate to="/app" replace />
+      )}
+
       {/* ── Sign-in page gate ── shown when no wallet is connected ─ */}
       <AnimatePresence>
         {!address && redirectChecked && (
@@ -867,14 +897,14 @@ export default function App() {
                 // the pre-filled identity so the wallet onboarding step appears
                 socialSession && !socialSession.address ? socialSession : null
               }
-              onSeedSignedIn={s => { setSeedSession(s); recordSignInTime() }}
+              onSeedSignedIn={s => { setSeedSession(s); recordSignInTime(); void navigate('/app', { replace: true }) }}
               onSocialSignedIn={(identity, wallet) => {
-                // Store the identity with the wallet address filled in
                 const fullSession = { ...identity, address: wallet.address }
                 saveSession(fullSession)
                 setSocialSession(fullSession)
                 setSeedSession(wallet)
                 recordSignInTime()
+                void navigate('/app', { replace: true })
               }}
               onCircleConnected={addr => setCircleAddress(addr)}
               onSignOut={() => {
@@ -886,6 +916,7 @@ export default function App() {
                 setCircleAddress(null)
                 clearCredential()
                 clearSeedWallet(uid)
+                void navigate('/', { replace: true })
               }}
             />
           </motion.div>
@@ -935,13 +966,15 @@ export default function App() {
                 address={address}
                 onGoToAccount={() => setTab('account')}
                 onSignOut={() => {
+                  const uid = socialSession?.googleUid
                   setSeedSession(null)
                   setSocialSession(null)
                   clearGoogleSession()
                   localStorage.removeItem('fairtab_session_v2')
                   setCircleAddress(null)
                   clearCredential()
-                  clearSeedWallet()
+                  clearSeedWallet(uid)
+                  void navigate('/', { replace: true })
                 }}
               />
             )}
@@ -1255,7 +1288,7 @@ export default function App() {
                       setCircleAddress(null)
                       clearCredential()
                       clearSeedWallet(uid)
-                      setTab('bills')
+                      void navigate('/', { replace: true })
                     }}
                   />
                 </motion.div>
