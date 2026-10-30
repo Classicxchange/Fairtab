@@ -1,27 +1,21 @@
 /**
  * AccountView — Google Sign-In via Firebase Auth.
  *
- * Firebase handles the entire Google OAuth flow under their own
- * Google Cloud project — no Google Cloud Console setup needed from you.
+ * Uses signInWithRedirect on mobile (popup falls back to redirect on Android
+ * Chrome which navigates away and never returns). On desktop, tries popup first
+ * and falls back to redirect if popup is blocked.
  *
- * How it works:
- *  1. Firebase Auth opens a Google sign-in popup
- *  2. User picks their Google account
- *  3. Firebase returns a stable uid (never changes for that Google account)
- *  4. We derive a deterministic private key: PBKDF2(uid, salt, 200k, SHA-256)
- *  5. Same Google account → same wallet address, on any device, forever
+ * The authDomain is set to fairtab.online so the redirect comes back to the
+ * app, not to firebaseapp.com. This requires adding a custom auth domain in
+ * Firebase Console → Authentication → Settings → Authorized domains.
  *
- * Required env vars (paste your Firebase project config):
+ * Required env vars:
  *   VITE_FIREBASE_API_KEY
- *   VITE_FIREBASE_AUTH_DOMAIN
+ *   VITE_FIREBASE_AUTH_DOMAIN   ← set to "fairtab.online" in production
  *   VITE_FIREBASE_PROJECT_ID
- *
- * Get them free at https://console.firebase.google.com
- *   → Create project → Add web app → copy the config object
- *   Then: Authentication → Sign-in method → Google → Enable
  */
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
 import { Loader2, ShieldCheck, LogOut, Copy, CheckCircle2, AlertTriangle } from 'lucide-react'
@@ -29,26 +23,25 @@ import { privateKeyToAccount } from 'viem/accounts'
 import type { Hex } from 'viem'
 
 // ── Firebase config from env ───────────────────────────────────────────────────
-const firebaseApiKey    = import.meta.env.VITE_FIREBASE_API_KEY     as string | undefined
+const firebaseApiKey     = import.meta.env.VITE_FIREBASE_API_KEY     as string | undefined
 const firebaseAuthDomain = import.meta.env.VITE_FIREBASE_AUTH_DOMAIN as string | undefined
 const firebaseProjectId  = import.meta.env.VITE_FIREBASE_PROJECT_ID  as string | undefined
-
 const firebaseConfigured = !!(firebaseApiKey && firebaseAuthDomain && firebaseProjectId)
+
+// Detect mobile — popup is unreliable on Android Chrome
+const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface AccountSession {
-  address: string
-  username: string
-  email?: string
-  picture?: string
-  method: 'google' | 'email' | 'passkey' | 'seed-wallet'
-  /** In-memory only. Never persisted. */
-  privateKey?: Hex
+  address:    string
+  username:   string
+  email?:     string
+  picture?:   string
+  method:     'google' | 'email' | 'passkey' | 'seed-wallet'
+  privateKey?: Hex  // in-memory only, never persisted
 }
 
 // ── Deterministic wallet from Firebase uid ─────────────────────────────────────
-// PBKDF2(password=uid, salt="fairtab-wallet-v1", 200_000, SHA-256) → 32 bytes private key
-// Same uid → same wallet on every device, every browser, forever.
 async function derivePrivateKey(uid: string): Promise<Hex> {
   const enc = new TextEncoder()
   const keyMaterial = await crypto.subtle.importKey(
@@ -66,58 +59,53 @@ async function derivePrivateKey(uid: string): Promise<Hex> {
   return `0x${hex}`
 }
 
-// ── Session storage (sessionStorage — cleared on tab close) ───────────────────
+// ── Session storage ────────────────────────────────────────────────────────────
 const SESSION_KEY = 'fairtab_google_session_v1'
 
 function saveSession(s: AccountSession) {
   const { privateKey: _, ...safe } = s
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify(safe))
+  localStorage.setItem(SESSION_KEY, JSON.stringify(safe))
 }
 
 export function loadGoogleSession(): Omit<AccountSession, 'privateKey'> | null {
   try {
-    const raw = sessionStorage.getItem(SESSION_KEY)
+    const raw = localStorage.getItem(SESSION_KEY)
     return raw ? (JSON.parse(raw) as Omit<AccountSession, 'privateKey'>) : null
   } catch { return null }
 }
 
 export function clearGoogleSession() {
-  sessionStorage.removeItem(SESSION_KEY)
+  localStorage.removeItem(SESSION_KEY)
 }
 
-// ── Lazy Firebase init — only loads the SDK when the user clicks Sign In ──────
-let firebaseApp: import('firebase/app').FirebaseApp | null = null
-let firebaseAuth: import('firebase/auth').Auth | null = null
+// ── Lazy Firebase init ─────────────────────────────────────────────────────────
+let _auth: import('firebase/auth').Auth | null = null
 
-async function getFirebaseAuth(): Promise<import('firebase/auth').Auth> {
-  if (firebaseAuth) return firebaseAuth
-
+async function getAuth(): Promise<import('firebase/auth').Auth> {
+  if (_auth) return _auth
   const { initializeApp, getApps } = await import('firebase/app')
-  const { getAuth }                = await import('firebase/auth')
-
+  const { getAuth: _getAuth }      = await import('firebase/auth')
   const existing = getApps()[0]
-  firebaseApp = existing ?? initializeApp({
+  const app = existing ?? initializeApp({
     apiKey:     firebaseApiKey!,
     authDomain: firebaseAuthDomain!,
     projectId:  firebaseProjectId!,
   })
-  firebaseAuth = getAuth(firebaseApp)
-  return firebaseAuth
+  _auth = _getAuth(app)
+  return _auth
 }
 
-async function signInWithGoogle(): Promise<{ uid: string; email: string; displayName: string; photoURL: string }> {
-  const { GoogleAuthProvider, signInWithPopup } = await import('firebase/auth')
-  const auth     = await getFirebaseAuth()
-  const provider = new GoogleAuthProvider()
-  provider.addScope('email')
-  provider.addScope('profile')
-  const result = await signInWithPopup(auth, provider)
-  const user   = result.user
+// Build a session from a Firebase user
+async function buildSession(user: import('firebase/auth').User): Promise<AccountSession> {
+  const privateKey = await derivePrivateKey(user.uid)
+  const account    = privateKeyToAccount(privateKey)
   return {
-    uid:         user.uid,
-    email:       user.email       ?? '',
-    displayName: user.displayName ?? user.email?.split('@')[0] ?? 'User',
-    photoURL:    user.photoURL    ?? '',
+    address:  account.address,
+    username: user.displayName ?? user.email?.split('@')[0] ?? 'User',
+    email:    user.email    ?? undefined,
+    picture:  user.photoURL ?? undefined,
+    method:   'google',
+    privateKey,
   }
 }
 
@@ -145,7 +133,9 @@ function CopyAddress({ address }: { address: string }) {
       }}
       className="flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs transition-all hover:opacity-80"
       style={{ background: 'var(--surface-muted)', color: 'var(--subtle)', border: '1px solid var(--border)' }}>
-      {copied ? <CheckCircle2 className="size-3" style={{ color: 'var(--success)' }} /> : <Copy className="size-3" />}
+      {copied
+        ? <CheckCircle2 className="size-3" style={{ color: 'var(--success)' }} />
+        : <Copy className="size-3" />}
       {copied ? 'Copied' : `${address.slice(0, 6)}…${address.slice(-4)}`}
     </button>
   )
@@ -153,44 +143,87 @@ function CopyAddress({ address }: { address: string }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 interface AccountViewProps {
-  session: AccountSession | null
+  session:    AccountSession | null
   onSignedIn: (s: AccountSession) => void
-  onSignOut: () => void
+  onSignOut:  () => void
 }
 
 export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps) {
   const [loading, setLoading] = useState(false)
-  const [error, setError]     = useState<string | null>(null)
+  const [error,   setError]   = useState<string | null>(null)
 
+  // ── On mount: pick up the redirect result if we just came back ───────────
+  useEffect(() => {
+    if (!firebaseConfigured || session) return
+    let cancelled = false
+
+    void (async () => {
+      try {
+        // Check if there's a pending redirect result
+        const { getRedirectResult } = await import('firebase/auth')
+        const auth   = await getAuth()
+        const result = await getRedirectResult(auth)
+        if (cancelled || !result?.user) return
+
+        setLoading(true)
+        const sess = await buildSession(result.user)
+        if (cancelled) return
+        saveSession(sess)
+        onSignedIn(sess)
+        toast.success(`Welcome, ${sess.username}!`)
+      } catch (e) {
+        if (cancelled) return
+        const msg = e instanceof Error ? e.message : String(e)
+        if (!msg.includes('cancelled') && !msg.includes('popup-closed')) {
+          setError(msg)
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+
+    return () => { cancelled = true }
+  }, [onSignedIn, session])
+
+  // ── Sign in handler ───────────────────────────────────────────────────────
   const handleGoogleSignIn = useCallback(async () => {
     if (!firebaseConfigured) return
     setLoading(true); setError(null)
     try {
-      const { uid, email, displayName, photoURL } = await signInWithGoogle()
+      const { GoogleAuthProvider, signInWithPopup, signInWithRedirect } = await import('firebase/auth')
+      const auth     = await getAuth()
+      const provider = new GoogleAuthProvider()
+      provider.addScope('email')
+      provider.addScope('profile')
 
-      // Derive deterministic wallet (~200ms)
-      const privateKey = await derivePrivateKey(uid)
-      const account    = privateKeyToAccount(privateKey)
-
-      const sess: AccountSession = {
-        address:    account.address,
-        username:   displayName,
-        email,
-        picture:    photoURL,
-        method:     'google',
-        privateKey, // in-memory only, never persisted
+      if (isMobile) {
+        // Mobile: use redirect — page navigates away, getRedirectResult picks it up on return
+        await signInWithRedirect(auth, provider)
+        // Execution stops here — page navigates away
+        return
       }
-      saveSession(sess)
-      onSignedIn(sess)
-      toast.success(`Welcome, ${displayName}!`)
+
+      // Desktop: try popup first
+      try {
+        const result = await signInWithPopup(auth, provider)
+        const sess   = await buildSession(result.user)
+        saveSession(sess)
+        onSignedIn(sess)
+        toast.success(`Welcome, ${sess.username}!`)
+      } catch (popupErr) {
+        const msg = popupErr instanceof Error ? popupErr.message : String(popupErr)
+        if (msg.includes('popup-blocked') || msg.includes('popup-closed')) {
+          // Popup blocked — fall back to redirect
+          await signInWithRedirect(auth, provider)
+          return
+        }
+        throw popupErr
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
-      // User closed the popup — don't show an error
-      if (msg.includes('popup-closed') || msg.includes('cancelled') || msg.includes('dismissed')) {
-        setError(null)
-      } else {
+      if (!msg.includes('cancelled') && !msg.includes('popup-closed') && !msg.includes('dismissed')) {
         setError(msg)
-        toast.error('Google sign-in failed: ' + msg)
+        toast.error('Google sign-in failed')
       }
     } finally {
       setLoading(false)
@@ -211,11 +244,11 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
         className="rounded-2xl p-5 flex flex-col gap-4"
         style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow)' }}>
 
-        {/* User info row */}
         <div className="flex items-center gap-3">
           {session.picture
             ? <img src={session.picture} alt={session.username}
                 className="size-11 rounded-full shrink-0"
+                referrerPolicy="no-referrer"
                 style={{ outline: '2px solid var(--border)', outlineOffset: 1 }} />
             : (
               <div className="size-11 rounded-full flex items-center justify-center shrink-0 text-lg font-bold"
@@ -234,7 +267,6 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
           </span>
         </div>
 
-        {/* Wallet address */}
         <div className="rounded-xl p-3" style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)' }}>
           <p className="text-[10px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: 'var(--subtle)' }}>
             Wallet address
@@ -245,7 +277,6 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
           </div>
         </div>
 
-        {/* Info */}
         <div className="rounded-xl p-3 flex items-start gap-2"
           style={{ background: 'rgba(59,142,248,0.05)', border: '1px solid rgba(59,142,248,0.12)' }}>
           <ShieldCheck className="size-3.5 shrink-0 mt-0.5" style={{ color: 'var(--accent)' }} />
@@ -254,7 +285,6 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
           </p>
         </div>
 
-        {/* Sign out */}
         <button onClick={handleSignOut}
           className="w-full rounded-xl py-2.5 text-sm font-semibold flex items-center justify-center gap-2 transition-all hover:opacity-90"
           style={{ background: 'rgba(240,98,146,0.08)', color: 'var(--danger)', border: '1px solid rgba(240,98,146,0.15)' }}>
@@ -271,30 +301,19 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
         initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
         className="rounded-2xl p-5 flex flex-col gap-3"
         style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow)' }}>
-
         <div className="flex items-center gap-2">
           <AlertTriangle className="size-4 shrink-0" style={{ color: 'var(--warning)' }} />
           <p className="font-semibold text-sm" style={{ color: 'var(--ink)' }}>Firebase not configured</p>
         </div>
-
         <p className="text-xs leading-relaxed" style={{ color: 'var(--muted)' }}>
-          Add these to your <code className="font-mono" style={{ color: 'var(--accent)' }}>.env</code> file:
+          Add these to your <code className="font-mono" style={{ color: 'var(--accent)' }}>.env</code>:
         </p>
-
         <div className="rounded-xl p-3 font-mono text-xs select-all"
           style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)', color: 'var(--ink-2)', whiteSpace: 'pre' }}>
 {`VITE_FIREBASE_API_KEY=...
-VITE_FIREBASE_AUTH_DOMAIN=....firebaseapp.com
+VITE_FIREBASE_AUTH_DOMAIN=fairtab.online
 VITE_FIREBASE_PROJECT_ID=...`}
         </div>
-
-        <ol className="text-xs leading-relaxed list-decimal list-inside flex flex-col gap-1" style={{ color: 'var(--muted)' }}>
-          <li>Go to <a href="https://console.firebase.google.com" target="_blank" rel="noreferrer"
-              className="underline" style={{ color: 'var(--accent)' }}>console.firebase.google.com</a></li>
-          <li>Create a project → Add web app → copy the config</li>
-          <li>Authentication → Sign-in method → Google → Enable</li>
-          <li>Add the 3 values above to your <code className="font-mono">.env</code> and redeploy</li>
-        </ol>
       </motion.div>
     )
   }
@@ -306,10 +325,16 @@ VITE_FIREBASE_PROJECT_ID=...`}
       className="flex flex-col gap-3">
 
       {loading ? (
-        <div className="flex flex-col items-center gap-3 py-6">
-          <Loader2 className="size-7 animate-spin" style={{ color: 'var(--accent)' }} />
-          <p className="text-sm font-medium" style={{ color: 'var(--ink)' }}>Signing you in…</p>
-          <p className="text-xs" style={{ color: 'var(--muted)' }}>A Google pop-up should appear</p>
+        <div className="flex flex-col items-center gap-3 py-8">
+          <Loader2 className="size-8 animate-spin" style={{ color: 'var(--accent)' }} />
+          <p className="text-sm font-semibold" style={{ color: 'var(--ink)' }}>
+            {isMobile ? 'Redirecting to Google…' : 'Signing you in…'}
+          </p>
+          <p className="text-xs text-center px-4" style={{ color: 'var(--muted)' }}>
+            {isMobile
+              ? 'You will be redirected back to Fairtab automatically after signing in.'
+              : 'A Google sign-in window should appear.'}
+          </p>
         </div>
       ) : (
         <>
@@ -317,10 +342,10 @@ VITE_FIREBASE_PROJECT_ID=...`}
             onClick={() => { void handleGoogleSignIn() }}
             className="w-full flex items-center justify-center gap-3 rounded-2xl px-5 py-4 text-sm font-semibold transition-all hover:scale-[1.01] active:scale-[0.98]"
             style={{
-              background: '#fff',
-              border: '1.5px solid #dadce0',
-              color: '#3c4043',
-              boxShadow: '0 1px 6px rgba(0,0,0,0.10)',
+              background:  '#fff',
+              border:      '1.5px solid #dadce0',
+              color:       '#3c4043',
+              boxShadow:   '0 1px 6px rgba(0,0,0,0.10)',
             }}>
             <GoogleIcon size={20} />
             Continue with Google
