@@ -122,6 +122,7 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
   const [passkeyName, setPasskeyName] = useState('')
   const [loading, setLoading]         = useState(false)
   const [error, setError]             = useState<string | null>(null)
+  const loadingTimerRef               = useRef<ReturnType<typeof setTimeout> | null>(null)
   interface W3SSdkLike {
     getDeviceId(): Promise<string>
     updateConfigs(cfg: unknown): void
@@ -137,6 +138,20 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
   const hasGoogle  = hasW3s && !!googleId
   const hasPasskey = !!modularClients
 
+  // ── Enter loading step with auto-timeout ────────────────────────────────────
+  const startLoading = () => {
+    setStep('loading')
+    setError(null)
+    if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current)
+    loadingTimerRef.current = setTimeout(() => {
+      setStep('choose')
+      setError('Sign-in timed out. Check that the server is running and credentials are configured.')
+    }, 30_000)
+  }
+  const stopLoading = () => {
+    if (loadingTimerRef.current) { clearTimeout(loadingTimerRef.current); loadingTimerRef.current = null }
+  }
+
   // ── Init W3S SDK ─────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!appId) return
@@ -148,7 +163,14 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
 
         const onLoginComplete = (err: unknown, result: unknown) => {
           if (cancelled) return
-          if (err) { toast.error((err as Error).message || 'Login failed'); return }
+          stopLoading()
+          if (err) {
+            const msg = (err as Error).message || 'Login failed'
+            setError(msg)
+            setStep('choose')
+            toast.error(msg)
+            return
+          }
           const { userToken, encryptionKey } = result as { userToken: string; encryptionKey: string }
           setLoginResult({ userToken, encryptionKey })
           toast.success('Authenticated! Setting up wallet…')
@@ -218,6 +240,7 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
     // Persist only non-sensitive identity fields — never store userToken or encryptionKey
     const { userToken: _ut, encryptionKey: _ek, ...safeSess } = sess
     localStorage.setItem('fairtab_session_v2', JSON.stringify(safeSess))
+    stopLoading()
     onSignedIn(sess)
     setStep('done')
     toast.success('Signed in!')
@@ -259,10 +282,11 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
         },
       })
       sdkRef.current.performLogin('google')
-      setStep('loading')
+      startLoading()
     } catch (e) {
-      setError((e as Error).message)
-      toast.error((e as Error).message)
+      const msg = (e as Error).message
+      setError(msg)
+      toast.error(msg)
     } finally { setLoading(false) }
   }
 
@@ -293,7 +317,7 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
   // ── Email OTP: verify ──────────────────────────────────────────────────────
   const handleVerifyOtp = () => {
     if (!sdkRef.current || !otpTokens) return
-    setStep('loading')
+    startLoading()
     sdkRef.current.verifyOtp()
   }
 
@@ -472,12 +496,21 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
                 </button>
               </div>
 
+              {/* Error from a previous attempt */}
+              {error && (
+                <div className="rounded-xl p-3" style={{ background: 'rgba(240,98,146,0.06)', border: '1px solid rgba(240,98,146,0.18)' }}>
+                  <p className="text-xs leading-relaxed" style={{ color: 'var(--danger)' }}>{error}</p>
+                  <button onClick={() => setError(null)} className="text-xs mt-1 underline" style={{ color: 'var(--subtle)' }}>Dismiss</button>
+                </div>
+              )}
+
               {(!hasW3s || !hasGoogle) && (
                 <div className="rounded-xl p-3 mt-1" style={{ background: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.15)' }}>
+                  <p className="text-xs font-semibold mb-1" style={{ color: 'var(--warning)' }}>Setup required</p>
                   <p className="text-xs leading-relaxed" style={{ color: 'var(--warning)' }}>
                     {!hasW3s
-                      ? 'Add VITE_CIRCLE_APP_ID to .env (Console → Wallets → User Controlled → Configurator)'
-                      : 'Add VITE_GOOGLE_CLIENT_ID to .env to enable Google sign-in'}
+                      ? 'Set VITE_CIRCLE_APP_ID in .env\n(Circle Console → Wallets → User Controlled → Configurator → App ID)\nAlso set CIRCLE_API_KEY for the server.'
+                      : 'Set VITE_GOOGLE_CLIENT_ID in .env\n(Circle Console → Wallets → User Controlled → Auth Methods → Social Logins)'}
                   </p>
                 </div>
               )}
@@ -556,9 +589,18 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
 
           {/* ── Loading / in-progress ──────────────────────────────────────── */}
           {step === 'loading' && (
-            <motion.div key="loading" className="flex flex-col items-center gap-4 py-4" {...fadeUp}>
+            <motion.div key="loading" className="flex flex-col items-center gap-4 py-6" {...fadeUp}>
               <Loader2 className="size-8 animate-spin" style={{ color: 'var(--accent)' }} />
-              <p className="text-sm" style={{ color: 'var(--muted)' }}>Setting up your wallet…</p>
+              <p className="text-sm font-medium" style={{ color: 'var(--ink)' }}>Setting up your wallet…</p>
+              <p className="text-xs text-center max-w-[220px]" style={{ color: 'var(--muted)' }}>
+                This may take up to 30 seconds. A pop-up from Circle may appear.
+              </p>
+              <button
+                onClick={() => { stopLoading(); setStep('choose'); setError(null) }}
+                className="mt-2 text-xs font-medium px-4 py-2 rounded-xl transition-all"
+                style={{ background: 'var(--surface-muted)', color: 'var(--ink-2)', border: '1px solid var(--border)' }}>
+                Cancel
+              </button>
             </motion.div>
           )}
 
