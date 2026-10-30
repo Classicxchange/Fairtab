@@ -16,6 +16,9 @@ import {
   Mail, LogIn, LogOut, KeyRound, UserPlus,
   Loader2, ShieldCheck, Copy, CheckCircle2,
 } from 'lucide-react'
+// SocialLoginProvider enum from the Circle SDK — must use the enum, not a raw string
+// The W3S SDK validates 'GOOGLE' (uppercase) not 'google'
+let SocialLoginProvider: { GOOGLE: string; FACEBOOK: string; APPLE: string } | null = null
 import {
   toCircleSmartAccount,
   toModularTransport,
@@ -126,7 +129,9 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
   interface W3SSdkLike {
     getDeviceId(): Promise<string>
     updateConfigs(cfg: unknown): void
-    performLogin(provider: string): void
+    // provider accepts the SocialLoginProvider enum value (e.g. SocialLoginProvider.GOOGLE)
+    // which resolves to the string 'GOOGLE' — NOT 'google'
+    performLogin(provider: unknown): void
     verifyOtp(): void
     setAuthentication(auth: { userToken: string; encryptionKey: string }): void
     execute(challengeId: string, cb: (err: unknown) => void): void
@@ -159,7 +164,12 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
 
     const init = async () => {
       try {
-        const { W3SSdk } = await import('@circle-fin/w3s-pw-web-sdk')
+        const w3sModule = await import('@circle-fin/w3s-pw-web-sdk')
+        const { W3SSdk } = w3sModule
+        // Capture the SocialLoginProvider enum so performLogin uses the correct value
+        if ('SocialLoginProvider' in w3sModule) {
+          SocialLoginProvider = w3sModule.SocialLoginProvider as typeof SocialLoginProvider
+        }
 
         const onLoginComplete = (err: unknown, result: unknown) => {
           if (cancelled) return
@@ -281,7 +291,9 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
           },
         },
       })
-      sdkRef.current.performLogin('google')
+      // Use the SocialLoginProvider enum value if available, fall back to 'GOOGLE' uppercase
+      const googleProvider = SocialLoginProvider?.GOOGLE ?? 'GOOGLE'
+      sdkRef.current.performLogin(googleProvider)
       startLoading()
     } catch (e) {
       const msg = (e as Error).message
