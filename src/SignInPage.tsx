@@ -313,7 +313,7 @@ export function SignInPage({
                 </p>
               </div>
 
-              <AccountView onSignedIn={handleGoogleIdentity} />
+              <AccountView session={googleIdentity} onSignedIn={handleGoogleIdentity} onSignOut={() => { setGoogleIdentity(null); setView('main') }} />
             </motion.div>
           )}
 

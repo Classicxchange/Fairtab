@@ -31,6 +31,6 @@
       ]
     }
   },
-  "include": ["src", "scripts", "api"]
+  "include": ["src", "scripts"]
 }
 

@@ -191,7 +191,9 @@ export function SignInModal({
                       style={{ overflow: 'hidden' }}
                     >
                       <AccountView
+                        session={socialSession ?? null}
                         onSignedIn={s => { onSocialSignedIn(s); setOpen(false) }}
+                        onSignOut={onSignOut}
                       />
                     </motion.div>
                   )}
