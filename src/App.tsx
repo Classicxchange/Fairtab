@@ -737,6 +737,11 @@ export default function App() {
       .filter(c => c.connector.id === 'circle-wallet')
     if (circleAddr) {
       setCircleAuth({ address: circleAddr, userToken: circleUserToken, encryptionKey: circleEncKey })
+      // A Circle sign-in must be the only wallet: otherwise wagmi can send transactions
+      // to a previously connected external wallet (MetaMask, OKX) instead.
+      Array.from(wagmiConfig.state.connections.values())
+        .filter(c => c.connector.id !== 'circle-wallet')
+        .forEach(c => { void disconnectWallet(wagmiConfig, { connector: c.connector }) })
       const alreadyConnected = circleConnections.some(
         c => c.accounts[0]?.toLowerCase() === circleAddr.toLowerCase(),
       )
