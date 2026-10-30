@@ -62,6 +62,7 @@ interface EncryptedWallet {
   salt: string      // hex
   iv: string        // hex
   cipher: string    // hex — AES-GCM encrypted JSON({ mnemonic?, privateKey, address })
+  address?: string  // plaintext — public info, lets Google sign-in skip unlock
 }
 
 // ── WebCrypto helpers ─────────────────────────────────────────────────────────
@@ -103,9 +104,10 @@ async function encryptWallet(
     enc.encode(JSON.stringify(payload))
   )
   return {
-    salt: bytesToHex(salt),
-    iv: bytesToHex(iv),
-    cipher: bytesToHex(new Uint8Array(cipherBuf)),
+    salt:    bytesToHex(salt),
+    iv:      bytesToHex(iv),
+    cipher:  bytesToHex(new Uint8Array(cipherBuf)),
+    address: payload.address,  // plaintext — public; lets Google sign-in skip unlock
   }
 }
 
@@ -142,6 +144,17 @@ export function clearSeedWallet(uid?: string) {
 /** Returns true if a wallet blob exists for the given user (or the default slot). */
 export function hasSeedWallet(uid?: string): boolean {
   return !!loadBlob(uid)
+}
+
+/**
+ * Returns the wallet address from the blob without decrypting, or null if no
+ * blob exists. Works for blobs created after the address field was added; for
+ * legacy blobs (no address field) returns null — those users will still see the
+ * password unlock once, after which the blob is re-saved with the address field.
+ */
+export function getSeedWalletAddress(uid?: string): `0x${string}` | null {
+  const blob = loadBlob(uid)
+  return (blob?.address as `0x${string}` | undefined) ?? null
 }
 
 // ── Public helpers for AccountPage ────────────────────────────────────────────
@@ -399,6 +412,8 @@ export function SeedWalletAuth({ session, onSignedIn, onSignOut, uid }: Props) {
     setLoading(true); setError(null)
     try {
       const payload = await decryptWallet(blob, unlockPw)
+      // Re-save with plaintext address if missing (upgrades legacy blobs)
+      if (!blob.address) saveBlob({ ...blob, address: payload.address }, uid)
       onSignedIn({ address: payload.address, method: 'seed-wallet', privateKey: payload.privateKey })
       setStep('done')
       toast.success('Wallet unlocked!')

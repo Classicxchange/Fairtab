@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { restoreCircleSession, clearCredential } from '@/CircleWalletAuth'
-import { type SeedWalletSession, clearSeedWallet, hasSeedWallet } from '@/SeedWalletAuth'
+import { type SeedWalletSession, clearSeedWallet, hasSeedWallet, getSeedWalletAddress } from '@/SeedWalletAuth'
 import { type AccountSession, loadGoogleSession, clearGoogleSession, saveSession } from '@/AccountView'
 import { WalletDropdown } from '@/WalletDropdown'
 import { AccountPage, recordSignInTime } from '@/AccountPage'
@@ -683,8 +683,15 @@ export default function App() {
   // which point the tx page prompts for the wallet password to decrypt it.
   const [seedSession, setSeedSession] = useState<SeedWalletSession | null>(() => {
     const saved = loadGoogleSession()
-    if (saved?.address && saved.googleUid && hasSeedWallet(saved.googleUid)) {
-      return { address: saved.address as `0x${string}`, method: 'seed-wallet' }
+    if (saved?.googleUid) {
+      // Prefer the plaintext address from the blob (no password needed).
+      // Fall back to saved.address for sessions created before the address
+      // field was added to the blob.
+      const addr = getSeedWalletAddress(saved.googleUid)
+                ?? (saved.address ? saved.address as `0x${string}` : null)
+      if (addr && hasSeedWallet(saved.googleUid)) {
+        return { address: addr, method: 'seed-wallet' }
+      }
     }
     return null
   })

@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 import { WalletMetamask, WalletWalletConnect } from '@web3icons/react'
 import { AccountView, type AccountSession } from './AccountView'
-import { SeedWalletAuth, type SeedWalletSession } from './SeedWalletAuth'
+import { SeedWalletAuth, type SeedWalletSession, getSeedWalletAddress } from './SeedWalletAuth'
 
 interface Props {
   onSeedSignedIn:    (s: SeedWalletSession) => void
@@ -59,9 +59,19 @@ export function SignInPage({
   )
   const [advOpen, setAdvOpen] = useState(false)
 
-  // Called when Google identity resolves (from either popup or redirect)
-  // Transitions to the wallet onboarding step
+  // Called when Google identity resolves from the popup.
+  // If this user already has a wallet on this device (address readable without
+  // decrypting), skip the wallet step and sign them straight in.
   const handleGoogleIdentity = (identity: AccountSession) => {
+    const existingAddr = getSeedWalletAddress(identity.googleUid)
+    if (existingAddr) {
+      // Returning user — no password needed; address is in plaintext in the blob
+      const walletSession: SeedWalletSession = { address: existingAddr, method: 'seed-wallet' }
+      const fullIdentity = { ...identity, address: existingAddr }
+      onSocialSignedIn(fullIdentity, walletSession)
+      return
+    }
+    // New user — go to wallet onboarding
     setGoogleIdentity(identity)
     setView('google-wallet')
   }
