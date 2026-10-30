@@ -57,7 +57,6 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
   const [to, setTo] = useState(urlP.get('to') ?? '')
   const [amount, setAmount] = useState(urlP.get('amount') ?? '')
   const [memo, setMemo] = useState(urlP.get('memo') ?? '')
-  const [approveDone, setApproveDone] = useState(false)
   const [seedSending, setSeedSending] = useState(false)
   const [seedTxHash, setSeedTxHash] = useState<`0x${string}` | null>(null)
   const [step, setStep] = useState<'form' | 'confirm' | 'success'>('form')
@@ -77,27 +76,14 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
     args: address ? [address] : undefined,
     query: { enabled: !!address }, chainId: CHAIN_ID,
   })
-  const { data: allowance, refetch: refetchAllowance } = useReadContract({
-    address: USDC_ADDRESS, abi: erc20Abi, functionName: 'allowance',
-    args: address ? [address, to as `0x${string}`] : undefined,
-    query: { enabled: !!address && toValid }, chainId: CHAIN_ID,
-  })
-  const needsApprove = sendValid && !approveDone && !seedSession && (allowance === undefined || allowance < amountRaw)
 
   const ensureChain = useCallback(() => {
     if (wrongChain) { switchChain({ chainId: CHAIN_ID }); return false }
     return true
   }, [wrongChain, switchChain])
 
-  const { writeContract: writeApprove, data: approveHash, isPending: _approvePending } = useWriteContract()
-  const { isLoading: _approveConfirming, isSuccess: approveSuccess } = useWaitForTransactionReceipt({ hash: approveHash })
   const { writeContract: writeSend, data: wagmiSendHash, isPending: sendPending, reset: resetSend } = useWriteContract()
   const { isLoading: sendConfirming, isSuccess: sendSuccess } = useWaitForTransactionReceipt({ hash: wagmiSendHash })
-
-  const handleApprove = useCallback(() => {
-    if (!ensureChain() || !sendValid) return
-    writeApprove({ address: USDC_ADDRESS, abi: erc20Abi, functionName: 'approve', args: [to, amountRaw] })
-  }, [ensureChain, sendValid, to, amountRaw, writeApprove])
 
   const handleWagmiSend = useCallback(() => {
     if (!ensureChain() || !sendValid) return
@@ -140,7 +126,6 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
     }
   }, [seedSession, sendValid, to, amountRaw, amount, refetchBalance])
 
-  if (approveSuccess && !approveDone) { setApproveDone(true); void refetchAllowance() }
   if (sendSuccess && step !== 'success') {
     toast.success(`Sent ${amount} USDC`)
     setStep('success')
@@ -150,7 +135,7 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
   const sendHash = wagmiSendHash ?? seedTxHash
 
   const handleReset = () => {
-    setTo(''); setAmount(''); setMemo(''); setApproveDone(false)
+    setTo(''); setAmount(''); setMemo('')
     setSeedTxHash(null); resetSend(); setStep('form')
   }
 
@@ -240,15 +225,13 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
             const data = encodeFunctionData({ abi: erc20Abi, functionName: 'transfer', args: [to as `0x${string}`, amountRaw] })
             setTxEstimateParams({ from: (unifiedAddress ?? wagmiAddress) as `0x${string}`, to: USDC_ADDRESS, data, value: 0n })
             setShowTxModal(true)
-          } : (needsApprove ? handleApprove : handleWagmiSend)}
+          } : handleWagmiSend}
           disabled={busy || exceedsBalance}
           className="w-full flex items-center justify-center gap-2 rounded-2xl py-4 text-base font-bold transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ background: 'var(--accent)', color: '#fff', boxShadow: '0 4px 20px rgba(79,110,247,0.3)' }}>
           {busy
             ? <><Loader2 className="size-5 animate-spin" /> {sendPending || seedSending ? 'Signing…' : 'Confirming…'}</>
-            : needsApprove
-              ? <><CheckCircle2 className="size-5" /> Allow USDC</>
-              : <><Send className="size-5" /> Confirm send {amount} USDC</>
+            : <><Send className="size-5" /> Confirm send {amount} USDC</>
           }
         </button>
       </motion.div>
@@ -307,7 +290,7 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
           <div className="flex items-center gap-2">
             <input
               value={to}
-              onChange={e => { setTo(e.target.value); setApproveDone(false) }}
+              onChange={e => { setTo(e.target.value) }}
               placeholder="0x… wallet address"
               className="mono flex-1 bg-transparent text-sm outline-none placeholder:opacity-30"
               style={{ color: toValid || !to ? 'var(--ink)' : 'var(--danger)' }}
@@ -318,7 +301,7 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
               </div>
             )}
             <button
-              onClick={() => { void navigator.clipboard.readText().then(t => { setTo(t.trim()); setApproveDone(false) }).catch(() => {}) }}
+              onClick={() => { void navigator.clipboard.readText().then(t => { setTo(t.trim()) }).catch(() => {}) }}
               className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold transition-all hover:scale-105"
               style={{ background: 'var(--surface-muted)', color: 'var(--muted)', border: '1px solid var(--border)' }}>
               <Copy className="size-3" /> Paste
@@ -341,7 +324,7 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
             <input
               inputMode="decimal"
               value={amount}
-              onChange={e => { setAmount(e.target.value.replace(/[^0-9.]/g, '')); setApproveDone(false) }}
+              onChange={e => { setAmount(e.target.value.replace(/[^0-9.]/g, '')) }}
               placeholder="0.00"
               className="display flex-1 bg-transparent text-4xl font-bold tabular-nums outline-none placeholder:opacity-20"
               style={{ color: 'var(--ink)', letterSpacing: '-0.04em' }}
@@ -358,7 +341,7 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
         <div className="px-4 pb-4 flex flex-wrap gap-2" style={{ borderTop: '1px solid var(--border)' }}>
           <p className="w-full text-xs pt-3 pb-1" style={{ color: 'var(--subtle)' }}>Quick amounts</p>
           {QUICK_AMOUNTS.map(q => (
-            <button key={q} onClick={() => { setAmount(q); setApproveDone(false) }}
+            <button key={q} onClick={() => { setAmount(q) }}
               className="rounded-xl px-3 py-1.5 text-xs font-semibold transition-all hover:scale-105 active:scale-95"
               style={{
                 background: amount === q ? 'var(--accent)' : 'var(--surface-muted)',
@@ -369,7 +352,7 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
             </button>
           ))}
           {balance !== undefined && balance > 0n && (
-            <button onClick={() => { setAmount(fmt(balance)); setApproveDone(false) }}
+            <button onClick={() => { setAmount(fmt(balance)) }}
               className="rounded-xl px-3 py-1.5 text-xs font-semibold transition-all hover:scale-105 active:scale-95"
               style={{
                 background: amount === fmt(balance) ? 'var(--accent)' : 'var(--accent-light)',

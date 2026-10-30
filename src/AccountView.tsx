@@ -44,7 +44,9 @@ const SESSION_KEY = 'fairtab_circle_session_v1'
 type StoredSession = Omit<AccountSession, 'userToken' | 'encryptionKey'>
 
 export function saveSession(s: StoredSession) {
-  localStorage.setItem(SESSION_KEY, JSON.stringify(s))
+  // Never persist the Circle user token or encryption key: they live in memory only.
+  const { userToken: _t, encryptionKey: _k, ...safe } = s as StoredSession & { userToken?: string; encryptionKey?: string }
+  localStorage.setItem(SESSION_KEY, JSON.stringify(safe))
 }
 
 export function loadGoogleSession(): StoredSession | null {

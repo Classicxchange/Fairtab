@@ -4,6 +4,9 @@ import {
   Blockchain,
 } from '@circle-fin/user-controlled-wallets'
 
+// Same network switch as the frontend: VITE_NETWORK=mainnet selects Arc Mainnet.
+const ARC_CHAIN = process.env.VITE_NETWORK === 'mainnet' ? Blockchain.Arc : Blockchain.ArcTestnet
+
 const circleClient = initiateUserControlledWalletsClient({
   apiKey: process.env.CIRCLE_API_KEY!,
 })
@@ -18,7 +21,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
       const initRes = await circleClient.createUserPinWithWallets({
         userToken,
-        blockchains: [Blockchain.Arc],
+        blockchains: [ARC_CHAIN],
       })
       return res.status(200).json({ challengeId: initRes.data?.challengeId })
     } catch (inner) {
@@ -29,7 +32,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         try {
           const walletRes = await circleClient.createWallet({
             userToken,
-            blockchains: [Blockchain.Arc],
+            blockchains: [ARC_CHAIN],
           })
           return res.status(200).json({ challengeId: walletRes.data?.challengeId })
         } catch {

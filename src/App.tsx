@@ -7,12 +7,15 @@ import { WalletDropdown } from '@/WalletDropdown'
 import { AccountPage, recordSignInTime } from '@/AccountPage'
 import { SignInPage } from '@/SignInPage'
 import { LandingPage } from '@/LandingPage'
+import { circleConnector, setCircleAuth } from '@/circleWallet'
 import { SendPage } from '@/SendPage'
 import { CreateBillPage } from '@/CreateBillPage'
 import { BillDetailPage } from '@/BillDetailPage'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   useAccount,
+  useConnect,
+  useDisconnect,
   useReadContract,
 } from 'wagmi'
 import { useQueryClient } from '@tanstack/react-query'
@@ -666,7 +669,9 @@ function PayoutReadyToaster({ count, address: walletAddr }: { count: number; add
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
-  const { address: wagmiAddress, chainId } = useAccount()
+  const { address: wagmiAddress, chainId, connector: activeConnector } = useAccount()
+  const { connectAsync } = useConnect()
+  const { disconnect: wagmiDisconnect } = useDisconnect()
   const wrongChain = chainId !== undefined && chainId !== CHAIN_ID
 
   // ── Social session (Google) — restored from localStorage ─────────────────
@@ -719,6 +724,24 @@ export default function App() {
 
   // Unified address: seed wallet > Circle passkey > social (Google/email) > MetaMask
   const address = seedSession?.address ?? circleAddress ?? (socialSession?.address as `0x${string}` | undefined) ?? wagmiAddress
+
+  // ── Circle wallet → wagmi ──────────────────────────────────────────────────
+  // A signed-in Circle wallet is connected to wagmi through a custom connector, so
+  // creating bills, paying and sending USDC all work with the same hooks as any wallet.
+  const circleAddr = !seedSession ? (socialSession?.address as `0x${string}` | undefined) : undefined
+  const circleUserToken = socialSession?.userToken
+  const circleEncKey = socialSession?.encryptionKey
+  useEffect(() => {
+    if (circleAddr) {
+      setCircleAuth({ address: circleAddr, userToken: circleUserToken, encryptionKey: circleEncKey })
+      const connectedHere =
+        activeConnector?.id === 'circle-wallet' && wagmiAddress?.toLowerCase() === circleAddr.toLowerCase()
+      if (!connectedHere) void connectAsync({ connector: circleConnector() }).catch(() => undefined)
+    } else if (activeConnector?.id === 'circle-wallet') {
+      setCircleAuth(null)
+      wagmiDisconnect()
+    }
+  }, [circleAddr, circleUserToken, circleEncKey, activeConnector?.id, wagmiAddress, connectAsync, wagmiDisconnect])
 
   const queryClient = useQueryClient()
 
