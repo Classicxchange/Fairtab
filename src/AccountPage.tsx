@@ -27,7 +27,7 @@ import type { AccountSession } from '@/AccountView'
 import { GoogleIdentityBadge } from '@/AccountView'
 import { buildAddressExplorerUrl } from '@/onchain-facts'
 import { arcChain, IS_MAINNET } from '@/config'
-import { useDisconnect } from 'wagmi'
+import { useDisconnectAll } from '@/useDisconnectAll'
 
 const CHAIN_ID = arcChain.id
 
@@ -504,8 +504,8 @@ interface AccountPageProps {
 
 export function AccountPage({ address, seedSession, socialSession, wagmiAddress, onSignOut }: AccountPageProps) {
   const [copied, setCopied] = useState(false)
-  const { disconnect } = useDisconnect()
-  const handleSignOut = useCallback(() => { disconnect(); onSignOut() }, [disconnect, onSignOut])
+  const disconnectAll = useDisconnectAll()
+  const handleSignOut = useCallback(() => { void disconnectAll(); onSignOut() }, [disconnectAll, onSignOut])
   useAutoSignOut(handleSignOut)
 
   const isSeed    = !!seedSession

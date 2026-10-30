@@ -15,9 +15,10 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   useAccount,
   useConnect,
-  useDisconnect,
+  useConfig,
   useReadContract,
 } from 'wagmi'
+import { disconnect as disconnectWallet } from 'wagmi/actions'
 import { useQueryClient } from '@tanstack/react-query'
 import { ConnectKitButton } from 'connectkit'
 import { erc20Abi } from 'viem'
@@ -671,7 +672,7 @@ function PayoutReadyToaster({ count, address: walletAddr }: { count: number; add
 export default function App() {
   const { address: wagmiAddress, chainId, connector: activeConnector } = useAccount()
   const { connectAsync } = useConnect()
-  const { disconnect: wagmiDisconnect } = useDisconnect()
+  const wagmiConfig = useConfig()
   const wrongChain = chainId !== undefined && chainId !== CHAIN_ID
 
   // ── Social session (Google) — restored from localStorage ─────────────────
@@ -732,16 +733,19 @@ export default function App() {
   const circleUserToken = socialSession?.userToken
   const circleEncKey = socialSession?.encryptionKey
   useEffect(() => {
+    const circleConnections = Array.from(wagmiConfig.state.connections.values())
+      .filter(c => c.connector.id === 'circle-wallet')
     if (circleAddr) {
       setCircleAuth({ address: circleAddr, userToken: circleUserToken, encryptionKey: circleEncKey })
-      const connectedHere =
-        activeConnector?.id === 'circle-wallet' && wagmiAddress?.toLowerCase() === circleAddr.toLowerCase()
-      if (!connectedHere) void connectAsync({ connector: circleConnector() }).catch(() => undefined)
-    } else if (activeConnector?.id === 'circle-wallet') {
+      const alreadyConnected = circleConnections.some(
+        c => c.accounts[0]?.toLowerCase() === circleAddr.toLowerCase(),
+      )
+      if (!alreadyConnected) void connectAsync({ connector: circleConnector() }).catch(() => undefined)
+    } else if (circleConnections.length > 0) {
       setCircleAuth(null)
-      wagmiDisconnect()
+      circleConnections.forEach(c => { void disconnectWallet(wagmiConfig, { connector: c.connector }) })
     }
-  }, [circleAddr, circleUserToken, circleEncKey, activeConnector?.id, wagmiAddress, connectAsync, wagmiDisconnect])
+  }, [circleAddr, circleUserToken, circleEncKey, activeConnector?.id, wagmiAddress, connectAsync, wagmiConfig])
 
   const queryClient = useQueryClient()
 

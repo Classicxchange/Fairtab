@@ -12,7 +12,7 @@ import {
   Wallet, ExternalLink,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { useDisconnect } from 'wagmi'
+import { useDisconnectAll } from '@/useDisconnectAll'
 import { buildAddressExplorerUrl } from '@/onchain-facts'
 import { arcChain, IS_MAINNET } from '@/config'
 
@@ -28,7 +28,7 @@ export function WalletDropdown({ address, onGoToAccount, onSignOut }: Props) {
   const [open, setOpen]   = useState(false)
   const [copied, setCopied] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
-  const { disconnect } = useDisconnect()
+  const disconnectAll = useDisconnectAll()
 
   // Close on outside click
   useEffect(() => {
@@ -148,7 +148,7 @@ export function WalletDropdown({ address, onGoToAccount, onSignOut }: Props) {
                 Account settings
               </button>
               <button
-                onClick={() => { setOpen(false); disconnect(); onSignOut() }}
+                onClick={() => { setOpen(false); void disconnectAll(); onSignOut() }}
                 className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all text-left"
                 style={{ color: 'var(--danger)' }}
                 onMouseEnter={e => (e.currentTarget.style.background = 'var(--danger-bg)')}
