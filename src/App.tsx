@@ -667,19 +667,17 @@ export default function App() {
   const { address: wagmiAddress, chainId } = useAccount()
   const wrongChain = chainId !== undefined && chainId !== CHAIN_ID
 
-  // ── Social session (Google) — restored from localStorage ────────────────
-  const [socialSession, setSocialSession] = useState<AccountSession | null>(() => {
-    return loadGoogleSession()
-  })
-
-  // ── Firebase redirect result — check on every page load ──────────────────
-  // After signInWithRedirect, Google sends the user back to fairtab.online.
-  // getRedirectResult() must be called on mount to consume the pending credential.
-  // We block the auth gate until this check completes (fast — ~300ms).
-  // redirectChecked: true immediately if Firebase not configured OR already signed in
+  // ── Firebase redirect check — MUST be declared before socialSession ─────
+  // We block the auth gate until getRedirectResult() resolves after redirect.
+  // Starts true when Firebase not configured or a session already exists.
   const [redirectChecked, setRedirectChecked] = useState(
     () => !firebaseConfigured || !!loadGoogleSession()
   )
+
+  // ── Social session (Google) — restored from localStorage ─────────────────
+  const [socialSession, setSocialSession] = useState<AccountSession | null>(() => {
+    return loadGoogleSession()
+  })
   useEffect(() => {
     if (!firebaseConfigured) return
     if (loadGoogleSession()) return // already handled in useState initializer
