@@ -9,6 +9,7 @@ import {
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import type { SeedWalletSession } from '@/SeedWalletAuth'
+import { WalletUnlockModal } from '@/SeedWalletAuth'
 import { TxConfirmModal, type TxDetail, type EstimateParams } from '@/TxConfirmModal'
 import { TokenUSDC } from '@web3icons/react'
 import {
@@ -72,6 +73,10 @@ interface Props {
   onClose: () => void
   onCreated: () => void
   seedSession?: SeedWalletSession | null
+  /** Called when the user successfully unlocks their wallet mid-flow */
+  onUpgradeSeedSession?: (upgraded: SeedWalletSession) => void
+  /** Firebase UID — needed to load wallet blob for unlock prompt */
+  googleUid?: string
 }
 
 // ─── Draft persistence ────────────────────────────────────────────────────────
@@ -98,7 +103,7 @@ function saveDraft(d: BillDraft) {
 }
 function clearDraft() { localStorage.removeItem(DRAFT_KEY) }
 
-export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
+export function CreateBillPage({ onClose, onCreated, seedSession, onUpgradeSeedSession, googleUid }: Props) {
   const { address: wagmiAddress, chainId } = useAccount()
   const { switchChain } = useSwitchChain()
   // Only flag wrong chain when a wagmi wallet is connected — seed/Circle wallets
@@ -145,6 +150,7 @@ export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
   const [seedError, setSeedError] = useState<string | null>(null)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [estimateParams, setEstimateParams] = useState<EstimateParams | undefined>(undefined)
+  const [showUnlockModal, setShowUnlockModal] = useState(false)
 
   // mutation: disable wagmi's preflight simulation — createBill doesn't transfer
   // USDC so a 0-balance wallet can still create a bill; simulation causes a false
@@ -230,6 +236,11 @@ export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
     if (!isAddress(payee)) { toast.error('Payee is not a valid address'); return }
     const invalidIdx = effectiveRows.findIndex(r => !isAddress(r.address))
     if (invalidIdx >= 0) { toast.error(`Participant ${invalidIdx + 1} has an invalid address`); return }
+    if (seedSession && !seedSession.privateKey) {
+      // Wallet is address-only (auto-restored) — prompt for password first
+      setShowUnlockModal(true)
+      return
+    }
     if (seedSession?.privateKey) {
       // Build calldata for gas estimation, then show confirmation modal
       const data = encodeFunctionData({ abi: CONTRACT_ABI, functionName: 'createBill', args: buildArgs() })
@@ -818,6 +829,23 @@ export function CreateBillPage({ onClose, onCreated, seedSession }: Props) {
           onConfirm={() => { void handleSeedCreate() }}
           onCancel={() => setShowConfirmModal(false)}
           estimateParams={estimateParams}
+        />
+      )}
+      {/* ── Wallet unlock prompt (address-only session needs password) ── */}
+      {showUnlockModal && seedSession && !seedSession.privateKey && (
+        <WalletUnlockModal
+          uid={googleUid}
+          address={seedSession.address}
+          onUnlocked={pk => {
+            const upgraded = { ...seedSession, privateKey: pk }
+            onUpgradeSeedSession?.(upgraded)
+            setShowUnlockModal(false)
+            // Now trigger the actual create flow with the upgraded session
+            const data = encodeFunctionData({ abi: CONTRACT_ABI, functionName: 'createBill', args: buildArgs() })
+            setEstimateParams({ from: upgraded.address, to: CONTRACT_ADDRESS, data, value: 0n })
+            setShowConfirmModal(true)
+          }}
+          onCancel={() => setShowUnlockModal(false)}
         />
       )}
     </motion.div>

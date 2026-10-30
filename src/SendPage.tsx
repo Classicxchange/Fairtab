@@ -16,7 +16,7 @@ import { getUsdc, buildTxExplorerUrl } from '@/onchain-facts'
 import { formatUsdc, usdcDecimalsFor } from '@/onchain-money'
 import { arcChain, IS_MAINNET } from '@/config'
 import type { Chain } from 'viem'
-import { type SeedWalletSession } from '@/SeedWalletAuth'
+import { type SeedWalletSession, WalletUnlockModal } from '@/SeedWalletAuth'
 import { privateKeyToAccount } from 'viem/accounts'
 import { TxConfirmModal, type TxDetail, type EstimateParams } from '@/TxConfirmModal'
 
@@ -42,9 +42,11 @@ const QUICK_AMOUNTS = ['10', '25', '50', '100', '200', '500']
 interface Props {
   unifiedAddress?: `0x${string}`
   seedSession?: SeedWalletSession | null
+  onUpgradeSeedSession?: (upgraded: SeedWalletSession) => void
+  googleUid?: string
 }
 
-export function SendPage({ unifiedAddress, seedSession }: Props) {
+export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, googleUid }: Props) {
   const { address: wagmiAddress, chainId } = useAccount()
   const { switchChain } = useSwitchChain()
   const address = unifiedAddress ?? wagmiAddress
@@ -61,6 +63,7 @@ export function SendPage({ unifiedAddress, seedSession }: Props) {
   const [step, setStep] = useState<'form' | 'confirm' | 'success'>('form')
   const [showTxModal, setShowTxModal] = useState(false)
   const [txEstimateParams, setTxEstimateParams] = useState<EstimateParams | undefined>(undefined)
+  const [showUnlockModal, setShowUnlockModal] = useState(false)
 
   const toValid = isAddress(to)
   const amountRaw = useMemo(() => {
@@ -233,6 +236,7 @@ export function SendPage({ unifiedAddress, seedSession }: Props) {
 
         <button
           onClick={seedSession ? () => {
+            if (!seedSession.privateKey) { setShowUnlockModal(true); return }
             const data = encodeFunctionData({ abi: erc20Abi, functionName: 'transfer', args: [to as `0x${string}`, amountRaw] })
             setTxEstimateParams({ from: (unifiedAddress ?? wagmiAddress) as `0x${string}`, to: USDC_ADDRESS, data, value: 0n })
             setShowTxModal(true)
@@ -422,6 +426,22 @@ export function SendPage({ unifiedAddress, seedSession }: Props) {
           onConfirm={() => { void handleSeedSend() }}
           onCancel={() => setShowTxModal(false)}
           estimateParams={txEstimateParams}
+        />
+      )}
+      {/* Wallet unlock prompt for address-only sessions */}
+      {showUnlockModal && seedSession && !seedSession.privateKey && (
+        <WalletUnlockModal
+          uid={googleUid}
+          address={seedSession.address}
+          onUnlocked={pk => {
+            const upgraded = { ...seedSession, privateKey: pk }
+            onUpgradeSeedSession?.(upgraded)
+            setShowUnlockModal(false)
+            const data = encodeFunctionData({ abi: erc20Abi, functionName: 'transfer', args: [to as `0x${string}`, amountRaw] })
+            setTxEstimateParams({ from: upgraded.address, to: USDC_ADDRESS, data, value: 0n })
+            setShowTxModal(true)
+          }}
+          onCancel={() => setShowUnlockModal(false)}
         />
       )}
     </motion.div>

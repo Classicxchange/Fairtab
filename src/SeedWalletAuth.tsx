@@ -166,6 +166,77 @@ export async function encryptSeedWallet(
   saveBlob(blob, uid)
 }
 
+// ── WalletUnlockModal — inline password prompt to recover privateKey ──────────
+// Shown when the user is auto-restored (address-only session) and tries to
+// transact. Decrypts the wallet and calls onUnlocked with the full session.
+interface WalletUnlockModalProps {
+  uid?: string
+  address: `0x${string}`
+  onUnlocked: (pk: Hex) => void
+  onCancel: () => void
+}
+
+export function WalletUnlockModal({ uid, address, onUnlocked, onCancel }: WalletUnlockModalProps) {
+  const [pw, setPw]       = useState('')
+  const [err, setErr]     = useState<string | null>(null)
+  const [busy, setBusy]   = useState(false)
+  const handleUnlock = useCallback(async () => {
+    if (!pw) { setErr('Enter your password'); return }
+    setBusy(true); setErr(null)
+    try {
+      const blob = loadBlob(uid)
+      if (!blob) { setErr('No wallet found for this account'); setBusy(false); return }
+      const { privateKey } = await decryptWallet(blob, pw)
+      onUnlocked(privateKey)
+    } catch {
+      setErr('Wrong password')
+      setBusy(false)
+    }
+  }, [pw, uid, onUnlocked])
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}>
+      <motion.div
+        initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }}
+        className="w-full max-w-sm rounded-2xl p-6 flex flex-col gap-4"
+        style={{ background: 'var(--surface-strong)', border: '1px solid var(--border)', boxShadow: '0 8px 40px rgba(0,0,0,0.35)' }}>
+        <div className="flex items-center gap-3">
+          <div className="size-10 rounded-xl flex items-center justify-center shrink-0"
+            style={{ background: 'rgba(59,142,248,0.10)', border: '1px solid rgba(90,160,255,0.18)' }}>
+            <KeyRound className="size-5" style={{ color: 'var(--accent)' }} />
+          </div>
+          <div>
+            <p className="font-semibold text-sm" style={{ color: 'var(--ink)' }}>Unlock wallet to continue</p>
+            <p className="text-xs mt-0.5 font-mono" style={{ color: 'var(--subtle)' }}>
+              {address.slice(0, 8)}…{address.slice(-6)}
+            </p>
+          </div>
+        </div>
+        <PasswordInput
+          value={pw}
+          onChange={v => { setPw(v); setErr(null) }}
+          placeholder="Wallet password"
+          onEnter={() => void handleUnlock()}
+        />
+        {err && <p className="text-xs" style={{ color: 'var(--danger)' }}>{err}</p>}
+        <div className="flex gap-2">
+          <button onClick={onCancel}
+            className="flex-1 rounded-xl py-2.5 text-sm font-semibold"
+            style={{ background: 'var(--surface-muted)', color: 'var(--ink-2)', border: '1px solid var(--border)' }}>
+            Cancel
+          </button>
+          <button onClick={() => void handleUnlock()} disabled={!pw || busy}
+            className="flex-1 rounded-xl py-2.5 text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2"
+            style={{ background: 'var(--accent)', color: 'white' }}>
+            {busy ? <Loader2 className="size-4 animate-spin" /> : <><KeyRound className="size-4" /> Unlock</>}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  )
+}
+
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const spectral = 'linear-gradient(90deg,#3b8ef8,#818cf8,#e879f9,#f97316)'
 const glass = {

@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { restoreCircleSession, clearCredential } from '@/CircleWalletAuth'
-import { type SeedWalletSession, clearSeedWallet } from '@/SeedWalletAuth'
+import { type SeedWalletSession, clearSeedWallet, hasSeedWallet } from '@/SeedWalletAuth'
 import { type AccountSession, loadGoogleSession, clearGoogleSession, firebaseConfigured, getFirebaseAuth, buildSession, saveSession } from '@/AccountView'
 import { WalletDropdown } from '@/WalletDropdown'
 import { AccountPage, recordSignInTime } from '@/AccountPage'
@@ -701,7 +701,18 @@ export default function App() {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Seed wallet session ────────────────────────────────────────────────────
-  const [seedSession, setSeedSession] = useState<SeedWalletSession | null>(null)
+  // Restored on mount: if a Google session exists with a wallet address and a
+  // wallet blob exists for that UID, reconstruct an address-only session so the
+  // user lands directly on their dashboard without re-entering a password.
+  // The privateKey is absent until the user does their first transaction, at
+  // which point the tx page prompts for the wallet password to decrypt it.
+  const [seedSession, setSeedSession] = useState<SeedWalletSession | null>(() => {
+    const saved = loadGoogleSession()
+    if (saved?.address && saved.googleUid && hasSeedWallet(saved.googleUid)) {
+      return { address: saved.address as `0x${string}`, method: 'seed-wallet' }
+    }
+    return null
+  })
 
   // ── Circle Wallet (passkey smart account) ──────────────────────────────────
   const [circleAddress, setCircleAddress] = useState<`0x${string}` | null>(null)
@@ -1057,7 +1068,12 @@ export default function App() {
                 <motion.div key="send"
                   initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}
                   transition={{ duration: 0.18 }}>
-                  <SendPage unifiedAddress={address} seedSession={seedSession} />
+                  <SendPage
+                    unifiedAddress={address}
+                    seedSession={seedSession}
+                    googleUid={socialSession?.googleUid}
+                    onUpgradeSeedSession={upgraded => setSeedSession(upgraded)}
+                  />
                 </motion.div>
               )}
               {tab === 'receive' && (
@@ -1297,6 +1313,8 @@ export default function App() {
               void refetchCount().then(() => queryClient.invalidateQueries())
             }}
             seedSession={seedSession}
+            googleUid={socialSession?.googleUid}
+            onUpgradeSeedSession={upgraded => setSeedSession(upgraded)}
           />
         )}
       </AnimatePresence>
