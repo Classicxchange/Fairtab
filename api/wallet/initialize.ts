@@ -24,7 +24,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } catch (inner) {
       const code = (inner as { code?: number }).code
       if (code === 155106 || code === 155101) {
-        return res.status(200).json({ alreadyInitialized: true })
+        // The user already has a PIN (e.g. an earlier sign-in was interrupted before
+        // the wallet was created). Ask for a wallet challenge instead of a new PIN.
+        try {
+          const walletRes = await circleClient.createWallet({
+            userToken,
+            blockchains: [Blockchain.Arc],
+          })
+          return res.status(200).json({ challengeId: walletRes.data?.challengeId })
+        } catch {
+          // A wallet already exists for this user: nothing left to create.
+          return res.status(200).json({ alreadyInitialized: true })
+        }
       }
       throw inner
     }

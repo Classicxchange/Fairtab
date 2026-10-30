@@ -160,11 +160,15 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
       }
 
       setLoadMsg('Loading wallet…')
-      const listRes = await fetch(`/api/wallet/list?userToken=${encodeURIComponent(userToken)}`)
-      const listData = await listRes.json() as { wallets?: { address: string }[]; error?: string }
-      if (listData.error) throw new Error(listData.error)
-
-      const walletAddress = listData.wallets?.[0]?.address ?? ''
+      // A freshly created wallet can take a few seconds to appear, so retry briefly.
+      let walletAddress = ''
+      for (let attempt = 0; attempt < 6 && !walletAddress; attempt++) {
+        if (attempt > 0) await new Promise<void>(r => setTimeout(r, 2000))
+        const listRes = await fetch(`/api/wallet/list?userToken=${encodeURIComponent(userToken)}`)
+        const listData = await listRes.json() as { wallets?: { address: string }[]; error?: string }
+        if (listData.error) throw new Error(listData.error)
+        walletAddress = listData.wallets?.[0]?.address ?? ''
+      }
       if (!walletAddress) throw new Error('No wallet found. Please try again.')
 
       const sess: AccountSession = {
