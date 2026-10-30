@@ -11,9 +11,10 @@
  */
 
 import { createConnector } from 'wagmi'
-import { formatUnits, numberToHex } from 'viem'
+import { decodeErrorResult, erc20Abi, formatUnits, numberToHex } from 'viem'
 import type { W3SSdk as W3SSdkType } from '@circle-fin/w3s-pw-web-sdk'
 import { arcChain } from '@/config'
+import artifact from '../contracts/out/HouseholdBillSplitter.sol/HouseholdBillSplitter.json'
 
 const circleAppId = import.meta.env.VITE_CIRCLE_APP_ID as string | undefined
 const RPC_URL = arcChain.rpcUrls.default.http[0]
@@ -57,6 +58,8 @@ async function sendCircleTransaction(tx: TxParams): Promise<`0x${string}`> {
   if (!auth.userToken || !auth.encryptionKey) throw new Error(SESSION_EXPIRED)
   if (!tx.to) throw new Error('Contract deployment is not supported from a Circle wallet.')
 
+  await assertCallWouldSucceed(tx, auth.address)
+
   // 1. Ask the server for a challenge
   const value = tx.value && tx.value !== '0x0' ? BigInt(tx.value) : 0n
   const res = await fetch('/api/wallet/execute', {
@@ -82,9 +85,17 @@ async function sendCircleTransaction(tx: TxParams): Promise<`0x${string}`> {
   const sdk = await getSdk()
   sdk.setAuthentication({ userToken: auth.userToken, encryptionKey: auth.encryptionKey })
   await new Promise<void>((resolve, reject) => {
-    sdk.execute(body.challengeId!, (error) => {
-      if (error) reject(new Error((error as Error).message || 'Transaction was cancelled.'))
-      else resolve()
+    sdk.execute(body.challengeId!, (error, result) => {
+      if (error) {
+        reject(new Error((error as Error).message || 'You closed the PIN window before confirming.'))
+        return
+      }
+      const status = (result as { status?: string } | undefined)?.status
+      if (status === 'FAILED' || status === 'EXPIRED') {
+        reject(new Error(status === 'EXPIRED' ? SESSION_EXPIRED : 'Circle could not confirm your PIN. Please try again.'))
+        return
+      }
+      resolve()
     })
   })
 
@@ -95,11 +106,13 @@ async function sendCircleTransaction(tx: TxParams): Promise<`0x${string}`> {
     const r = await fetch(
       `/api/wallet/tx?userToken=${encodeURIComponent(auth.userToken)}&walletId=${encodeURIComponent(body.walletId)}`,
     )
-    const t = await r.json() as { transactions?: { id: string; txHash: string | null; state: string }[] }
+    const t = await r.json() as {
+      transactions?: { id: string; txHash: string | null; state: string; errorReason?: string | null }[]
+    }
     const fresh = (t.transactions ?? []).find(x => !known.has(x.id))
     if (fresh) {
       if (['FAILED', 'DENIED', 'CANCELLED'].includes(fresh.state)) {
-        throw new Error('The transaction was rejected by the network.')
+        throw new Error(`Transaction failed${fresh.errorReason ? `: ${fresh.errorReason}` : ` (${fresh.state.toLowerCase()})`}. Make sure the wallet has enough USDC for network fees.`)
       }
       if (fresh.txHash) return fresh.txHash as `0x${string}`
     }
@@ -116,6 +129,28 @@ async function rpc(method: string, params: unknown[] | undefined) {
   const json = await res.json() as { result?: unknown; error?: { message: string; code: number } }
   if (json.error) throw new Error(json.error.message)
   return json.result
+}
+
+/** Dry-runs the call so a call that would revert shows a readable reason instead of failing after the PIN. */
+async function assertCallWouldSucceed(tx: TxParams, from: string) {
+  try {
+    await rpc('eth_call', [{ from, to: tx.to, data: tx.data, value: tx.value }, 'latest'])
+  } catch (e) {
+    const raw = e instanceof Error ? e.message : String(e)
+    const hex = raw.match(/0x[0-9a-fA-F]{8,}/)?.[0]
+    if (hex) {
+      try {
+        const decoded = decodeErrorResult({
+          abi: [...(artifact.abi as never[]), ...erc20Abi],
+          data: hex as `0x${string}`,
+        })
+        throw new Error(`The contract would reject this: ${decoded.errorName}`)
+      } catch (inner) {
+        if (inner instanceof Error && inner.message.startsWith('The contract would')) throw inner
+      }
+    }
+    throw new Error(`The contract would reject this: ${raw.replace(/^execution reverted:?\s*/i, '').slice(0, 120) || 'execution reverted'}`)
+  }
 }
 
 const provider = {

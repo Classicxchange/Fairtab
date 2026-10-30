@@ -770,7 +770,7 @@ export function CreateBillPage({ onClose, onCreated, seedSession, onUpgradeSeedS
                 <div className="rounded-xl p-3.5 text-xs" style={{ background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.2)' }}>
                   {error.message?.includes('user rejected') || error.message?.includes('rejected')
                     ? 'Transaction cancelled.'
-                    : error.message?.slice(0, 150)}
+                    : (error.message?.split('Details:')[1] ?? error.message)?.trim().slice(0, 220)}
                 </div>
               )}
               {seedError && (

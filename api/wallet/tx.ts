@@ -23,6 +23,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       id: t.id,
       txHash: t.txHash ?? null,
       state: t.state,
+      errorReason: t.errorReason ?? null,
     }))
     return res.status(200).json({ transactions })
   } catch (e) {

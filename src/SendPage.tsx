@@ -82,13 +82,22 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
     return true
   }, [wrongChain, switchChain])
 
-  const { writeContract: writeSend, data: wagmiSendHash, isPending: sendPending, reset: resetSend } = useWriteContract()
+  const { writeContract: writeSend, data: wagmiSendHash, isPending: sendPending, reset: resetSend } = useWriteContract({
+    mutation: {
+      onError: (err) => {
+        const m = err.message ?? ''
+        toast.error(/user rejected|denied/i.test(m) ? 'Cancelled.' : 'Send failed: ' + (m.split('Details:')[1] ?? m).trim().slice(0, 140))
+      },
+    },
+  })
   const { isLoading: sendConfirming, isSuccess: sendSuccess } = useWaitForTransactionReceipt({ hash: wagmiSendHash })
 
   const handleWagmiSend = useCallback(() => {
-    if (!ensureChain() || !sendValid) return
+    if (!sendValid) return
+    if (!wagmiAddress) { toast.error('Your wallet is not connected. Sign out and sign in again.'); return }
+    if (!ensureChain()) { toast.error('Switch your wallet to the ' + (IS_MAINNET ? 'Arc Mainnet' : 'Arc Testnet') + ' network.'); return }
     writeSend({ address: USDC_ADDRESS, abi: erc20Abi, functionName: 'transfer', args: [to, amountRaw] })
-  }, [ensureChain, sendValid, to, amountRaw, writeSend])
+  }, [ensureChain, sendValid, to, amountRaw, writeSend, wagmiAddress])
 
   // Seed wallet: sign + send directly via viem
   const handleSeedSend = useCallback(async () => {
