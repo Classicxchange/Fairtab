@@ -24,6 +24,7 @@ import {
 import type { SeedWalletSession } from '@/SeedWalletAuth'
 import { decryptSeedWallet, encryptSeedWallet, loadEncryptedWallet } from '@/SeedWalletAuth'
 import type { AccountSession } from '@/AccountView'
+import { GoogleIdentityBadge } from '@/AccountView'
 import { buildAddressExplorerUrl } from '@/onchain-facts'
 import { arcChain, IS_MAINNET } from '@/config'
 import { useDisconnect } from 'wagmi'
@@ -119,7 +120,7 @@ function SectionToggle({
 }
 
 // ── Seed phrase revealer ──────────────────────────────────────────────────────
-function SeedPhraseRevealer({ onSignOut: _onSignOut }: { onSignOut: () => void }) {
+function SeedPhraseRevealer({ onSignOut: _onSignOut, uid }: { onSignOut: () => void; uid?: string }) {
   const [pw, setPw]         = useState('')
   const [mnemonic, setMn]   = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -130,7 +131,7 @@ function SeedPhraseRevealer({ onSignOut: _onSignOut }: { onSignOut: () => void }
     if (!pw) { setErr('Enter your password'); return }
     setLoading(true); setErr(null)
     try {
-      const blob = loadEncryptedWallet()
+      const blob = loadEncryptedWallet(uid)
       if (!blob) { setErr('No wallet found'); setLoading(false); return }
       const { mnemonic: mn } = await decryptSeedWallet(blob, pw)
       if (!mn) { setErr('This wallet has no seed phrase (imported via private key)'); setLoading(false); return }
@@ -221,7 +222,7 @@ function SeedPhraseRevealer({ onSignOut: _onSignOut }: { onSignOut: () => void }
 }
 
 // ── Private key revealer ──────────────────────────────────────────────────────
-function PrivateKeyRevealer() {
+function PrivateKeyRevealer({ uid }: { uid?: string }) {
   const [pw, setPw]    = useState('')
   const [pk, setPk]    = useState<string | null>(null)
   const [show, setShow] = useState(false)
@@ -232,7 +233,7 @@ function PrivateKeyRevealer() {
     if (!pw) { setErr('Enter your password'); return }
     setLoading(true); setErr(null)
     try {
-      const blob = loadEncryptedWallet()
+      const blob = loadEncryptedWallet(uid)
       if (!blob) { setErr('No wallet found'); setLoading(false); return }
       const { privateKey } = await decryptSeedWallet(blob, pw)
       setPk(privateKey)
@@ -296,7 +297,7 @@ function PrivateKeyRevealer() {
 }
 
 // ── Change password ───────────────────────────────────────────────────────────
-function ChangePassword() {
+function ChangePassword({ uid }: { uid?: string }) {
   const [current, setCurrent] = useState('')
   const [next, setNext]       = useState('')
   const [confirm, setConfirm] = useState('')
@@ -310,10 +311,10 @@ function ChangePassword() {
     if (next.length < 8) { setErr('Password must be at least 8 characters'); return }
     setLoading(true); setErr(null)
     try {
-      const blob = loadEncryptedWallet()
+      const blob = loadEncryptedWallet(uid)
       if (!blob) { setErr('No wallet found'); return }
       const payload = await decryptSeedWallet(blob, current)
-      await encryptSeedWallet(payload, next)
+      await encryptSeedWallet(payload, next, uid)
       setOk(true)
       toast.success('Password updated')
       setCurrent(''); setNext(''); setConfirm('')
@@ -509,7 +510,7 @@ export function AccountPage({ address, seedSession, socialSession, wagmiAddress,
 
   const isSeed    = !!seedSession
   const isMetaMask = !!wagmiAddress && !seedSession
-  const isSocial  = !!socialSession && !seedSession
+  const _isSocial = !!socialSession && !seedSession; void _isSocial
 
   const methodLabel = isSeed
     ? 'Self-custodial wallet'
@@ -592,7 +593,12 @@ export function AccountPage({ address, seedSession, socialSession, wagmiAddress,
         </div>
       </div>
 
-      {/* ── Backup sections (seed wallets only) ─────────────────────── */}
+      {/* ── Google identity badge (when signed in via Google) ───────── */}
+      {socialSession?.method === 'google' && (
+        <GoogleIdentityBadge session={socialSession} onSignOut={handleSignOut} />
+      )}
+
+      {/* ── Backup sections (seed wallets — includes Google+wallet users) */}
       {isSeed && (
         <>
           <SectionToggle
@@ -600,7 +606,7 @@ export function AccountPage({ address, seedSession, socialSession, wagmiAddress,
             subtitle="View your 12-word recovery phrase — store it offline"
             icon={Shield}
           >
-            <SeedPhraseRevealer onSignOut={onSignOut} />
+            <SeedPhraseRevealer onSignOut={onSignOut} uid={socialSession?.googleUid} />
           </SectionToggle>
 
           <SectionToggle
@@ -608,7 +614,7 @@ export function AccountPage({ address, seedSession, socialSession, wagmiAddress,
             subtitle="One-click export — use with MetaMask or any wallet"
             icon={Key}
           >
-            <PrivateKeyRevealer />
+            <PrivateKeyRevealer uid={socialSession?.googleUid} />
           </SectionToggle>
 
           <SectionToggle
@@ -616,7 +622,7 @@ export function AccountPage({ address, seedSession, socialSession, wagmiAddress,
             subtitle="Update the password protecting your encrypted wallet"
             icon={Lock}
           >
-            <ChangePassword />
+            <ChangePassword uid={socialSession?.googleUid} />
           </SectionToggle>
 
           {/* Recovery methods */}
@@ -639,33 +645,16 @@ export function AccountPage({ address, seedSession, socialSession, wagmiAddress,
         </>
       )}
 
-      {/* ── Info for MetaMask / social ───────────────────────────────── */}
-      {!isSeed && (
-        <div style={card} className="p-5 flex flex-col gap-3">
-          <div className="flex items-center gap-3">
-            <div className="size-9 rounded-xl flex items-center justify-center shrink-0"
-              style={{ background: 'var(--accent-light)' }}>
-              <Shield className="size-4" style={{ color: 'var(--accent)' }} />
-            </div>
-            <div>
-              <p className="text-sm font-semibold" style={{ color: 'var(--ink)' }}>Wallet security</p>
-              <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
-                {isMetaMask
-                  ? 'Your keys are managed by MetaMask. Back up your seed phrase in MetaMask settings.'
-                  : 'Your keys are secured by Circle MPC infrastructure. No local backup needed.'}
-              </p>
-            </div>
+      {/* ── Info for MetaMask-only users (no seed wallet) ───────────── */}
+      {!isSeed && isMetaMask && (
+        <div style={card} className="p-5 flex items-center gap-3">
+          <div className="size-9 rounded-xl flex items-center justify-center shrink-0"
+            style={{ background: 'var(--accent-light)' }}>
+            <Shield className="size-4" style={{ color: 'var(--accent)' }} />
           </div>
-          {isSocial && (
-            <div className="rounded-xl p-3 flex items-start gap-2"
-              style={{ background: 'var(--accent-light)', border: '1px solid var(--accent-border)' }}>
-              <ShieldCheck className="size-4 shrink-0 mt-0.5" style={{ color: 'var(--accent)' }} />
-              <p className="text-xs leading-relaxed" style={{ color: 'var(--ink-2)' }}>
-                Circle MPC wallet — your private key is split across secure enclaves.
-                Sign in with {socialSession?.method === 'google' ? 'your Google account' : 'email'} on any device to recover access.
-              </p>
-            </div>
-          )}
+          <p className="text-xs" style={{ color: 'var(--muted)' }}>
+            Your keys are managed by MetaMask. Back up your seed phrase in MetaMask settings.
+          </p>
         </div>
       )}
 

@@ -49,7 +49,13 @@ type Step =
   | 'done'
 
 // ── Storage key ────────────────────────────────────────────────────────────────
-const STORAGE_KEY = 'fairtab_seed_wallet_v1'
+// When a Firebase UID is provided the wallet is scoped to that user.
+// The legacy key 'fairtab_seed_wallet_v1' is kept for backwards compat.
+const DEFAULT_STORAGE_KEY = 'fairtab_seed_wallet_v1'
+
+function storageKey(uid?: string): string {
+  return uid ? `fairtab_wallet_${uid}` : DEFAULT_STORAGE_KEY
+}
 
 // ── Encrypted blob shape ──────────────────────────────────────────────────────
 interface EncryptedWallet {
@@ -116,24 +122,31 @@ async function decryptWallet(
   return JSON.parse(dec.decode(plainBuf)) as { mnemonic?: string; privateKey: Hex; address: Hex }
 }
 
-function loadBlob(): EncryptedWallet | null {
+function loadBlob(uid?: string): EncryptedWallet | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(storageKey(uid))
     return raw ? (JSON.parse(raw) as EncryptedWallet) : null
   } catch { return null }
 }
 
-function saveBlob(blob: EncryptedWallet) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(blob))
+function saveBlob(blob: EncryptedWallet, uid?: string) {
+  localStorage.setItem(storageKey(uid), JSON.stringify(blob))
 }
 
-export function clearSeedWallet() {
-  localStorage.removeItem(STORAGE_KEY)
+export function clearSeedWallet(uid?: string) {
+  localStorage.removeItem(storageKey(uid))
+  // Also clear the legacy key if no uid given
+  if (!uid) localStorage.removeItem(DEFAULT_STORAGE_KEY)
+}
+
+/** Returns true if a wallet blob exists for the given user (or the default slot). */
+export function hasSeedWallet(uid?: string): boolean {
+  return !!loadBlob(uid)
 }
 
 // ── Public helpers for AccountPage ────────────────────────────────────────────
-export function loadEncryptedWallet(): EncryptedWallet | null {
-  return loadBlob()
+export function loadEncryptedWallet(uid?: string): EncryptedWallet | null {
+  return loadBlob(uid)
 }
 
 export async function decryptSeedWallet(
@@ -146,10 +159,11 @@ export async function decryptSeedWallet(
 
 export async function encryptSeedWallet(
   payload: { mnemonic?: string; privateKey: Hex; address: Hex },
-  password: string
+  password: string,
+  uid?: string
 ): Promise<void> {
   const blob = await encryptWallet(payload, password)
-  saveBlob(blob)
+  saveBlob(blob, uid)
 }
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -224,10 +238,12 @@ interface Props {
   session: SeedWalletSession | null
   onSignedIn: (s: SeedWalletSession) => void
   onSignOut: () => void
+  /** Firebase UID — scopes wallet storage to this user when provided */
+  uid?: string
 }
 
-export function SeedWalletAuth({ session, onSignedIn, onSignOut }: Props) {
-  const hasStored = !!loadBlob()
+export function SeedWalletAuth({ session, onSignedIn, onSignOut, uid }: Props) {
+  const hasStored = !!loadBlob(uid)
 
   const [step, setStep]             = useState<Step>(hasStored ? 'unlock' : 'choose')
   const [mnemonic, setMnemonic]     = useState('')
@@ -263,7 +279,7 @@ export function SeedWalletAuth({ session, onSignedIn, onSignOut }: Props) {
     setLoading(true); setError(null)
     try {
       const blob = await encryptWallet({ mnemonic: mn, privateKey: pk, address: addr }, pw)
-      saveBlob(blob)
+      saveBlob(blob, uid)
       onSignedIn({ address: addr, method: 'seed-wallet', privateKey: pk })
       setStep('done')
       toast.success('Wallet ready!')
@@ -271,7 +287,7 @@ export function SeedWalletAuth({ session, onSignedIn, onSignOut }: Props) {
       setError((e as Error).message)
       toast.error('Encryption failed')
     } finally { setLoading(false) }
-  }, [onSignedIn])
+  }, [onSignedIn, uid])
 
   // ── Step: parse import input (seed or private key) ─────────────────────────
   const handleParseImport = useCallback((raw: string) => {
@@ -307,7 +323,7 @@ export function SeedWalletAuth({ session, onSignedIn, onSignOut }: Props) {
 
   // ── Step: unlock existing wallet ──────────────────────────────────────────
   const handleUnlock = useCallback(async () => {
-    const blob = loadBlob()
+    const blob = loadBlob(uid)
     if (!blob) { setError('No wallet found'); return }
     setLoading(true); setError(null)
     try {
@@ -319,11 +335,11 @@ export function SeedWalletAuth({ session, onSignedIn, onSignOut }: Props) {
       setError('Wrong password')
       toast.error('Wrong password')
     } finally { setLoading(false) }
-  }, [unlockPw, onSignedIn])
+  }, [unlockPw, onSignedIn, uid])
 
   // ── Reveal private key for signed-in user ────────────────────────────────
   const handleRevealPk = useCallback(async () => {
-    const blob = loadBlob()
+    const blob = loadBlob(uid)
     if (!blob || !unlockPw) {
       // Ask for password inline
       setShowPk(true)
@@ -335,7 +351,7 @@ export function SeedWalletAuth({ session, onSignedIn, onSignOut }: Props) {
       setRevealedPk(payload.privateKey)
     } catch { toast.error('Wrong password') }
     finally { setLoading(false) }
-  }, [unlockPw])
+  }, [unlockPw, uid])
 
   // ── Passkey unlock ────────────────────────────────────────────────────────
   const handlePasskeyUnlock = useCallback(async () => {
@@ -357,9 +373,9 @@ export function SeedWalletAuth({ session, onSignedIn, onSignOut }: Props) {
   const handleSignOut = useCallback(() => {
     setRevealedPk(null); setUnlockPw(''); setShowPk(false)
     onSignOut()
-    setStep(loadBlob() ? 'unlock' : 'choose')
+    setStep(loadBlob(uid) ? 'unlock' : 'choose')
     toast.success('Wallet locked')
-  }, [onSignOut])
+  }, [onSignOut, uid])
 
   // ─────────────────────────────────────────────────────────────────────────
   // RENDER
@@ -696,7 +712,7 @@ export function SeedWalletAuth({ session, onSignedIn, onSignOut }: Props) {
                 className="flex items-center gap-1 text-xs" style={{ color: 'var(--subtle)' }}>
                 <HelpCircle className="size-3.5" /> Forgot phrase?
               </button>
-              <button onClick={() => { clearSeedWallet(); setStep('choose'); setUnlockPw(''); setError(null) }}
+              <button onClick={() => { clearSeedWallet(uid); setStep('choose'); setUnlockPw(''); setError(null) }}
                 className="flex items-center gap-1 text-xs" style={{ color: 'var(--danger)' }}>
                 <ArrowLeft className="size-3.5" /> Different wallet
               </button>

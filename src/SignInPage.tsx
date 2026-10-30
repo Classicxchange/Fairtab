@@ -1,11 +1,12 @@
 /**
- * SignInPage — full-screen gate.
+ * SignInPage — full-screen auth gate.
  *
- * Primary:   Google sign-in (via Circle UCW / AccountView)
- * Secondary: Seed phrase, Private key, MetaMask / WalletConnect
- *
- * Sections animate in order; the "Advanced" accordion reveals the
- * self-custodial and external-wallet options.
+ * Flow:
+ *  1. Google sign-in (Firebase identity only — no wallet)
+ *  2. After Google sign-in → wallet onboarding via SeedWalletAuth:
+ *       - Returning user with existing wallet: unlock prompt
+ *       - New user: create or import wallet
+ *  3. Advanced options (accordion): seed-only wallet, MetaMask/WalletConnect
  */
 
 import { useState } from 'react'
@@ -13,7 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ConnectKitButton } from 'connectkit'
 import {
   Shield, Zap, Users, Sun, Moon,
-  ChevronDown, KeyRound, Wallet,
+  ChevronDown, KeyRound, Wallet, ArrowLeft,
 } from 'lucide-react'
 import { WalletMetamask, WalletWalletConnect } from '@web3icons/react'
 import { AccountView, type AccountSession } from './AccountView'
@@ -21,11 +22,14 @@ import { SeedWalletAuth, type SeedWalletSession } from './SeedWalletAuth'
 
 interface Props {
   onSeedSignedIn:    (s: SeedWalletSession) => void
-  onSocialSignedIn:  (s: AccountSession)    => void
+  /** Called only after Google identity + wallet are both established */
+  onSocialSignedIn:  (identity: AccountSession, wallet: SeedWalletSession) => void
   onCircleConnected: (addr: `0x${string}`)  => void
   onSignOut: () => void
   dark: boolean
   onToggleDark?: () => void
+  /** Pre-filled Google identity from a redirect — skips straight to wallet onboarding */
+  initialGoogleIdentity?: AccountSession | null
 }
 
 // ── Google icon SVG ───────────────────────────────────────────────────────────
@@ -40,16 +44,27 @@ function GoogleIcon({ size = 20 }: { size?: number }) {
   )
 }
 
-type View = 'main' | 'google' | 'seed'
+type View = 'main' | 'google' | 'google-wallet' | 'seed'
 
 export function SignInPage({
   onSeedSignedIn, onSocialSignedIn, onSignOut,
-  dark, onToggleDark,
+  dark, onToggleDark, initialGoogleIdentity,
 }: Props) {
-  const [view, setView]         = useState<View>('main')
-  const [advOpen, setAdvOpen]   = useState(false)
+  // Identity session from step 1 (Google) — used to scope wallet storage
+  const [googleIdentity, setGoogleIdentity] = useState<AccountSession | null>(
+    initialGoogleIdentity ?? null
+  )
+  const [view, setView] = useState<View>(
+    initialGoogleIdentity ? 'google-wallet' : 'main'
+  )
+  const [advOpen, setAdvOpen] = useState(false)
 
-  const hasGoogle = !!(import.meta.env.VITE_GOOGLE_CLIENT_ID)
+  // Called when Google identity resolves (from either popup or redirect)
+  // Transitions to the wallet onboarding step
+  const handleGoogleIdentity = (identity: AccountSession) => {
+    setGoogleIdentity(identity)
+    setView('google-wallet')
+  }
 
   return (
     <div className="min-h-dvh flex flex-col md:flex-row" style={{ background: 'var(--bg)' }}>
@@ -120,215 +135,272 @@ export function SignInPage({
           </div>
         </div>
 
-        {/* ── View: main ─────────────────────────────────────────────────── */}
-        {view === 'main' && (
-          <motion.div
-            key="main"
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.28, ease: [0.25, 0.1, 0.25, 1] }}
-            className="w-full max-w-sm flex flex-col gap-5"
-          >
-            {/* Heading */}
-            <div className="mb-1">
-              <h2 className="display text-3xl font-bold tracking-tight" style={{ color: 'var(--ink)' }}>
-                Welcome to Fairtab
-              </h2>
-              <p className="text-sm mt-1.5" style={{ color: 'var(--muted)' }}>
-                Sign in with Google to get started
-              </p>
-              <div className="mt-3 h-0.5 rounded-full w-16"
-                style={{ background: 'linear-gradient(90deg,#3b8ef8,#818cf8,#e879f9)' }} />
-            </div>
+        <AnimatePresence mode="wait">
 
-            {/* ── PRIMARY: Google ─────────────────────────────────────────── */}
-            <button
-              onClick={() => setView('google')}
-              className="w-full flex items-center gap-4 rounded-2xl px-5 py-4 text-base font-semibold transition-all hover:scale-[1.01] active:scale-[0.98]"
-              style={{
-                background: '#fff',
-                border: '1.5px solid #e2e8f0',
-                color: '#1a202c',
-                boxShadow: '0 2px 16px rgba(0,0,0,0.08)',
-              }}
+          {/* ── View: main ─────────────────────────────────────────────────── */}
+          {view === 'main' && (
+            <motion.div
+              key="main"
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.28, ease: [0.25, 0.1, 0.25, 1] }}
+              className="w-full max-w-sm flex flex-col gap-5"
             >
-              <span className="shrink-0"><GoogleIcon size={22} /></span>
-              <span className="flex-1 text-left">Continue with Google</span>
-              {!hasGoogle && (
-                <span className="text-xs font-normal px-2 py-0.5 rounded-full"
-                  style={{ background: '#fef3c7', color: '#92400e' }}>Setup needed</span>
-              )}
-            </button>
+              <div className="mb-1">
+                <h2 className="display text-3xl font-bold tracking-tight" style={{ color: 'var(--ink)' }}>
+                  Welcome to Fairtab
+                </h2>
+                <p className="text-sm mt-1.5" style={{ color: 'var(--muted)' }}>
+                  Sign in with Google, then set up your wallet
+                </p>
+                <div className="mt-3 h-0.5 rounded-full w-16"
+                  style={{ background: 'linear-gradient(90deg,#3b8ef8,#818cf8,#e879f9)' }} />
+              </div>
 
-            {/* ── DIVIDER ────────────────────────────────────────────────── */}
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
-              <span className="text-xs font-medium px-1" style={{ color: 'var(--subtle)' }}>or use a wallet</span>
-              <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
-            </div>
-
-            {/* ── SECONDARY: advanced accordion ──────────────────────────── */}
-            <div className="rounded-2xl overflow-hidden"
-              style={{ border: '1px solid var(--border)', background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
-
-              {/* Accordion header */}
+              {/* PRIMARY: Google */}
               <button
-                onClick={() => setAdvOpen(o => !o)}
-                className="w-full flex items-center justify-between px-5 py-4 text-sm font-semibold transition-colors"
-                style={{ color: 'var(--ink)', background: 'transparent' }}
+                onClick={() => setView('google')}
+                className="w-full flex items-center gap-4 rounded-2xl px-5 py-4 text-base font-semibold transition-all hover:scale-[1.01] active:scale-[0.98]"
+                style={{
+                  background: '#fff',
+                  border: '1.5px solid #e2e8f0',
+                  color: '#1a202c',
+                  boxShadow: '0 2px 16px rgba(0,0,0,0.08)',
+                }}
               >
-                <span className="flex items-center gap-2">
-                  <Wallet className="size-4" style={{ color: 'var(--accent)' }} />
-                  Advanced options
-                </span>
-                <ChevronDown
-                  className="size-4 transition-transform"
-                  style={{ color: 'var(--muted)', transform: advOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
-                />
+                <span className="shrink-0"><GoogleIcon size={22} /></span>
+                <span className="flex-1 text-left">Continue with Google</span>
               </button>
 
-              <AnimatePresence initial={false}>
-                {advOpen && (
-                  <motion.div
-                    key="adv"
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
-                    style={{ overflow: 'hidden' }}
-                  >
-                    <div className="flex flex-col"
-                      style={{ borderTop: '1px solid var(--border)' }}>
+              {/* Steps hint */}
+              <div className="rounded-2xl p-4 flex flex-col gap-2.5"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                {[
+                  { n: '1', text: 'Sign in with your Google account' },
+                  { n: '2', text: 'Create or import your self-custodial wallet' },
+                  { n: '3', text: 'Split bills and pay in USDC' },
+                ].map(({ n, text }) => (
+                  <div key={n} className="flex items-center gap-3">
+                    <span className="size-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                      style={{ background: 'var(--accent)', color: 'white' }}>{n}</span>
+                    <span className="text-sm" style={{ color: 'var(--ink-2)' }}>{text}</span>
+                  </div>
+                ))}
+              </div>
 
-                      {/* Seed phrase / private key */}
-                      <button
-                        onClick={() => setView('seed')}
-                        className="flex items-center gap-4 px-5 py-4 text-sm font-semibold transition-colors text-left"
-                        style={{ borderBottom: '1px solid var(--border)', color: 'var(--ink)', background: 'transparent' }}
-                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-hover)')}
-                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                      >
-                        <KeyRound className="size-5 shrink-0" style={{ color: 'var(--accent)' }} />
-                        <div>
-                          <p className="font-semibold" style={{ color: 'var(--ink)' }}>Seed phrase / Private key</p>
-                          <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>Import or create a self-custodial wallet</p>
-                        </div>
-                      </button>
+              {/* DIVIDER */}
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+                <span className="text-xs font-medium px-1" style={{ color: 'var(--subtle)' }}>or use a wallet directly</span>
+                <div className="flex-1 h-px" style={{ background: 'var(--border)' }} />
+              </div>
 
-                      {/* MetaMask / WalletConnect */}
-                      <ConnectKitButton.Custom>
-                        {({ show }) => (
-                          <button
-                            onClick={() => show?.()}
-                            className="flex items-center gap-4 px-5 py-4 text-sm font-semibold transition-colors text-left"
-                            style={{ color: 'var(--ink)', background: 'transparent' }}
-                            onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-hover)')}
-                            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                          >
-                            <div className="relative shrink-0 w-10 h-8">
-                              <div className="absolute left-0 top-0 size-8 rounded-xl overflow-hidden shadow-sm"
-                                style={{ border: '1.5px solid rgba(0,0,0,0.08)', background: '#F5841F' }}>
-                                <WalletMetamask variant="branded" width={32} height={32} />
+              {/* Advanced accordion */}
+              <div className="rounded-2xl overflow-hidden"
+                style={{ border: '1px solid var(--border)', background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
+                <button
+                  onClick={() => setAdvOpen(o => !o)}
+                  className="w-full flex items-center justify-between px-5 py-4 text-sm font-semibold transition-colors"
+                  style={{ color: 'var(--ink)', background: 'transparent' }}
+                >
+                  <span className="flex items-center gap-2">
+                    <Wallet className="size-4" style={{ color: 'var(--accent)' }} />
+                    Advanced options
+                  </span>
+                  <ChevronDown
+                    className="size-4 transition-transform"
+                    style={{ color: 'var(--muted)', transform: advOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                  />
+                </button>
+
+                <AnimatePresence initial={false}>
+                  {advOpen && (
+                    <motion.div
+                      key="adv"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+                      style={{ overflow: 'hidden' }}
+                    >
+                      <div className="flex flex-col" style={{ borderTop: '1px solid var(--border)' }}>
+                        <button
+                          onClick={() => setView('seed')}
+                          className="flex items-center gap-4 px-5 py-4 text-sm font-semibold transition-colors text-left"
+                          style={{ borderBottom: '1px solid var(--border)', color: 'var(--ink)', background: 'transparent' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-hover)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                        >
+                          <KeyRound className="size-5 shrink-0" style={{ color: 'var(--accent)' }} />
+                          <div>
+                            <p className="font-semibold" style={{ color: 'var(--ink)' }}>Seed phrase / Private key</p>
+                            <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>Import or create a self-custodial wallet</p>
+                          </div>
+                        </button>
+                        <ConnectKitButton.Custom>
+                          {({ show }) => (
+                            <button
+                              onClick={() => show?.()}
+                              className="flex items-center gap-4 px-5 py-4 text-sm font-semibold transition-colors text-left"
+                              style={{ color: 'var(--ink)', background: 'transparent' }}
+                              onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-hover)')}
+                              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                            >
+                              <div className="relative shrink-0 w-10 h-8">
+                                <div className="absolute left-0 top-0 size-8 rounded-xl overflow-hidden shadow-sm"
+                                  style={{ border: '1.5px solid rgba(0,0,0,0.08)', background: '#F5841F' }}>
+                                  <WalletMetamask variant="branded" width={32} height={32} />
+                                </div>
+                                <div className="absolute left-4 top-0 size-8 rounded-xl overflow-hidden shadow-sm"
+                                  style={{ border: '1.5px solid rgba(0,0,0,0.08)', background: '#3B99FC' }}>
+                                  <WalletWalletConnect variant="branded" width={32} height={32} />
+                                </div>
                               </div>
-                              <div className="absolute left-4 top-0 size-8 rounded-xl overflow-hidden shadow-sm"
-                                style={{ border: '1.5px solid rgba(0,0,0,0.08)', background: '#3B99FC' }}>
-                                <WalletWalletConnect variant="branded" width={32} height={32} />
+                              <div>
+                                <p className="font-semibold" style={{ color: 'var(--ink)' }}>MetaMask / WalletConnect</p>
+                                <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>Connect your existing Web3 wallet</p>
                               </div>
-                            </div>
-                            <div>
-                              <p className="font-semibold" style={{ color: 'var(--ink)' }}>MetaMask / WalletConnect</p>
-                              <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>Connect your existing Web3 wallet</p>
-                            </div>
-                          </button>
-                        )}
-                      </ConnectKitButton.Custom>
+                            </button>
+                          )}
+                        </ConnectKitButton.Custom>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <p className="text-xs text-center" style={{ color: 'var(--subtle)' }}>
+                Fairtab never stores your private key. You own your wallet.
+              </p>
+            </motion.div>
+          )}
+
+          {/* ── View: Google sign-in (identity step) ───────────────────────── */}
+          {view === 'google' && (
+            <motion.div
+              key="google"
+              initial={{ opacity: 0, x: 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -24 }}
+              transition={{ duration: 0.26, ease: [0.25, 0.1, 0.25, 1] }}
+              className="w-full max-w-sm flex flex-col gap-4"
+            >
+              <button
+                onClick={() => setView('main')}
+                className="self-start flex items-center gap-1.5 text-sm font-medium"
+                style={{ color: 'var(--accent)' }}
+              >
+                <ArrowLeft className="size-4" /> Back
+              </button>
+
+              <div className="mb-1">
+                <h2 className="display text-2xl font-bold tracking-tight" style={{ color: 'var(--ink)' }}>
+                  Sign in with Google
+                </h2>
+                <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>
+                  Step 1 of 2 — verify your identity
+                </p>
+              </div>
+
+              <AccountView onSignedIn={handleGoogleIdentity} />
+            </motion.div>
+          )}
+
+          {/* ── View: Wallet onboarding after Google identity ───────────────── */}
+          {view === 'google-wallet' && googleIdentity && (
+            <motion.div
+              key="google-wallet"
+              initial={{ opacity: 0, x: 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -24 }}
+              transition={{ duration: 0.26, ease: [0.25, 0.1, 0.25, 1] }}
+              className="w-full max-w-sm flex flex-col gap-4"
+            >
+              {/* Identity badge */}
+              <div className="flex items-center gap-3 rounded-2xl px-4 py-3"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                {googleIdentity.picture
+                  ? <img src={googleIdentity.picture} alt={googleIdentity.username}
+                      className="size-9 rounded-full shrink-0" referrerPolicy="no-referrer"
+                      style={{ outline: '2px solid var(--border)', outlineOffset: 1 }} />
+                  : <div className="size-9 rounded-full flex items-center justify-center shrink-0 text-sm font-bold"
+                      style={{ background: 'var(--accent)', color: '#fff' }}>
+                      {googleIdentity.username.charAt(0).toUpperCase()}
                     </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+                }
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm truncate" style={{ color: 'var(--ink)' }}>
+                    {googleIdentity.username}
+                  </p>
+                  {googleIdentity.email && (
+                    <p className="text-xs truncate" style={{ color: 'var(--muted)' }}>{googleIdentity.email}</p>
+                  )}
+                </div>
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                  style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>Signed in</span>
+              </div>
 
-            {/* Footer */}
-            <p className="text-xs text-center" style={{ color: 'var(--subtle)' }}>
-              Fairtab never stores your private key. You own your wallet.
-            </p>
-          </motion.div>
-        )}
+              <div className="mb-1">
+                <h2 className="display text-2xl font-bold tracking-tight" style={{ color: 'var(--ink)' }}>
+                  Set up your wallet
+                </h2>
+                <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>
+                  Step 2 of 2 — your wallet is encrypted on this device
+                </p>
+              </div>
 
-        {/* ── View: Google (AccountView) ─────────────────────────────────── */}
-        {view === 'google' && (
-          <motion.div
-            key="google"
-            initial={{ opacity: 0, x: 24 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -24 }}
-            transition={{ duration: 0.26, ease: [0.25, 0.1, 0.25, 1] }}
-            className="w-full max-w-sm flex flex-col gap-4"
-          >
-            {/* Back */}
-            <button
-              onClick={() => setView('main')}
-              className="self-start flex items-center gap-1.5 text-sm font-medium"
-              style={{ color: 'var(--accent)' }}
+              <SeedWalletAuth
+                session={null}
+                uid={googleIdentity.googleUid}
+                onSignedIn={walletSession => {
+                  onSocialSignedIn(googleIdentity, walletSession)
+                }}
+                onSignOut={() => {
+                  setGoogleIdentity(null)
+                  setView('main')
+                  onSignOut()
+                }}
+              />
+            </motion.div>
+          )}
+
+          {/* ── View: Seed wallet (standalone, no Google) ──────────────────── */}
+          {view === 'seed' && (
+            <motion.div
+              key="seed"
+              initial={{ opacity: 0, x: 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -24 }}
+              transition={{ duration: 0.26, ease: [0.25, 0.1, 0.25, 1] }}
+              className="w-full max-w-sm flex flex-col gap-4"
             >
-              ← Back
-            </button>
+              <button
+                onClick={() => setView('main')}
+                className="self-start flex items-center gap-1.5 text-sm font-medium"
+                style={{ color: 'var(--accent)' }}
+              >
+                <ArrowLeft className="size-4" /> Back
+              </button>
 
-            {/* Heading */}
-            <div className="mb-1">
-              <h2 className="display text-2xl font-bold tracking-tight" style={{ color: 'var(--ink)' }}>
-                Sign in with Google
-              </h2>
-              <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>
-                Your wallet is created automatically and secured by Circle MPC.
-              </p>
-            </div>
+              <div className="mb-1">
+                <h2 className="display text-2xl font-bold tracking-tight" style={{ color: 'var(--ink)' }}>
+                  Self-custodial wallet
+                </h2>
+                <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>
+                  Create a new wallet or import from seed phrase or private key.
+                </p>
+              </div>
 
-            <AccountView
-              session={null}
-              onSignedIn={s => onSocialSignedIn(s)}
-              onSignOut={onSignOut}
-            />
-          </motion.div>
-        )}
+              <SeedWalletAuth
+                session={null}
+                onSignedIn={s => onSeedSignedIn(s)}
+                onSignOut={onSignOut}
+              />
+            </motion.div>
+          )}
 
-        {/* ── View: Seed wallet ──────────────────────────────────────────── */}
-        {view === 'seed' && (
-          <motion.div
-            key="seed"
-            initial={{ opacity: 0, x: 24 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -24 }}
-            transition={{ duration: 0.26, ease: [0.25, 0.1, 0.25, 1] }}
-            className="w-full max-w-sm flex flex-col gap-4"
-          >
-            {/* Back */}
-            <button
-              onClick={() => setView('main')}
-              className="self-start flex items-center gap-1.5 text-sm font-medium"
-              style={{ color: 'var(--accent)' }}
-            >
-              ← Back
-            </button>
-
-            {/* Heading */}
-            <div className="mb-1">
-              <h2 className="display text-2xl font-bold tracking-tight" style={{ color: 'var(--ink)' }}>
-                Self-custodial wallet
-              </h2>
-              <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>
-                Create a new wallet or import from seed phrase or private key.
-              </p>
-            </div>
-
-            <SeedWalletAuth
-              session={null}
-              onSignedIn={s => onSeedSignedIn(s)}
-              onSignOut={onSignOut}
-            />
-          </motion.div>
-        )}
+        </AnimatePresence>
       </div>
     </div>
   )

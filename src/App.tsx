@@ -687,9 +687,10 @@ export default function App() {
         const auth   = await getFirebaseAuth()
         const result = await getRedirectResult(auth)
         if (result?.user) {
-          const sess = await buildSession(result.user)
+          const sess = buildSession(result.user)
           saveSession(sess)
           setSocialSession(sess)
+          // Wallet onboarding will be triggered by SignInPage's google-wallet view
         }
       } catch {
         // No pending redirect or error — proceed normally
@@ -868,20 +869,30 @@ export default function App() {
             <SignInPage
               dark={dark}
               onToggleDark={toggleDark}
+              initialGoogleIdentity={
+                // After a redirect, socialSession has address='' — pass it as
+                // the pre-filled identity so the wallet onboarding step appears
+                socialSession && !socialSession.address ? socialSession : null
+              }
               onSeedSignedIn={s => { setSeedSession(s); recordSignInTime() }}
-              onSocialSignedIn={session => {
-                setSocialSession(session)
+              onSocialSignedIn={(identity, wallet) => {
+                // Store the identity with the wallet address filled in
+                const fullSession = { ...identity, address: wallet.address }
+                saveSession(fullSession)
+                setSocialSession(fullSession)
+                setSeedSession(wallet)
                 recordSignInTime()
               }}
               onCircleConnected={addr => setCircleAddress(addr)}
               onSignOut={() => {
+                const uid = socialSession?.googleUid
                 setSeedSession(null)
                 setSocialSession(null)
                 clearGoogleSession()
                 localStorage.removeItem('fairtab_session_v2')
                 setCircleAddress(null)
                 clearCredential()
-                clearSeedWallet()
+                clearSeedWallet(uid)
               }}
             />
           </motion.div>
@@ -1238,12 +1249,14 @@ export default function App() {
                     socialSession={socialSession}
                     wagmiAddress={wagmiAddress}
                     onSignOut={() => {
+                      const uid = socialSession?.googleUid
                       setSeedSession(null)
                       setSocialSession(null)
+                      clearGoogleSession()
                       localStorage.removeItem('fairtab_session_v2')
                       setCircleAddress(null)
                       clearCredential()
-                      clearSeedWallet()
+                      clearSeedWallet(uid)
                       setTab('bills')
                     }}
                   />

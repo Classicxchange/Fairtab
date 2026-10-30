@@ -14,6 +14,7 @@ import { AccountView, type AccountSession } from './AccountView'
 import { SeedWalletAuth, type SeedWalletSession } from './SeedWalletAuth'
 
 interface Props {
+  /** Called with Google identity only (address still empty) — caller handles wallet onboarding */
   onSocialSignedIn: (session: AccountSession) => void
   onSeedSignedIn: (session: SeedWalletSession) => void
   onCircleConnected: (address: `0x${string}`) => void
@@ -190,9 +191,7 @@ export function SignInModal({
                       style={{ overflow: 'hidden' }}
                     >
                       <AccountView
-                        session={null}
                         onSignedIn={s => { onSocialSignedIn(s); setOpen(false) }}
-                        onSignOut={onSignOut}
                       />
                     </motion.div>
                   )}

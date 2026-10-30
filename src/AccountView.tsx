@@ -1,13 +1,9 @@
 /**
- * AccountView — Google Sign-In via Firebase Auth.
+ * AccountView — Google Sign-In via Firebase Auth (identity only).
  *
- * Uses signInWithRedirect on mobile (popup falls back to redirect on Android
- * Chrome which navigates away and never returns). On desktop, tries popup first
- * and falls back to redirect if popup is blocked.
- *
- * The authDomain is set to fairtab.online so the redirect comes back to the
- * app, not to firebaseapp.com. This requires adding a custom auth domain in
- * Firebase Console → Authentication → Settings → Authorized domains.
+ * Firebase is used purely for authentication / identity.
+ * The wallet (seed phrase, private key) is managed separately via
+ * SeedWalletAuth scoped to the user's Firebase UID.
  *
  * Required env vars:
  *   VITE_FIREBASE_API_KEY
@@ -15,12 +11,10 @@
  *   VITE_FIREBASE_PROJECT_ID
  */
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
-import { Loader2, ShieldCheck, LogOut, Copy, CheckCircle2, AlertTriangle } from 'lucide-react'
-import { privateKeyToAccount } from 'viem/accounts'
-import type { Hex } from 'viem'
+import { Loader2, ShieldCheck, AlertTriangle } from 'lucide-react'
 
 // ── Firebase config from env ───────────────────────────────────────────────────
 const firebaseApiKey     = import.meta.env.VITE_FIREBASE_API_KEY     as string | undefined
@@ -33,44 +27,27 @@ const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface AccountSession {
+  /** The on-chain address (comes from the linked SeedWallet, filled after onboarding) */
   address:    string
   username:   string
   email?:     string
   picture?:   string
   method:     'google' | 'email' | 'passkey' | 'seed-wallet'
-  privateKey?: Hex  // in-memory only, never persisted
-}
-
-// ── Deterministic wallet from Firebase uid ─────────────────────────────────────
-async function derivePrivateKey(uid: string): Promise<Hex> {
-  const enc = new TextEncoder()
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw', enc.encode(uid), 'PBKDF2', false, ['deriveKey']
-  )
-  const derived = await crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt: enc.encode('fairtab-wallet-v1'), iterations: 200_000, hash: 'SHA-256' },
-    keyMaterial,
-    { name: 'AES-GCM', length: 256 },
-    true,
-    ['encrypt']
-  )
-  const raw = await crypto.subtle.exportKey('raw', derived)
-  const hex = Array.from(new Uint8Array(raw)).map(b => b.toString(16).padStart(2, '0')).join('')
-  return `0x${hex}`
+  /** Firebase UID — used to scope wallet storage per user */
+  googleUid?: string
 }
 
 // ── Session storage ────────────────────────────────────────────────────────────
 const SESSION_KEY = 'fairtab_google_session_v1'
 
 export function saveSession(s: AccountSession) {
-  const { privateKey: _, ...safe } = s
-  localStorage.setItem(SESSION_KEY, JSON.stringify(safe))
+  localStorage.setItem(SESSION_KEY, JSON.stringify(s))
 }
 
-export function loadGoogleSession(): Omit<AccountSession, 'privateKey'> | null {
+export function loadGoogleSession(): AccountSession | null {
   try {
     const raw = localStorage.getItem(SESSION_KEY)
-    return raw ? (JSON.parse(raw) as Omit<AccountSession, 'privateKey'>) : null
+    return raw ? (JSON.parse(raw) as AccountSession) : null
   } catch { return null }
 }
 
@@ -95,17 +72,19 @@ export async function getFirebaseAuth(): Promise<import('firebase/auth').Auth> {
   return _auth
 }
 
-// Build a session from a Firebase user — exported so App.tsx can use it after redirect
-export async function buildSession(user: import('firebase/auth').User): Promise<AccountSession> {
-  const privateKey = await derivePrivateKey(user.uid)
-  const account    = privateKeyToAccount(privateKey)
+/**
+ * Build an identity-only session from a Firebase user.
+ * address is empty string — filled in after the wallet onboarding step.
+ * Exported so App.tsx can call this after getRedirectResult().
+ */
+export function buildSession(user: import('firebase/auth').User): AccountSession {
   return {
-    address:  account.address,
-    username: user.displayName ?? user.email?.split('@')[0] ?? 'User',
-    email:    user.email    ?? undefined,
-    picture:  user.photoURL ?? undefined,
-    method:   'google',
-    privateKey,
+    address:   '',
+    username:  user.displayName ?? user.email?.split('@')[0] ?? 'User',
+    email:     user.email    ?? undefined,
+    picture:   user.photoURL ?? undefined,
+    method:    'google',
+    googleUid: user.uid,
   }
 }
 
@@ -121,71 +100,16 @@ function GoogleIcon({ size = 20 }: { size?: number }) {
   )
 }
 
-// ── Copy address button ───────────────────────────────────────────────────────
-function CopyAddress({ address }: { address: string }) {
-  const [copied, setCopied] = useState(false)
-  return (
-    <button
-      onClick={() => {
-        void navigator.clipboard.writeText(address)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 1800)
-      }}
-      className="flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs transition-all hover:opacity-80"
-      style={{ background: 'var(--surface-muted)', color: 'var(--subtle)', border: '1px solid var(--border)' }}>
-      {copied
-        ? <CheckCircle2 className="size-3" style={{ color: 'var(--success)' }} />
-        : <Copy className="size-3" />}
-      {copied ? 'Copied' : `${address.slice(0, 6)}…${address.slice(-4)}`}
-    </button>
-  )
-}
-
-// ── Main component ────────────────────────────────────────────────────────────
+// ── Main sign-in component ────────────────────────────────────────────────────
 interface AccountViewProps {
-  session:    AccountSession | null
+  /** Called with an identity-only session (address = '') after Google sign-in */
   onSignedIn: (s: AccountSession) => void
-  onSignOut:  () => void
 }
 
-export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps) {
+export function AccountView({ onSignedIn }: AccountViewProps) {
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState<string | null>(null)
 
-  // ── On mount: pick up the redirect result if we just came back ───────────
-  useEffect(() => {
-    if (!firebaseConfigured || session) return
-    let cancelled = false
-
-    void (async () => {
-      try {
-        // Check if there's a pending redirect result
-        const { getRedirectResult } = await import('firebase/auth')
-        const auth   = await getFirebaseAuth()
-        const result = await getRedirectResult(auth)
-        if (cancelled || !result?.user) return
-
-        setLoading(true)
-        const sess = await buildSession(result.user)
-        if (cancelled) return
-        saveSession(sess)
-        onSignedIn(sess)
-        toast.success(`Welcome, ${sess.username}!`)
-      } catch (e) {
-        if (cancelled) return
-        const msg = e instanceof Error ? e.message : String(e)
-        if (!msg.includes('cancelled') && !msg.includes('popup-closed')) {
-          setError(msg)
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
-
-    return () => { cancelled = true }
-  }, [onSignedIn, session])
-
-  // ── Sign in handler ───────────────────────────────────────────────────────
   const handleGoogleSignIn = useCallback(async () => {
     if (!firebaseConfigured) return
     setLoading(true); setError(null)
@@ -197,23 +121,19 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
       provider.addScope('profile')
 
       if (isMobile) {
-        // Mobile: use redirect — page navigates away, getRedirectResult picks it up on return
         await signInWithRedirect(auth, provider)
-        // Execution stops here — page navigates away
-        return
+        return // page navigates away; App.tsx picks up getRedirectResult on return
       }
 
-      // Desktop: try popup first
       try {
         const result = await signInWithPopup(auth, provider)
-        const sess   = await buildSession(result.user)
+        const sess   = buildSession(result.user)
         saveSession(sess)
         onSignedIn(sess)
         toast.success(`Welcome, ${sess.username}!`)
       } catch (popupErr) {
         const msg = popupErr instanceof Error ? popupErr.message : String(popupErr)
         if (msg.includes('popup-blocked') || msg.includes('popup-closed')) {
-          // Popup blocked — fall back to redirect
           await signInWithRedirect(auth, provider)
           return
         }
@@ -229,70 +149,6 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
       setLoading(false)
     }
   }, [onSignedIn])
-
-  const handleSignOut = useCallback(() => {
-    clearGoogleSession()
-    onSignOut()
-    toast.success('Signed out')
-  }, [onSignOut])
-
-  // ── Signed-in state ───────────────────────────────────────────────────────
-  if (session) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl p-5 flex flex-col gap-4"
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow)' }}>
-
-        <div className="flex items-center gap-3">
-          {session.picture
-            ? <img src={session.picture} alt={session.username}
-                className="size-11 rounded-full shrink-0"
-                referrerPolicy="no-referrer"
-                style={{ outline: '2px solid var(--border)', outlineOffset: 1 }} />
-            : (
-              <div className="size-11 rounded-full flex items-center justify-center shrink-0 text-lg font-bold"
-                style={{ background: 'var(--accent)', color: '#fff' }}>
-                {session.username.charAt(0).toUpperCase()}
-              </div>
-            )
-          }
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm truncate" style={{ color: 'var(--ink)' }}>{session.username}</p>
-            {session.email && <p className="text-xs truncate mt-0.5" style={{ color: 'var(--muted)' }}>{session.email}</p>}
-          </div>
-          <span className="flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold shrink-0"
-            style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>
-            <ShieldCheck className="size-3" /> Google
-          </span>
-        </div>
-
-        <div className="rounded-xl p-3" style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)' }}>
-          <p className="text-[10px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: 'var(--subtle)' }}>
-            Wallet address
-          </p>
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-xs font-mono truncate flex-1" style={{ color: 'var(--ink-2)' }}>{session.address}</p>
-            <CopyAddress address={session.address} />
-          </div>
-        </div>
-
-        <div className="rounded-xl p-3 flex items-start gap-2"
-          style={{ background: 'rgba(59,142,248,0.05)', border: '1px solid rgba(59,142,248,0.12)' }}>
-          <ShieldCheck className="size-3.5 shrink-0 mt-0.5" style={{ color: 'var(--accent)' }} />
-          <p className="text-xs leading-relaxed" style={{ color: 'var(--muted)' }}>
-            Same Google account → same wallet on any device. No seed phrase needed.
-          </p>
-        </div>
-
-        <button onClick={handleSignOut}
-          className="w-full rounded-xl py-2.5 text-sm font-semibold flex items-center justify-center gap-2 transition-all hover:opacity-90"
-          style={{ background: 'rgba(240,98,146,0.08)', color: 'var(--danger)', border: '1px solid rgba(240,98,146,0.15)' }}>
-          <LogOut className="size-4" /> Sign out
-        </button>
-      </motion.div>
-    )
-  }
 
   // ── Not configured ────────────────────────────────────────────────────────
   if (!firebaseConfigured) {
@@ -332,7 +188,7 @@ VITE_FIREBASE_PROJECT_ID=...`}
           </p>
           <p className="text-xs text-center px-4" style={{ color: 'var(--muted)' }}>
             {isMobile
-              ? 'You will be redirected back to Fairtab automatically after signing in.'
+              ? 'You will be redirected back to Fairtab automatically.'
               : 'A Google sign-in window should appear.'}
           </p>
         </div>
@@ -360,10 +216,51 @@ VITE_FIREBASE_PROJECT_ID=...`}
           )}
 
           <p className="text-xs text-center" style={{ color: 'var(--subtle)' }}>
-            Your wallet is tied to your Google account — no seed phrase needed.
+            Sign in with Google, then set up your self-custodial wallet.
           </p>
         </>
       )}
     </motion.div>
+  )
+}
+
+// ── Signed-in identity badge (used in AccountPage) ────────────────────────────
+export function GoogleIdentityBadge({
+  session,
+  onSignOut,
+}: {
+  session: AccountSession
+  onSignOut: () => void
+}) {
+  return (
+    <div className="rounded-2xl p-4 flex items-center gap-3"
+      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+      {session.picture
+        ? <img src={session.picture} alt={session.username}
+            className="size-10 rounded-full shrink-0"
+            referrerPolicy="no-referrer"
+            style={{ outline: '2px solid var(--border)', outlineOffset: 1 }} />
+        : (
+          <div className="size-10 rounded-full flex items-center justify-center shrink-0 text-base font-bold"
+            style={{ background: 'var(--accent)', color: '#fff' }}>
+            {session.username.charAt(0).toUpperCase()}
+          </div>
+        )
+      }
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-sm truncate" style={{ color: 'var(--ink)' }}>{session.username}</p>
+        {session.email && <p className="text-xs truncate mt-0.5" style={{ color: 'var(--muted)' }}>{session.email}</p>}
+      </div>
+      <span className="flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold shrink-0"
+        style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>
+        <ShieldCheck className="size-3" /> Google
+      </span>
+      <button
+        onClick={onSignOut}
+        className="text-xs px-3 py-1.5 rounded-xl font-semibold transition-all hover:opacity-80"
+        style={{ background: 'rgba(240,98,146,0.08)', color: 'var(--danger)', border: '1px solid rgba(240,98,146,0.15)' }}>
+        Sign out
+      </button>
+    </div>
   )
 }
