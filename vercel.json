@@ -3,6 +3,9 @@
   "outputDirectory": "dist",
   "installCommand": "bun install",
   "framework": null,
+  "redirects": [
+    { "source": "/privacy", "destination": "/privacy.html", "permanent": false }
+  ],
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
