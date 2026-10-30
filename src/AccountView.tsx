@@ -73,6 +73,13 @@ function delCookie(name: string) {
   document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/`
 }
 
+/** True when the page was just reloaded by Google's redirect back to the app mid sign-in. */
+export function isOAuthReturn(): boolean {
+  if (typeof window === 'undefined') return false
+  const params = window.location.hash + '&' + window.location.search
+  return !!getCookie('fairtab_dt') && /(?:^|[#&?])(id_token|code|state)=/.test(params)
+}
+
 // ── Google icon ───────────────────────────────────────────────────────────────
 function GoogleIcon({ size = 20 }: { size?: number }) {
   return (
@@ -97,10 +104,24 @@ type Step = 'choose' | 'email-input' | 'loading' | 'done'
 // ── Main component ─────────────────────────────────────────────────────────────
 export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps) {
   const sdkRef = useRef<W3SSdkType | null>(null)
-  const [step, setStep]       = useState<Step>(session ? 'done' : 'choose')
+  const returningFromGoogle = useRef(!session && isOAuthReturn()).current
+  const [step, setStep]       = useState<Step>(session ? 'done' : returningFromGoogle ? 'loading' : 'choose')
   const [error, setError]     = useState<string | null>(null)
   const [email, setEmail]     = useState('')
-  const [loadMsg, setLoadMsg] = useState('')
+  const [loadMsg, setLoadMsg] = useState(returningFromGoogle ? 'Completing Google sign-in…' : '')
+
+  // If Google sent us back but the sign-in never completes, let the user try again.
+  useEffect(() => {
+    if (!returningFromGoogle) return
+    const t = window.setTimeout(() => {
+      setStep(cur => {
+        if (cur !== 'loading' || authRef.current) return cur
+        setError('Google sign-in did not complete. Please try again.')
+        return 'choose'
+      })
+    }, 20000)
+    return () => window.clearTimeout(t)
+  }, [returningFromGoogle])
 
   // In-memory only — never stored in state that serialises
   const authRef = useRef<{ userToken: string; encryptionKey: string } | null>(null)

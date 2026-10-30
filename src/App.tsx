@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { restoreCircleSession, clearCredential } from '@/CircleWalletAuth'
 import { type SeedWalletSession, clearSeedWallet, hasSeedWallet, getSeedWalletAddress } from '@/SeedWalletAuth'
-import { type AccountSession, loadGoogleSession, clearGoogleSession, saveSession } from '@/AccountView'
+import { type AccountSession, loadGoogleSession, clearGoogleSession, saveSession, isOAuthReturn } from '@/AccountView'
 import { WalletDropdown } from '@/WalletDropdown'
 import { AccountPage, recordSignInTime } from '@/AccountPage'
 import { SignInPage } from '@/SignInPage'
@@ -799,7 +799,7 @@ export default function App() {
   const { dark, toggle: toggleDark } = useDarkMode()
 
   // Signed-out visitors at "/" see the public landing page until they choose to sign in.
-  const [showSignIn, setShowSignIn] = useState(false)
+  const [showSignIn, setShowSignIn] = useState(() => isOAuthReturn())
   const showLanding =
     location.pathname === '/' && !showSignIn && !(socialSession && !socialSession.address)
 
@@ -919,7 +919,8 @@ export default function App() {
                 const fullSession = { ...identity, address: wallet.address }
                 saveSession(fullSession)
                 setSocialSession(fullSession)
-                setSeedSession(wallet)
+                // Circle wallets (userToken present) have no local seed wallet to restore.
+                if (!identity.userToken) setSeedSession(wallet)
                 recordSignInTime()
                 void navigate('/app', { replace: true })
               }}

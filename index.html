@@ -19,7 +19,7 @@
         var d = t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
         var c = document.documentElement.classList;
         if (d) c.add('dark');
-        if (location.pathname !== '/' || localStorage.getItem('fairtab_circle_session_v1')) c.add('no-static');
+        if (location.pathname !== '/' || localStorage.getItem('fairtab_circle_session_v1') || /[#&?](id_token|code|state)=/.test(location.hash + '&' + location.search)) c.add('no-static');
       } catch (e) {}
     </script>
   </head>

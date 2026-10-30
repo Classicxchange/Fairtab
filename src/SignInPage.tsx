@@ -17,7 +17,7 @@ import {
   ChevronDown, KeyRound, Wallet, ArrowLeft,
 } from 'lucide-react'
 import { WalletMetamask, WalletWalletConnect } from '@web3icons/react'
-import { AccountView, type AccountSession } from './AccountView'
+import { AccountView, type AccountSession, isOAuthReturn } from './AccountView'
 import { SeedWalletAuth, type SeedWalletSession, getSeedWalletAddress } from './SeedWalletAuth'
 
 interface Props {
@@ -55,7 +55,7 @@ export function SignInPage({
     initialGoogleIdentity ?? null
   )
   const [view, setView] = useState<View>(
-    initialGoogleIdentity ? 'google-wallet' : 'main'
+    initialGoogleIdentity ? 'google-wallet' : isOAuthReturn() ? 'google' : 'main'
   )
   const [advOpen, setAdvOpen] = useState(false)
 
@@ -63,6 +63,11 @@ export function SignInPage({
   // If this user already has a wallet on this device (address readable without
   // decrypting), skip the wallet step and sign them straight in.
   const handleGoogleIdentity = (identity: AccountSession) => {
+    // Circle wallet already created/loaded for this user: sign them straight in.
+    if (identity.address) {
+      onSocialSignedIn(identity, { address: identity.address as `0x${string}`, method: 'seed-wallet' })
+      return
+    }
     const existingAddr = getSeedWalletAddress(identity.googleUid)
     if (existingAddr) {
       // Returning user — no password needed; address is in plaintext in the blob
