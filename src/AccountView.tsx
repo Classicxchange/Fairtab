@@ -226,8 +226,13 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
           onLoginComplete,
         )
         sdkRef.current = sdk
-        const id = await sdk.getDeviceId()
-        if (!getCookie('fairtab_did')) setCookie('fairtab_did', id, 30)
+        // When Google just redirected back, the SDK is already verifying the login
+        // in its own frame. Asking for the device id here would open a second frame
+        // and cancel that verification, so it is skipped.
+        if (!returningFromGoogle) {
+          const id = await sdk.getDeviceId()
+          if (!getCookie('fairtab_did')) setCookie('fairtab_did', id, 30)
+        }
       } catch {
         if (!cancelled) setError('Failed to initialise Circle SDK')
       }
