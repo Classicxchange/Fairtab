@@ -4,7 +4,8 @@
   "installCommand": "bun install",
   "framework": null,
   "redirects": [
-    { "source": "/privacy", "destination": "/privacy.html", "permanent": false }
+    { "source": "/privacy", "destination": "/privacy.html", "permanent": false },
+    { "source": "/terms", "destination": "/terms.html", "permanent": false }
   ],
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api/:path*" },
