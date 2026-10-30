@@ -49,15 +49,40 @@ export function saveSession(s: StoredSession) {
   localStorage.setItem(SESSION_KEY, JSON.stringify(safe))
 }
 
-export function loadGoogleSession(): StoredSession | null {
+// Circle's user token lasts about an hour. Keep it (and the encryption key) only in this
+// browser tab's sessionStorage, so a page refresh does not force a new sign-in.
+const TOKENS_KEY = 'fairtab_circle_tokens_v1'
+const TOKEN_LIFETIME_MS = 55 * 60 * 1000
+
+function saveTokens(address: string, userToken: string, encryptionKey: string) {
+  try {
+    sessionStorage.setItem(TOKENS_KEY, JSON.stringify({ address, userToken, encryptionKey, exp: Date.now() + TOKEN_LIFETIME_MS }))
+  } catch { /* ignore */ }
+}
+
+function loadTokens(address: string): { userToken: string; encryptionKey: string } | null {
+  try {
+    const raw = sessionStorage.getItem(TOKENS_KEY)
+    if (!raw) return null
+    const t = JSON.parse(raw) as { address: string; userToken: string; encryptionKey: string; exp: number }
+    if (t.exp < Date.now() || t.address.toLowerCase() !== address.toLowerCase()) return null
+    return { userToken: t.userToken, encryptionKey: t.encryptionKey }
+  } catch { return null }
+}
+
+export function loadGoogleSession(): (StoredSession & { userToken?: string; encryptionKey?: string }) | null {
   try {
     const raw = localStorage.getItem(SESSION_KEY)
-    return raw ? (JSON.parse(raw) as StoredSession) : null
+    if (!raw) return null
+    const stored = JSON.parse(raw) as StoredSession
+    const tokens = stored.address ? loadTokens(stored.address) : null
+    return tokens ? { ...stored, ...tokens } : stored
   } catch { return null }
 }
 
 export function clearGoogleSession() {
   localStorage.removeItem(SESSION_KEY)
+  try { sessionStorage.removeItem(TOKENS_KEY) } catch { /* ignore */ }
 }
 
 // ── Cookie helpers (deviceToken must survive OAuth page redirect) ─────────────
@@ -182,6 +207,7 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
         encryptionKey: encKey,
       }
       saveSession({ address: sess.address, username: sess.username, email: sess.email, method: sess.method })
+      saveTokens(sess.address, userToken, encKey)
       onSignedIn(sess)
       setStep('done')
       toast.success(`Wallet ready — ${walletAddress.slice(0, 6)}…${walletAddress.slice(-4)}`)

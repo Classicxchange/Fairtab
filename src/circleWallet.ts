@@ -32,7 +32,7 @@ export function setCircleAuth(auth: CircleAuth | null) {
 }
 
 const SESSION_EXPIRED =
-  'Your Circle sign-in has expired. Sign out and sign in again to approve transactions.'
+  'Your Circle sign-in has expired (it lasts about an hour). Sign out and sign in again. You will get the same wallet back.'
 
 let sdkPromise: Promise<W3SSdkType> | null = null
 function getSdk(): Promise<W3SSdkType> {
