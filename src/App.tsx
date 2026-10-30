@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { restoreCircleSession, clearCredential } from '@/CircleWalletAuth'
 import { type SeedWalletSession, clearSeedWallet, hasSeedWallet } from '@/SeedWalletAuth'
-import { type AccountSession, loadGoogleSession, clearGoogleSession, firebaseConfigured, getFirebaseAuth, buildSession, saveSession } from '@/AccountView'
+import { type AccountSession, loadGoogleSession, clearGoogleSession, saveSession } from '@/AccountView'
 import { WalletDropdown } from '@/WalletDropdown'
 import { AccountPage, recordSignInTime } from '@/AccountPage'
 import { SignInPage } from '@/SignInPage'
@@ -667,38 +667,13 @@ export default function App() {
   const { address: wagmiAddress, chainId } = useAccount()
   const wrongChain = chainId !== undefined && chainId !== CHAIN_ID
 
-  // ── Firebase redirect check — MUST be declared before socialSession ─────
-  // We block the auth gate until getRedirectResult() resolves after redirect.
-  // Starts true when Firebase not configured or a session already exists.
-  const [redirectChecked, setRedirectChecked] = useState(
-    () => !firebaseConfigured || !!loadGoogleSession()
-  )
-
   // ── Social session (Google) — restored from localStorage ─────────────────
+  // signInWithPopup is used exclusively (no redirect) so there is no async
+  // getRedirectResult() to wait for; session is available synchronously.
+  const [redirectChecked] = useState(true)
   const [socialSession, setSocialSession] = useState<AccountSession | null>(() => {
     return loadGoogleSession()
   })
-  useEffect(() => {
-    if (!firebaseConfigured) return
-    if (loadGoogleSession()) return // already handled in useState initializer
-    void (async () => {
-      try {
-        const { getRedirectResult } = await import('firebase/auth')
-        const auth   = await getFirebaseAuth()
-        const result = await getRedirectResult(auth)
-        if (result?.user) {
-          const sess = buildSession(result.user)
-          saveSession(sess)
-          setSocialSession(sess)
-          // Wallet onboarding will be triggered by SignInPage's google-wallet view
-        }
-      } catch {
-        // No pending redirect or error — proceed normally
-      } finally {
-        setRedirectChecked(true)
-      }
-    })()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Seed wallet session ────────────────────────────────────────────────────
   // Restored on mount: if a Google session exists with a wallet address and a

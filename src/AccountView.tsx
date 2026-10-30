@@ -22,8 +22,11 @@ const firebaseAuthDomain = import.meta.env.VITE_FIREBASE_AUTH_DOMAIN as string |
 const firebaseProjectId  = import.meta.env.VITE_FIREBASE_PROJECT_ID  as string | undefined
 export const firebaseConfigured = !!(firebaseApiKey && firebaseAuthDomain && firebaseProjectId)
 
-// Detect mobile — popup is unreliable on Android Chrome
-const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+// Popups work on modern Android Chrome when triggered by a direct user gesture.
+// We avoid signInWithRedirect entirely because it requires /__/auth/handler to
+// be served by Firebase Hosting — which only works when the domain is connected
+// to Firebase Hosting. On other hosts (Netlify, Vercel, Cloudflare Pages) the
+// SPA catch-all intercepts that path and the redirect result never resolves.
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface AccountSession {
@@ -114,37 +117,29 @@ export function AccountView({ onSignedIn }: AccountViewProps) {
     if (!firebaseConfigured) return
     setLoading(true); setError(null)
     try {
-      const { GoogleAuthProvider, signInWithPopup, signInWithRedirect } = await import('firebase/auth')
+      const { GoogleAuthProvider, signInWithPopup } = await import('firebase/auth')
       const auth     = await getFirebaseAuth()
       const provider = new GoogleAuthProvider()
       provider.addScope('email')
       provider.addScope('profile')
-
-      if (isMobile) {
-        await signInWithRedirect(auth, provider)
-        return // page navigates away; App.tsx picks up getRedirectResult on return
-      }
-
-      try {
-        const result = await signInWithPopup(auth, provider)
-        const sess   = buildSession(result.user)
-        saveSession(sess)
-        onSignedIn(sess)
-        toast.success(`Welcome, ${sess.username}!`)
-      } catch (popupErr) {
-        const msg = popupErr instanceof Error ? popupErr.message : String(popupErr)
-        if (msg.includes('popup-blocked') || msg.includes('popup-closed')) {
-          await signInWithRedirect(auth, provider)
-          return
-        }
-        throw popupErr
-      }
+      const result = await signInWithPopup(auth, provider)
+      const sess   = buildSession(result.user)
+      saveSession(sess)
+      onSignedIn(sess)
+      toast.success(`Welcome, ${sess.username}!`)
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
-      if (!msg.includes('cancelled') && !msg.includes('popup-closed') && !msg.includes('dismissed')) {
-        setError(msg)
-        toast.error('Google sign-in failed')
+      // User dismissed the popup — not an error worth showing
+      if (msg.includes('cancelled') || msg.includes('popup-closed') || msg.includes('dismissed')) {
+        setLoading(false)
+        return
       }
+      if (msg.includes('popup-blocked')) {
+        setError('Popup was blocked. Please allow popups for fairtab.online and try again.')
+      } else {
+        setError(msg.length > 120 ? msg.slice(0, 120) + '…' : msg)
+      }
+      toast.error('Google sign-in failed')
     } finally {
       setLoading(false)
     }
@@ -183,13 +178,9 @@ VITE_FIREBASE_PROJECT_ID=...`}
       {loading ? (
         <div className="flex flex-col items-center gap-3 py-8">
           <Loader2 className="size-8 animate-spin" style={{ color: 'var(--accent)' }} />
-          <p className="text-sm font-semibold" style={{ color: 'var(--ink)' }}>
-            {isMobile ? 'Redirecting to Google…' : 'Signing you in…'}
-          </p>
+          <p className="text-sm font-semibold" style={{ color: 'var(--ink)' }}>Signing you in…</p>
           <p className="text-xs text-center px-4" style={{ color: 'var(--muted)' }}>
-            {isMobile
-              ? 'You will be redirected back to Fairtab automatically.'
-              : 'A Google sign-in window should appear.'}
+            A Google sign-in window should appear. If nothing opens, check your popup blocker.
           </p>
         </div>
       ) : (
