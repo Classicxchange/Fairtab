@@ -15,7 +15,15 @@
   </head>
   <body>
     <!-- Built with Arc Studio — https://studio.arc.io -->
-    <div id="root"></div>
+    <div id="root">
+      <!-- Static fallback for crawlers and no-JS visitors; replaced when the app loads. -->
+      <main style="font-family:system-ui,sans-serif;max-width:640px;margin:0 auto;padding:2rem 1.5rem;line-height:1.6">
+        <h1>Fairtab</h1>
+        <p>Fairtab is a household bill splitter on the Arc blockchain. Create a shared bill, let everyone pay their share in USDC, and the payee is paid once the bill is fully funded.</p>
+        <p>You can sign in with Google to identify your account. Fairtab uses your name, email address and profile picture from Google only to show them in the app.</p>
+        <p><a href="/privacy">Privacy Policy</a> &middot; <a href="/terms">Terms of Service</a></p>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

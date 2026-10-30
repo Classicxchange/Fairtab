@@ -6,6 +6,7 @@ import { type AccountSession, loadGoogleSession, clearGoogleSession, saveSession
 import { WalletDropdown } from '@/WalletDropdown'
 import { AccountPage, recordSignInTime } from '@/AccountPage'
 import { SignInPage } from '@/SignInPage'
+import { LandingPage } from '@/LandingPage'
 import { SendPage } from '@/SendPage'
 import { CreateBillPage } from '@/CreateBillPage'
 import { BillDetailPage } from '@/BillDetailPage'
@@ -797,6 +798,11 @@ export default function App() {
 
   const { dark, toggle: toggleDark } = useDarkMode()
 
+  // Signed-out visitors at "/" see the public landing page until they choose to sign in.
+  const [showSignIn, setShowSignIn] = useState(false)
+  const showLanding =
+    location.pathname === '/' && !showSignIn && !(socialSession && !socialSession.address)
+
   const count = billCount != null ? Number(billCount) : 0
 
   // Track which bill IDs are visible to this user (passed the membership gate)
@@ -877,9 +883,20 @@ export default function App() {
         <Navigate to="/app" replace />
       )}
 
+      {/* ── Public landing page ── signed-out visitors at "/" (no login needed) ─ */}
+      {!address && redirectChecked && showLanding && (
+        <div className="fixed inset-0 z-50" style={{ background: 'var(--bg)' }}>
+          <LandingPage
+            dark={dark}
+            onToggleDark={toggleDark}
+            onGetStarted={() => setShowSignIn(true)}
+          />
+        </div>
+      )}
+
       {/* ── Sign-in page gate ── shown when no wallet is connected ─ */}
       <AnimatePresence>
-        {!address && redirectChecked && (
+        {!address && redirectChecked && !showLanding && (
           <motion.div
             key="signin-page"
             initial={{ opacity: 0 }}
