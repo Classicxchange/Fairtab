@@ -20,7 +20,7 @@ const FEATURES = [
 
 export function LandingPage({ onGetStarted, dark, onToggleDark }: Props) {
   return (
-    <div className="min-h-dvh flex flex-col overflow-y-auto" style={{ background: 'var(--bg)' }}>
+    <div className="min-h-dvh flex flex-col" style={{ background: 'var(--bg)' }}>
       <header className="mx-auto w-full max-w-5xl flex items-center justify-between px-5 py-4">
         <div className="flex items-center gap-3">
           <img src="/logo.svg" alt="Fairtab" className="size-10 rounded-xl shadow" />

@@ -885,7 +885,7 @@ export default function App() {
 
       {/* ── Public landing page ── signed-out visitors at "/" (no login needed) ─ */}
       {!address && redirectChecked && showLanding && (
-        <div className="fixed inset-0 z-50" style={{ background: 'var(--bg)' }}>
+        <div className="fixed inset-0 z-50 overflow-y-auto" style={{ background: 'var(--bg)' }}>
           <LandingPage
             dark={dark}
             onToggleDark={toggleDark}
