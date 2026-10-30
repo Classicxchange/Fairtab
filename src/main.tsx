@@ -25,6 +25,17 @@ import App from './App'
 import AdminApp from './admin/AdminApp'
 import './index.css'
 
+// After a new deploy, a page opened before it can reference script files that no
+// longer exist. Reload once to pick up the latest version instead of failing.
+window.addEventListener('vite:preloadError', (event) => {
+  event.preventDefault()
+  const key = 'fairtab_chunk_reload'
+  if (sessionStorage.getItem(key) !== String(Math.floor(Date.now() / 60000))) {
+    sessionStorage.setItem(key, String(Math.floor(Date.now() / 60000)))
+    window.location.reload()
+  }
+})
+
 const queryClient = new QueryClient()
 
 // Route /auth/admin to AdminApp; everything else goes to the main App.
