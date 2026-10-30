@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { restoreCircleSession, clearCredential } from '@/CircleWalletAuth'
 import { type SeedWalletSession, clearSeedWallet } from '@/SeedWalletAuth'
-import { type AccountSession } from '@/AccountView'
+import { type AccountSession, loadGoogleSession, clearGoogleSession } from '@/AccountView'
 import { WalletDropdown } from '@/WalletDropdown'
 import { AccountPage, recordSignInTime } from '@/AccountPage'
 import { SignInPage } from '@/SignInPage'
@@ -667,12 +667,9 @@ export default function App() {
   const { address: wagmiAddress, chainId } = useAccount()
   const wrongChain = chainId !== undefined && chainId !== CHAIN_ID
 
-  // ── Social session (Google / email OTP) ───────────────────────────────────
+  // ── Social session (Google) — restored from sessionStorage ───────────────
   const [socialSession, setSocialSession] = useState<AccountSession | null>(() => {
-    try {
-      const stored = localStorage.getItem('fairtab_session_v2')
-      return stored ? (JSON.parse(stored) as AccountSession) : null
-    } catch { return null }
+    return loadGoogleSession()
   })
 
   // ── Seed wallet session ────────────────────────────────────────────────────
@@ -818,12 +815,12 @@ export default function App() {
               onSocialSignedIn={session => {
                 setSocialSession(session)
                 recordSignInTime()
-                localStorage.setItem('fairtab_session_v2', JSON.stringify(session))
               }}
               onCircleConnected={addr => setCircleAddress(addr)}
               onSignOut={() => {
                 setSeedSession(null)
                 setSocialSession(null)
+                clearGoogleSession()
                 localStorage.removeItem('fairtab_session_v2')
                 setCircleAddress(null)
                 clearCredential()
@@ -879,6 +876,7 @@ export default function App() {
                 onSignOut={() => {
                   setSeedSession(null)
                   setSocialSession(null)
+                  clearGoogleSession()
                   localStorage.removeItem('fairtab_session_v2')
                   setCircleAddress(null)
                   clearCredential()

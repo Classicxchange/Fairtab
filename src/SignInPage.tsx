@@ -49,7 +49,7 @@ export function SignInPage({
   const [view, setView]         = useState<View>('main')
   const [advOpen, setAdvOpen]   = useState(false)
 
-  const hasGoogle = !!(import.meta.env.VITE_CIRCLE_APP_ID && import.meta.env.VITE_GOOGLE_CLIENT_ID)
+  const hasGoogle = !!(import.meta.env.VITE_GOOGLE_CLIENT_ID)
 
   return (
     <div className="min-h-dvh flex flex-col md:flex-row" style={{ background: 'var(--bg)' }}>
@@ -285,33 +285,11 @@ export function SignInPage({
               </p>
             </div>
 
-            {!hasGoogle && (
-              <div className="rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow)' }}>
-                <p className="font-semibold text-sm mb-2" style={{ color: 'var(--ink)' }}>Setup required</p>
-                <p className="text-xs leading-relaxed mb-3" style={{ color: 'var(--muted)' }}>
-                  Google sign-in needs two env vars and the API server running. Add these to your <code className="font-mono" style={{ color: 'var(--accent)' }}>.env</code> file:
-                </p>
-                <div className="rounded-xl p-3 font-mono text-xs mb-3 select-all"
-                  style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)', color: 'var(--ink-2)', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-{`VITE_CIRCLE_APP_ID=your_app_id
-VITE_GOOGLE_CLIENT_ID=your_google_client_id
-CIRCLE_API_KEY=your_api_key`}
-                </div>
-                <p className="text-xs leading-relaxed" style={{ color: 'var(--muted)' }}>
-                  Get them from Circle Console: Wallets &rarr; User Controlled &rarr; Configurator (App ID), Auth Methods &rarr; Social Logins (Google Client ID), and Settings &rarr; API Keys (API Key).
-                </p>
-                <p className="text-xs mt-2 leading-relaxed" style={{ color: 'var(--muted)' }}>
-                  Also run the API server: <code className="font-mono" style={{ color: 'var(--accent)' }}>bun run dev:server</code>
-                </p>
-              </div>
-            )}
-            {hasGoogle && (
-              <AccountView
-                session={null}
-                onSignedIn={s => onSocialSignedIn(s)}
-                onSignOut={onSignOut}
-              />
-            )}
+            <AccountView
+              session={null}
+              onSignedIn={s => onSocialSignedIn(s)}
+              onSignOut={onSignOut}
+            />
           </motion.div>
         )}
 
