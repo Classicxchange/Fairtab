@@ -1,26 +1,39 @@
 /**
- * AccountView — Google Sign-In (no backend needed).
+ * AccountView — Google Sign-In via Firebase Auth.
  *
- * Uses Google Identity Services (GSI) popup flow to get an ID token
- * entirely in the browser. The Google `sub` (stable user ID) is used
- * to deterministically derive a private key via PBKDF2 + WebCrypto.
- * Same Google account → same wallet address, every time.
+ * Firebase handles the entire Google OAuth flow under their own
+ * Google Cloud project — no Google Cloud Console setup needed from you.
  *
- * No Circle UCW, no server calls, no passkey dependency.
- * All credential state stays in sessionStorage (cleared on tab close).
+ * How it works:
+ *  1. Firebase Auth opens a Google sign-in popup
+ *  2. User picks their Google account
+ *  3. Firebase returns a stable uid (never changes for that Google account)
+ *  4. We derive a deterministic private key: PBKDF2(uid, salt, 200k, SHA-256)
+ *  5. Same Google account → same wallet address, on any device, forever
  *
- * Required:  VITE_GOOGLE_CLIENT_ID in .env
- * Optional:  nothing else
+ * Required env vars (paste your Firebase project config):
+ *   VITE_FIREBASE_API_KEY
+ *   VITE_FIREBASE_AUTH_DOMAIN
+ *   VITE_FIREBASE_PROJECT_ID
+ *
+ * Get them free at https://console.firebase.google.com
+ *   → Create project → Add web app → copy the config object
+ *   Then: Authentication → Sign-in method → Google → Enable
  */
-import { useEffect, useRef, useState, useCallback } from 'react'
+
+import { useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { toast } from 'sonner'
-import { Loader2, ShieldCheck, LogOut, Copy, CheckCircle2 } from 'lucide-react'
+import { Loader2, ShieldCheck, LogOut, Copy, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { privateKeyToAccount } from 'viem/accounts'
 import type { Hex } from 'viem'
 
-// ── Env ───────────────────────────────────────────────────────────────────────
-const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined
+// ── Firebase config from env ───────────────────────────────────────────────────
+const firebaseApiKey    = import.meta.env.VITE_FIREBASE_API_KEY     as string | undefined
+const firebaseAuthDomain = import.meta.env.VITE_FIREBASE_AUTH_DOMAIN as string | undefined
+const firebaseProjectId  = import.meta.env.VITE_FIREBASE_PROJECT_ID  as string | undefined
+
+const firebaseConfigured = !!(firebaseApiKey && firebaseAuthDomain && firebaseProjectId)
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface AccountSession {
@@ -33,46 +46,22 @@ export interface AccountSession {
   privateKey?: Hex
 }
 
-// ── GSI type shim ─────────────────────────────────────────────────────────────
-interface GsiCredentialResponse { credential: string }
-interface GoogleAccounts {
-  id: {
-    initialize(cfg: {
-      client_id: string
-      callback: (r: GsiCredentialResponse) => void
-      auto_select?: boolean
-      cancel_on_tap_outside?: boolean
-    }): void
-    prompt(cb?: (n: { isNotDisplayed(): boolean; isSkippedMoment(): boolean }) => void): void
-    renderButton(el: HTMLElement, cfg: object): void
-    disableAutoSelect(): void
-  }
-}
-declare global { interface Window { google?: { accounts: GoogleAccounts } } }
-
-// ── JWT decode (no verify — sub is used only as a salt for key derivation) ──
-function decodeJwtPayload(token: string): Record<string, string> {
-  try {
-    const b64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
-    return JSON.parse(atob(b64)) as Record<string, string>
-  } catch { return {} }
-}
-
-// ── Deterministic private key from Google sub ─────────────────────────────────
-// PBKDF2(password=sub, salt="fairtab-wallet-v1", iterations=200_000, SHA-256) → 32 bytes
-async function derivePrivateKey(sub: string): Promise<Hex> {
+// ── Deterministic wallet from Firebase uid ─────────────────────────────────────
+// PBKDF2(password=uid, salt="fairtab-wallet-v1", 200_000, SHA-256) → 32 bytes private key
+// Same uid → same wallet on every device, every browser, forever.
+async function derivePrivateKey(uid: string): Promise<Hex> {
   const enc = new TextEncoder()
   const keyMaterial = await crypto.subtle.importKey(
-    'raw', enc.encode(sub), 'PBKDF2', false, ['deriveKey']
+    'raw', enc.encode(uid), 'PBKDF2', false, ['deriveKey']
   )
-  const key = await crypto.subtle.deriveKey(
+  const derived = await crypto.subtle.deriveKey(
     { name: 'PBKDF2', salt: enc.encode('fairtab-wallet-v1'), iterations: 200_000, hash: 'SHA-256' },
     keyMaterial,
     { name: 'AES-GCM', length: 256 },
     true,
     ['encrypt']
   )
-  const raw = await crypto.subtle.exportKey('raw', key)
+  const raw = await crypto.subtle.exportKey('raw', derived)
   const hex = Array.from(new Uint8Array(raw)).map(b => b.toString(16).padStart(2, '0')).join('')
   return `0x${hex}`
 }
@@ -96,18 +85,40 @@ export function clearGoogleSession() {
   sessionStorage.removeItem(SESSION_KEY)
 }
 
-// ── Load the GSI script once ───────────────────────────────────────────────────
-let gsiLoaded = false
-function loadGsi(): Promise<void> {
-  if (gsiLoaded || window.google?.accounts) { gsiLoaded = true; return Promise.resolve() }
-  return new Promise((resolve, reject) => {
-    const s = document.createElement('script')
-    s.src = 'https://accounts.google.com/gsi/client'
-    s.async = true; s.defer = true
-    s.onload = () => { gsiLoaded = true; resolve() }
-    s.onerror = () => reject(new Error('Failed to load Google Sign-In script'))
-    document.head.appendChild(s)
+// ── Lazy Firebase init — only loads the SDK when the user clicks Sign In ──────
+let firebaseApp: import('firebase/app').FirebaseApp | null = null
+let firebaseAuth: import('firebase/auth').Auth | null = null
+
+async function getFirebaseAuth(): Promise<import('firebase/auth').Auth> {
+  if (firebaseAuth) return firebaseAuth
+
+  const { initializeApp, getApps } = await import('firebase/app')
+  const { getAuth }                = await import('firebase/auth')
+
+  const existing = getApps()[0]
+  firebaseApp = existing ?? initializeApp({
+    apiKey:     firebaseApiKey!,
+    authDomain: firebaseAuthDomain!,
+    projectId:  firebaseProjectId!,
   })
+  firebaseAuth = getAuth(firebaseApp)
+  return firebaseAuth
+}
+
+async function signInWithGoogle(): Promise<{ uid: string; email: string; displayName: string; photoURL: string }> {
+  const { GoogleAuthProvider, signInWithPopup } = await import('firebase/auth')
+  const auth     = await getFirebaseAuth()
+  const provider = new GoogleAuthProvider()
+  provider.addScope('email')
+  provider.addScope('profile')
+  const result = await signInWithPopup(auth, provider)
+  const user   = result.user
+  return {
+    uid:         user.uid,
+    email:       user.email       ?? '',
+    displayName: user.displayName ?? user.email?.split('@')[0] ?? 'User',
+    photoURL:    user.photoURL    ?? '',
+  }
 }
 
 // ── Google icon ───────────────────────────────────────────────────────────────
@@ -125,13 +136,13 @@ function GoogleIcon({ size = 20 }: { size?: number }) {
 // ── Copy address button ───────────────────────────────────────────────────────
 function CopyAddress({ address }: { address: string }) {
   const [copied, setCopied] = useState(false)
-  const copy = () => {
-    void navigator.clipboard.writeText(address)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1800)
-  }
   return (
-    <button onClick={copy}
+    <button
+      onClick={() => {
+        void navigator.clipboard.writeText(address)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1800)
+      }}
       className="flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs transition-all hover:opacity-80"
       style={{ background: 'var(--surface-muted)', color: 'var(--subtle)', border: '1px solid var(--border)' }}>
       {copied ? <CheckCircle2 className="size-3" style={{ color: 'var(--success)' }} /> : <Copy className="size-3" />}
@@ -150,80 +161,47 @@ interface AccountViewProps {
 export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState<string | null>(null)
-  const btnRef                = useRef<HTMLDivElement>(null)
-  const configured            = !!googleClientId
 
-  // ── Handle credential response from GSI ──────────────────────────────────
-  const handleCredential = useCallback(async (response: GsiCredentialResponse) => {
+  const handleGoogleSignIn = useCallback(async () => {
+    if (!firebaseConfigured) return
     setLoading(true); setError(null)
     try {
-      const payload = decodeJwtPayload(response.credential)
-      const sub     = payload.sub
-      const email   = payload.email ?? ''
-      const name    = payload.name ?? email.split('@')[0]
-      const picture = payload.picture ?? ''
+      const { uid, email, displayName, photoURL } = await signInWithGoogle()
 
-      if (!sub) throw new Error('Google sign-in did not return a user ID')
-
-      // Derive deterministic private key — runs in ~200ms
-      const privateKey = await derivePrivateKey(sub)
+      // Derive deterministic wallet (~200ms)
+      const privateKey = await derivePrivateKey(uid)
       const account    = privateKeyToAccount(privateKey)
 
       const sess: AccountSession = {
         address:    account.address,
-        username:   name,
+        username:   displayName,
         email,
-        picture,
+        picture:    photoURL,
         method:     'google',
-        privateKey, // in-memory only — not persisted
+        privateKey, // in-memory only, never persisted
       }
       saveSession(sess)
       onSignedIn(sess)
-      toast.success(`Signed in as ${name}`)
+      toast.success(`Welcome, ${displayName}!`)
     } catch (e) {
-      const msg = (e instanceof Error) ? e.message : String(e)
-      setError(msg)
-      toast.error(msg)
+      const msg = e instanceof Error ? e.message : String(e)
+      // User closed the popup — don't show an error
+      if (msg.includes('popup-closed') || msg.includes('cancelled') || msg.includes('dismissed')) {
+        setError(null)
+      } else {
+        setError(msg)
+        toast.error('Google sign-in failed: ' + msg)
+      }
     } finally {
       setLoading(false)
     }
   }, [onSignedIn])
 
-  // ── Init GSI and render the button ────────────────────────────────────────
-  useEffect(() => {
-    if (!googleClientId || !btnRef.current) return
-    let cancelled = false
-
-    void loadGsi().then(() => {
-      if (cancelled || !btnRef.current || !window.google) return
-      window.google.accounts.id.initialize({
-        client_id: googleClientId,
-        callback: (r) => { void handleCredential(r) },
-        auto_select: false,
-        cancel_on_tap_outside: true,
-      })
-      window.google.accounts.id.renderButton(btnRef.current, {
-        type: 'standard',
-        theme: 'outline',
-        size: 'large',
-        text: 'continue_with',
-        shape: 'rectangular',
-        width: btnRef.current.offsetWidth || 320,
-        logo_alignment: 'left',
-      })
-    }).catch((e: unknown) => {
-      if (!cancelled) setError((e instanceof Error) ? e.message : 'Failed to load Google Sign-In')
-    })
-
-    return () => { cancelled = true }
-  }, [handleCredential])
-
-  const handleSignOut = () => {
+  const handleSignOut = useCallback(() => {
     clearGoogleSession()
-    window.google?.accounts.id.disableAutoSelect()
     onSignOut()
     toast.success('Signed out')
-  }
+  }, [onSignOut])
 
   // ── Signed-in state ───────────────────────────────────────────────────────
   if (session) {
@@ -233,9 +211,12 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
         className="rounded-2xl p-5 flex flex-col gap-4"
         style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow)' }}>
 
+        {/* User info row */}
         <div className="flex items-center gap-3">
           {session.picture
-            ? <img src={session.picture} alt={session.username} className="size-11 rounded-full shrink-0" style={{ outline: '2px solid var(--border)' }} />
+            ? <img src={session.picture} alt={session.username}
+                className="size-11 rounded-full shrink-0"
+                style={{ outline: '2px solid var(--border)', outlineOffset: 1 }} />
             : (
               <div className="size-11 rounded-full flex items-center justify-center shrink-0 text-lg font-bold"
                 style={{ background: 'var(--accent)', color: '#fff' }}>
@@ -247,28 +228,33 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
             <p className="font-semibold text-sm truncate" style={{ color: 'var(--ink)' }}>{session.username}</p>
             {session.email && <p className="text-xs truncate mt-0.5" style={{ color: 'var(--muted)' }}>{session.email}</p>}
           </div>
-          <div className="flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold"
+          <span className="flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold shrink-0"
             style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>
             <ShieldCheck className="size-3" /> Google
-          </div>
+          </span>
         </div>
 
+        {/* Wallet address */}
         <div className="rounded-xl p-3" style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)' }}>
-          <p className="text-[10px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: 'var(--subtle)' }}>Wallet address</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wide mb-1.5" style={{ color: 'var(--subtle)' }}>
+            Wallet address
+          </p>
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-mono truncate flex-1" style={{ color: 'var(--ink-2)' }}>{session.address}</p>
             <CopyAddress address={session.address} />
           </div>
         </div>
 
+        {/* Info */}
         <div className="rounded-xl p-3 flex items-start gap-2"
           style={{ background: 'rgba(59,142,248,0.05)', border: '1px solid rgba(59,142,248,0.12)' }}>
           <ShieldCheck className="size-3.5 shrink-0 mt-0.5" style={{ color: 'var(--accent)' }} />
           <p className="text-xs leading-relaxed" style={{ color: 'var(--muted)' }}>
-            Your wallet is derived from your Google account. Sign in with the same Google account on any device to access the same wallet.
+            Same Google account → same wallet on any device. No seed phrase needed.
           </p>
         </div>
 
+        {/* Sign out */}
         <button onClick={handleSignOut}
           className="w-full rounded-xl py-2.5 text-sm font-semibold flex items-center justify-center gap-2 transition-all hover:opacity-90"
           style={{ background: 'rgba(240,98,146,0.08)', color: 'var(--danger)', border: '1px solid rgba(240,98,146,0.15)' }}>
@@ -278,83 +264,80 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
     )
   }
 
-  // ── Sign-in state ─────────────────────────────────────────────────────────
+  // ── Not configured ────────────────────────────────────────────────────────
+  if (!firebaseConfigured) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+        className="rounded-2xl p-5 flex flex-col gap-3"
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow)' }}>
+
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="size-4 shrink-0" style={{ color: 'var(--warning)' }} />
+          <p className="font-semibold text-sm" style={{ color: 'var(--ink)' }}>Firebase not configured</p>
+        </div>
+
+        <p className="text-xs leading-relaxed" style={{ color: 'var(--muted)' }}>
+          Add these to your <code className="font-mono" style={{ color: 'var(--accent)' }}>.env</code> file:
+        </p>
+
+        <div className="rounded-xl p-3 font-mono text-xs select-all"
+          style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)', color: 'var(--ink-2)', whiteSpace: 'pre' }}>
+{`VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_AUTH_DOMAIN=....firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=...`}
+        </div>
+
+        <ol className="text-xs leading-relaxed list-decimal list-inside flex flex-col gap-1" style={{ color: 'var(--muted)' }}>
+          <li>Go to <a href="https://console.firebase.google.com" target="_blank" rel="noreferrer"
+              className="underline" style={{ color: 'var(--accent)' }}>console.firebase.google.com</a></li>
+          <li>Create a project → Add web app → copy the config</li>
+          <li>Authentication → Sign-in method → Google → Enable</li>
+          <li>Add the 3 values above to your <code className="font-mono">.env</code> and redeploy</li>
+        </ol>
+      </motion.div>
+    )
+  }
+
+  // ── Sign-in button ────────────────────────────────────────────────────────
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-      className="flex flex-col gap-4">
+      className="flex flex-col gap-3">
 
-      {/* Not configured */}
-      {!configured && (
-        <div className="rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow)' }}>
-          <p className="font-semibold text-sm mb-2" style={{ color: 'var(--ink)' }}>Setup required</p>
-          <p className="text-xs leading-relaxed mb-3" style={{ color: 'var(--muted)' }}>
-            Add your Google OAuth Client ID to <code className="font-mono" style={{ color: 'var(--accent)' }}>.env</code>:
-          </p>
-          <div className="rounded-xl p-3 font-mono text-xs select-all mb-3"
-            style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)', color: 'var(--ink-2)' }}>
-            VITE_GOOGLE_CLIENT_ID=your_client_id_here
-          </div>
-          <p className="text-xs leading-relaxed" style={{ color: 'var(--muted)' }}>
-            Get it from{' '}
-            <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer"
-              className="underline" style={{ color: 'var(--accent)' }}>
-              Google Cloud Console
-            </a>
-            {' '}→ APIs &amp; Services → Credentials → OAuth 2.0 Client IDs (Web application).
-            Add <code className="font-mono">fairtab.online</code> to Authorized JavaScript origins.
-          </p>
+      {loading ? (
+        <div className="flex flex-col items-center gap-3 py-6">
+          <Loader2 className="size-7 animate-spin" style={{ color: 'var(--accent)' }} />
+          <p className="text-sm font-medium" style={{ color: 'var(--ink)' }}>Signing you in…</p>
+          <p className="text-xs" style={{ color: 'var(--muted)' }}>A Google pop-up should appear</p>
         </div>
-      )}
-
-      {/* GSI button container */}
-      {configured && (
-        <div className="flex flex-col gap-3">
-          {loading && (
-            <div className="flex items-center justify-center gap-2 py-4">
-              <Loader2 className="size-5 animate-spin" style={{ color: 'var(--accent)' }} />
-              <span className="text-sm" style={{ color: 'var(--muted)' }}>Signing you in…</span>
-            </div>
-          )}
-
-          {!loading && (
-            <>
-              {/* GSI renders its own button into this div */}
-              <div ref={btnRef} className="w-full" style={{ minHeight: 44 }} />
-
-              {/* Fallback manual button in case GSI button doesn't render */}
-              <button
-                onClick={() => {
-                  setError(null)
-                  if (window.google) {
-                    window.google.accounts.id.prompt()
-                  } else {
-                    setError('Google Sign-In not loaded yet. Please try again.')
-                  }
-                }}
-                className="w-full flex items-center justify-center gap-3 rounded-2xl px-5 py-3.5 text-sm font-semibold transition-all hover:scale-[1.01] active:scale-[0.98]"
-                style={{
-                  background: '#fff',
-                  border: '1.5px solid #dadce0',
-                  color: '#3c4043',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-                }}>
-                <GoogleIcon size={20} />
-                Continue with Google
-              </button>
-            </>
-          )}
+      ) : (
+        <>
+          <button
+            onClick={() => { void handleGoogleSignIn() }}
+            className="w-full flex items-center justify-center gap-3 rounded-2xl px-5 py-4 text-sm font-semibold transition-all hover:scale-[1.01] active:scale-[0.98]"
+            style={{
+              background: '#fff',
+              border: '1.5px solid #dadce0',
+              color: '#3c4043',
+              boxShadow: '0 1px 6px rgba(0,0,0,0.10)',
+            }}>
+            <GoogleIcon size={20} />
+            Continue with Google
+          </button>
 
           {error && (
-            <div className="rounded-xl p-3" style={{ background: 'rgba(240,98,146,0.06)', border: '1px solid rgba(240,98,146,0.18)' }}>
-              <p className="text-xs" style={{ color: 'var(--danger)' }}>{error}</p>
+            <div className="rounded-xl p-3 flex items-start gap-2"
+              style={{ background: 'rgba(240,98,146,0.06)', border: '1px solid rgba(240,98,146,0.18)' }}>
+              <AlertTriangle className="size-3.5 shrink-0 mt-0.5" style={{ color: 'var(--danger)' }} />
+              <p className="text-xs leading-relaxed" style={{ color: 'var(--danger)' }}>{error}</p>
             </div>
           )}
 
           <p className="text-xs text-center" style={{ color: 'var(--subtle)' }}>
-            Your wallet is derived from your Google account. No password or seed phrase needed.
+            Your wallet is tied to your Google account — no seed phrase needed.
           </p>
-        </div>
+        </>
       )}
     </motion.div>
   )
