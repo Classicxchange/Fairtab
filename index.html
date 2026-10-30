@@ -12,19 +12,66 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
     />
+    <style>html.no-static #static-landing{display:none}</style>
+    <script>
+      try {
+        var t = localStorage.getItem('fairtab_theme');
+        var d = t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+        var c = document.documentElement.classList;
+        if (d) c.add('dark');
+        if (location.pathname !== '/' || localStorage.getItem('fairtab_circle_session_v1')) c.add('no-static');
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <!-- Built with Arc Studio — https://studio.arc.io -->
     <div id="root">
-      <noscript>
-      <!-- Plain-HTML description for crawlers and visitors without JavaScript. -->
-      <main style="font-family:system-ui,sans-serif;max-width:640px;margin:0 auto;padding:2rem 1.5rem;line-height:1.6">
-        <h1>Fairtab</h1>
-        <p>Fairtab is a household bill splitter on the Arc blockchain. Create a shared bill, let everyone pay their share in USDC, and the payee is paid once the bill is fully funded.</p>
-        <p>You can sign in with Google to identify your account. Fairtab uses your name, email address and profile picture from Google only to show them in the app.</p>
-        <p><a href="/privacy">Privacy Policy</a> &middot; <a href="/terms">Terms of Service</a></p>
-      </main>
-      </noscript>
+      <!-- Static copy of the landing page: visible instantly and readable by crawlers; React replaces it on load. -->
+      <div id="static-landing" class="fixed inset-0 z-50 overflow-y-auto" style="background:var(--bg)">
+        <div class="min-h-dvh flex flex-col" style="background:var(--bg)">
+          <header class="mx-auto w-full max-w-5xl flex items-center justify-between px-5 py-4">
+            <div class="flex items-center gap-3">
+              <img src="/logo.svg" alt="Fairtab" class="size-10 rounded-xl shadow" />
+              <span class="display text-xl font-bold tracking-tight" style="color:var(--ink)">Fairtab</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="flex items-center justify-center rounded-xl" style="width:38px;height:38px;background:var(--surface-strong);border:1px solid var(--border);color:var(--ink-2)"><svg xmlns="http://www.w3.org/2000/svg" class="size-4" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></span>
+              <span class="rounded-xl px-4 py-2 text-sm font-semibold" style="background:var(--accent);color:#fff">Sign in</span>
+            </div>
+          </header>
+          <main class="mx-auto w-full max-w-5xl flex-1 px-5 py-10 md:py-16">
+            <h1 class="display text-4xl md:text-5xl font-bold tracking-tight leading-[1.15]" style="color:var(--ink)">Split bills fairly.<br />Settle in USDC.</h1>
+            <p class="mt-4 max-w-xl text-base md:text-lg leading-relaxed" style="color:var(--muted)">Fairtab is a household bill splitter on the Arc blockchain. Create a shared bill for rent, utilities or anything else, let everyone pay their share in USDC, and the payee is paid once the bill is fully funded.</p>
+            <span class="mt-8 inline-block rounded-2xl px-6 py-3.5 text-base font-semibold" style="background:var(--accent);color:#fff">Get started</span>
+            <div class="mt-14 grid gap-4 md:grid-cols-3">
+            <section class="rounded-2xl p-5" style="background:var(--surface);border:1px solid var(--border)">
+              <div class="size-9 rounded-xl flex items-center justify-center mb-3" style="background:var(--accent)"><svg xmlns="http://www.w3.org/2000/svg" class="size-4 text-white" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+              <h2 class="font-semibold" style="color:var(--ink)">Split with anyone</h2>
+              <p class="mt-1 text-sm leading-relaxed" style="color:var(--muted)">Create a bill, assign each person a fixed or percentage share, and send them a link.</p>
+            </section>
+            <section class="rounded-2xl p-5" style="background:var(--surface);border:1px solid var(--border)">
+              <div class="size-9 rounded-xl flex items-center justify-center mb-3" style="background:var(--accent)"><svg xmlns="http://www.w3.org/2000/svg" class="size-4 text-white" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg></div>
+              <h2 class="font-semibold" style="color:var(--ink)">Pay in USDC</h2>
+              <p class="mt-1 text-sm leading-relaxed" style="color:var(--muted)">Participants pay their exact share and the payee is paid automatically once the bill is fully funded.</p>
+            </section>
+            <section class="rounded-2xl p-5" style="background:var(--surface);border:1px solid var(--border)">
+              <div class="size-9 rounded-xl flex items-center justify-center mb-3" style="background:var(--accent)"><svg xmlns="http://www.w3.org/2000/svg" class="size-4 text-white" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg></div>
+              <h2 class="font-semibold" style="color:var(--ink)">Self-custodial</h2>
+              <p class="mt-1 text-sm leading-relaxed" style="color:var(--muted)">Funds are held by a smart contract on Arc, not by Fairtab. You own your wallet and your keys.</p>
+            </section>
+            </div>
+            <section class="mt-12 max-w-xl">
+              <h2 class="font-semibold" style="color:var(--ink)">How Fairtab uses Google sign-in</h2>
+              <p class="mt-1 text-sm leading-relaxed" style="color:var(--muted)">You can sign in with Google to identify your account. Fairtab receives your name, email address and profile picture from Google only to show them in the app. See the privacy policy for details.</p>
+            </section>
+          </main>
+          <footer class="mx-auto w-full max-w-5xl px-5 py-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm" style="border-top:1px solid var(--border);color:var(--muted)">
+            <span>&copy; 2026 Fairtab</span>
+            <a href="/privacy" class="underline">Privacy Policy</a>
+            <a href="/terms" class="underline">Terms of Service</a>
+          </footer>
+        </div>
+      </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
