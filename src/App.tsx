@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
-import { useNavigate, useLocation, Navigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { restoreCircleSession, clearCredential } from '@/CircleWalletAuth'
 import { type SeedWalletSession, clearSeedWallet, hasSeedWallet, getSeedWalletAddress } from '@/SeedWalletAuth'
 import { type AccountSession, loadGoogleSession, clearGoogleSession, saveSession, isOAuthReturn } from '@/AccountView'
@@ -832,8 +832,17 @@ export default function App() {
 
   // Signed-out visitors at "/" see the public landing page until they choose to sign in.
   const [showSignIn, setShowSignIn] = useState(() => isOAuthReturn())
+  // Signed-in users can open the landing page too (logo click) without being signed out.
   const showLanding =
-    location.pathname === '/' && !showSignIn && !(socialSession && !socialSession.address)
+    location.pathname === '/' && !showSignIn && !(!address && socialSession && !socialSession.address)
+
+  // Once a sign-in finishes, leave the sign-in flow and open the app if still on "/".
+  if (address && showSignIn) setShowSignIn(false)
+  const wasSigningIn = useRef(false)
+  useEffect(() => {
+    if (address && wasSigningIn.current && location.pathname === '/') void navigate('/app', { replace: true })
+    wasSigningIn.current = showSignIn && !address
+  }, [address, showSignIn, location.pathname, navigate])
 
   const count = billCount != null ? Number(billCount) : 0
 
@@ -910,18 +919,14 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* ── Redirect / → /app when signed in ── */}
-      {address && location.pathname === '/' && (
-        <Navigate to="/app" replace />
-      )}
-
       {/* ── Public landing page ── signed-out visitors at "/" (no login needed) ─ */}
-      {!address && redirectChecked && showLanding && (
+      {redirectChecked && showLanding && (
         <div className="fixed inset-0 z-50 overflow-y-auto" style={{ background: 'var(--bg)' }}>
           <LandingPage
             dark={dark}
             onToggleDark={toggleDark}
-            onGetStarted={() => setShowSignIn(true)}
+            signedIn={!!address}
+            onGetStarted={() => { if (address) void navigate('/app'); else setShowSignIn(true) }}
           />
         </div>
       )}
@@ -986,7 +991,7 @@ export default function App() {
           {/* Logo */}
           <button
             type="button"
-            onClick={() => { void navigate(address ? '/app' : '/') }}
+            onClick={() => { void navigate('/') }}
             aria-label="Fairtab home"
             className="flex items-center gap-2 shrink-0 min-w-0 text-left"
           >

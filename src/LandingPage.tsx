@@ -8,6 +8,8 @@ import { Shield, Zap, Users, Sun, Moon } from 'lucide-react'
 
 interface Props {
   onGetStarted: () => void
+  /** True when a wallet is connected: the sign-in buttons become "My account" */
+  signedIn?: boolean
   dark: boolean
   onToggleDark?: () => void
 }
@@ -18,7 +20,7 @@ const FEATURES = [
   { icon: Shield, title: 'Self-custodial',     text: 'Funds are held by a smart contract on Arc, not by Fairtab. You own your wallet and your keys.' },
 ]
 
-export function LandingPage({ onGetStarted, dark, onToggleDark }: Props) {
+export function LandingPage({ onGetStarted, signedIn = false, dark, onToggleDark }: Props) {
   return (
     <div className="min-h-dvh flex flex-col" style={{ background: 'var(--bg)' }}>
       <header className="mx-auto w-full max-w-5xl flex items-center justify-between px-5 py-4">
@@ -43,7 +45,7 @@ export function LandingPage({ onGetStarted, dark, onToggleDark }: Props) {
             className="rounded-xl px-4 py-2 text-sm font-semibold"
             style={{ background: 'var(--accent)', color: '#fff' }}
           >
-            Sign in
+            {signedIn ? 'My account' : 'Sign in'}
           </button>
         </div>
       </header>
@@ -62,7 +64,7 @@ export function LandingPage({ onGetStarted, dark, onToggleDark }: Props) {
           className="mt-8 rounded-2xl px-6 py-3.5 text-base font-semibold"
           style={{ background: 'var(--accent)', color: '#fff' }}
         >
-          Get started
+          {signedIn ? 'Open my app' : 'Get started'}
         </button>
 
         <div className="mt-14 grid gap-4 md:grid-cols-3">
