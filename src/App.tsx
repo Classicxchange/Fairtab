@@ -7,7 +7,7 @@ import { WalletDropdown } from '@/WalletDropdown'
 import { AccountPage, recordSignInTime } from '@/AccountPage'
 import { SignInPage } from '@/SignInPage'
 import { LandingPage } from '@/LandingPage'
-import { circleConnector, setCircleAuth } from '@/circleWallet'
+import { circleConnector, setCircleAuth, onCircleSessionExpired } from '@/circleWallet'
 import { SendPage } from '@/SendPage'
 import { CreateBillPage } from '@/CreateBillPage'
 import { BillDetailPage } from '@/BillDetailPage'
@@ -835,6 +835,18 @@ export default function App() {
   // Signed-in users can open the landing page too (logo click) without being signed out.
   const showLanding =
     location.pathname === '/' && !showSignIn && !(!address && socialSession && !socialSession.address)
+
+  // When the Circle sign-in (about an hour) has expired, sign out and ask the user to sign in again.
+  useEffect(() => {
+    onCircleSessionExpired(() => {
+      toast.error('Your sign-in expired. Please sign in again to keep going. You will get the same wallet.')
+      setSocialSession(null)
+      clearGoogleSession()
+      setShowSignIn(true)
+      void navigate('/', { replace: true })
+    })
+    return () => onCircleSessionExpired(null)
+  }, [navigate])
 
   // Once a sign-in finishes, leave the sign-in flow and open the app if still on "/".
   if (address && showSignIn) setShowSignIn(false)

@@ -49,20 +49,21 @@ export function saveSession(s: StoredSession) {
   localStorage.setItem(SESSION_KEY, JSON.stringify(safe))
 }
 
-// Circle's user token lasts about an hour. Keep it (and the encryption key) only in this
-// browser tab's sessionStorage, so a page refresh does not force a new sign-in.
+// Circle's user token lasts about an hour. Keep it (and the encryption key) in this browser for
+// at most 55 minutes so a refresh or reopening the page does not force a new sign-in.
+// Every transaction still needs the user's PIN.
 const TOKENS_KEY = 'fairtab_circle_tokens_v1'
 const TOKEN_LIFETIME_MS = 55 * 60 * 1000
 
 function saveTokens(address: string, userToken: string, encryptionKey: string) {
   try {
-    sessionStorage.setItem(TOKENS_KEY, JSON.stringify({ address, userToken, encryptionKey, exp: Date.now() + TOKEN_LIFETIME_MS }))
+    localStorage.setItem(TOKENS_KEY, JSON.stringify({ address, userToken, encryptionKey, exp: Date.now() + TOKEN_LIFETIME_MS }))
   } catch { /* ignore */ }
 }
 
 function loadTokens(address: string): { userToken: string; encryptionKey: string } | null {
   try {
-    const raw = sessionStorage.getItem(TOKENS_KEY)
+    const raw = localStorage.getItem(TOKENS_KEY)
     if (!raw) return null
     const t = JSON.parse(raw) as { address: string; userToken: string; encryptionKey: string; exp: number }
     if (t.exp < Date.now() || t.address.toLowerCase() !== address.toLowerCase()) return null
@@ -82,7 +83,7 @@ export function loadGoogleSession(): (StoredSession & { userToken?: string; encr
 
 export function clearGoogleSession() {
   localStorage.removeItem(SESSION_KEY)
-  try { sessionStorage.removeItem(TOKENS_KEY) } catch { /* ignore */ }
+  try { localStorage.removeItem(TOKENS_KEY) } catch { /* ignore */ }
 }
 
 // ── Cookie helpers (deviceToken must survive OAuth page redirect) ─────────────

@@ -625,19 +625,19 @@ export function CreateBillPage({ onClose, onCreated, seedSession, onUpgradeSeedS
                         style={{ background: isCreatorRow ? 'var(--accent)' : 'var(--surface)', color: isCreatorRow ? '#fff' : 'var(--accent)', border: '1px solid var(--border)' }}>
                         {isCreatorRow ? 'You' : i + 1}
                       </div>
-                      <div className="flex-1 py-3 pr-1">
+                      <div className="flex-1 min-w-0 py-3 pr-1">
                         {isCreatorRow ? (
-                          <p className="mono w-full text-xs truncate" style={{ color: 'var(--subtle)' }}>
-                            {row.address}
+                          <p className="mono w-full text-xs truncate" title={row.address} style={{ color: 'var(--subtle)' }}>
+                            {`${row.address.slice(0, 8)}…${row.address.slice(-6)}`}
                           </p>
                         ) : (
                           <input value={row.address} onChange={e => updateRow(i, 'address', e.target.value.trim())}
                             placeholder={`0x… wallet ${i + 1}`}
-                            className="mono w-full bg-transparent text-xs outline-none placeholder:opacity-30"
+                            className="mono w-full min-w-0 bg-transparent text-xs outline-none placeholder:opacity-30"
                             style={{ color: row.address && !isAddress(row.address) ? 'var(--danger)' : 'var(--ink)' }} />
                         )}
                       </div>
-                      <div className="w-28 border-l py-3 px-3" style={{ borderColor: 'var(--border)' }}>
+                      <div className="w-24 sm:w-28 shrink-0 border-l py-3 px-2 sm:px-3" style={{ borderColor: 'var(--border)' }}>
                         <input inputMode="decimal" value={row.value}
                           onChange={e => updateRow(i, 'value', e.target.value.replace(/[^0-9.]/g, ''))}
                           placeholder={usePercentages ? '5000' : '0.00'}

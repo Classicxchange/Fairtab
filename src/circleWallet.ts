@@ -31,6 +31,16 @@ export function setCircleAuth(auth: CircleAuth | null) {
   current = auth
 }
 
+let expiredHandler: (() => void) | null = null
+/** The app registers what to do when the Circle sign-in has expired (sign the user out and ask them to sign in again). */
+export function onCircleSessionExpired(handler: (() => void) | null) {
+  expiredHandler = handler
+}
+function sessionExpired(): Error {
+  expiredHandler?.()
+  return new Error(SESSION_EXPIRED)
+}
+
 const SESSION_EXPIRED =
   'Your Circle sign-in has expired (it lasts about an hour). Sign out and sign in again. You will get the same wallet back.'
 
@@ -55,7 +65,7 @@ interface TxParams {
 async function sendCircleTransaction(tx: TxParams): Promise<`0x${string}`> {
   const auth = current
   if (!auth) throw new Error('No Circle wallet is connected.')
-  if (!auth.userToken || !auth.encryptionKey) throw new Error(SESSION_EXPIRED)
+  if (!auth.userToken || !auth.encryptionKey) throw sessionExpired()
   if (!tx.to) throw new Error('Contract deployment is not supported from a Circle wallet.')
 
   await assertCallWouldSucceed(tx, auth.address)
@@ -78,7 +88,7 @@ async function sendCircleTransaction(tx: TxParams): Promise<`0x${string}`> {
   }
   if (!res.ok || body.error || !body.challengeId || !body.walletId) {
     const msg = body.error ?? 'Could not start the transaction.'
-    throw new Error(/token|expired|401/i.test(msg) ? SESSION_EXPIRED : msg)
+    throw /userToken|expired|401/i.test(msg) ? sessionExpired() : new Error(msg)
   }
 
   // 2. Run the challenge: Circle's window asks the user for their PIN
@@ -92,7 +102,7 @@ async function sendCircleTransaction(tx: TxParams): Promise<`0x${string}`> {
       }
       const status = (result as { status?: string } | undefined)?.status
       if (status === 'FAILED' || status === 'EXPIRED') {
-        reject(new Error(status === 'EXPIRED' ? SESSION_EXPIRED : 'Circle could not confirm your PIN. Please try again.'))
+        reject(status === 'EXPIRED' ? sessionExpired() : new Error('Circle could not confirm your PIN. Please try again.'))
         return
       }
       resolve()
