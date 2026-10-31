@@ -119,7 +119,7 @@ export function CreateBillPage({ onClose, onCreated, seedSession, onUpgradeSeedS
   const [step, setStep] = useState<1 | 2 | 3>(draft?.step ?? 1)
   const [billLabel, setBillLabel] = useState(draft?.billLabel ?? '')
   const [selectedCategory, setSelectedCategory] = useState(draft?.selectedCategory ?? '')
-  const [payee, setPayee] = useState(draft?.payee ?? '')
+  const [payee, setPayee] = useState((draft?.payee ?? '').trim())
   const [totalAmount, setTotalAmount] = useState(draft?.totalAmount ?? '')
   const [usePercentages, setUsePercentages] = useState(draft?.usePercentages ?? false)
   const [deadline, setDeadline] = useState(draft?.deadline ?? '')
@@ -130,8 +130,9 @@ export function CreateBillPage({ onClose, onCreated, seedSession, onUpgradeSeedS
   // Derive effective rows: always inject creator address into row 0 if still blank
   // This avoids setState-in-effect; address is stable once connected
   const effectiveRows = useMemo(() => {
-    if (!address || rows[0]?.address) return rows
-    return rows.map((r, i) => i === 0 ? { ...r, address } : r)
+    const clean = rows.map(r => ({ ...r, address: r.address.trim() }))
+    if (!address || clean[0]?.address) return clean
+    return clean.map((r, i) => i === 0 ? { ...r, address } : r)
   }, [rows, address])
   // Mirror contract: cancelThreshold >= ceil(participants * 51/100), minimum 1
   const minCancelThreshold = Math.max(1, Math.ceil(rows.length * 51 / 100))
@@ -257,7 +258,6 @@ export function CreateBillPage({ onClose, onCreated, seedSession, onUpgradeSeedS
 
   // Step validation
   const step1Valid = billLabel.length > 0 && totalAmount !== '' && parseFloat(totalAmount) > 0
-  const step2Valid = isAddress(payee) && effectiveRows.every(r => isAddress(r.address)) && effectiveRows.every(r => r.value !== '')
   const dec = usdcDecimalsFor(CHAIN_ID)
   const totalRaw = useMemo(() => {
     try { return parseUnits(parseFloat(totalAmount || '0').toFixed(dec), dec) } catch { return 0n }
@@ -273,6 +273,19 @@ export function CreateBillPage({ onClose, onCreated, seedSession, onUpgradeSeedS
   }, [effectiveRows, usePercentages, dec])
   const allocationMatch = !allocatedRaw || allocatedRaw === totalRaw
   const totalBps = usePercentages ? effectiveRows.reduce((s, r) => s + parseFloat(r.value || '0'), 0) : 0
+
+  // What still blocks the "Review bill" button, shown to the user instead of a silent disabled button
+  const step2Problems: string[] = []
+  if (!isAddress(payee)) step2Problems.push(payee ? 'The payee address is not a valid wallet address' : 'Enter the payee address')
+  effectiveRows.forEach((r, i) => {
+    if (!isAddress(r.address)) step2Problems.push(r.address ? `Participant ${i + 1}: not a valid wallet address` : `Participant ${i + 1}: enter a wallet address`)
+    else if (r.value === '') step2Problems.push(`Participant ${i + 1}: enter ${usePercentages ? 'a share' : 'an amount'}`)
+  })
+  if (effectiveRows.length > 0 && effectiveRows.every(r => isAddress(r.address) && r.value !== '')) {
+    if (!usePercentages && !allocationMatch) step2Problems.push("The amounts don't add up to the total")
+    if (usePercentages && totalBps !== 10000) step2Problems.push('Shares must add up to 10 000 bps (100%)')
+  }
+  const step2Valid = step2Problems.length === 0
 
   // ── Success state ──────────────────────────────────────────────────────────
   if (isSuccess) {
@@ -575,7 +588,7 @@ export function CreateBillPage({ onClose, onCreated, seedSession, onUpgradeSeedS
                 <div className="px-4 py-4">
                   <p className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: 'var(--muted)' }}>Payee address</p>
                   <p className="text-xs mb-3" style={{ color: 'var(--subtle)' }}>The wallet that receives all payments (e.g. landlord)</p>
-                  <input value={payee} onChange={e => setPayee(e.target.value)}
+                  <input value={payee} onChange={e => setPayee(e.target.value.trim())}
                     placeholder="0x… landlord or payee"
                     className="mono w-full bg-transparent text-sm outline-none placeholder:opacity-30"
                     style={{ color: payee && !isAddress(payee) ? 'var(--danger)' : 'var(--ink)' }} />
@@ -618,7 +631,7 @@ export function CreateBillPage({ onClose, onCreated, seedSession, onUpgradeSeedS
                             {row.address}
                           </p>
                         ) : (
-                          <input value={row.address} onChange={e => updateRow(i, 'address', e.target.value)}
+                          <input value={row.address} onChange={e => updateRow(i, 'address', e.target.value.trim())}
                             placeholder={`0x… wallet ${i + 1}`}
                             className="mono w-full bg-transparent text-xs outline-none placeholder:opacity-30"
                             style={{ color: row.address && !isAddress(row.address) ? 'var(--danger)' : 'var(--ink)' }} />
@@ -798,7 +811,14 @@ export function CreateBillPage({ onClose, onCreated, seedSession, onUpgradeSeedS
 
       {/* Footer nav */}
       {step < 3 && (
-        <div className="px-4 py-4 shrink-0" style={{ borderTop: '1px solid var(--border)' }}>
+        <div className="px-4 py-4 shrink-0 flex flex-col gap-2.5" style={{ borderTop: '1px solid var(--border)' }}>
+          {step === 2 && step2Problems.length > 0 && (
+            <ul className="text-xs flex flex-col gap-1" style={{ color: 'var(--danger)' }}>
+              {step2Problems.slice(0, 3).map(p => (
+                <li key={p} className="flex items-center gap-1.5"><AlertTriangle className="size-3 shrink-0" /> {p}</li>
+              ))}
+            </ul>
+          )}
           <button
             onClick={() => setStep(s => (s + 1) as 1|2|3)}
             disabled={(step === 1 && !step1Valid) || (step === 2 && !step2Valid)}
