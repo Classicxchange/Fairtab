@@ -231,7 +231,10 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
         const onLoginComplete = (_err: unknown, result: unknown) => {
           if (cancelled) return
           if (_err) {
-            setError('Login failed: ' + ((_err as Error).message ?? 'Unknown'))
+            const msg = (_err as Error).message ?? 'Unknown'
+            // A stale device id: forget it so the next attempt starts fresh.
+            if (/device id/i.test(msg)) { delCookie('fairtab_did'); delCookie('fairtab_dt'); delCookie('fairtab_dek') }
+            setError('Login failed: ' + msg + (/device id/i.test(msg) ? '. Please try signing in again.' : ''))
             setStep('choose')
             return
           }
@@ -280,7 +283,10 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
     if (!sdk || !circleAppId || !googleClientId) return
     setStep('loading'); setLoadMsg('Connecting to Google…'); setError(null)
     try {
-      const deviceId = getCookie('fairtab_did') || await sdk.getDeviceId()
+      // Always ask Circle for the live device id: a saved one can be stale (cleared
+      // browser storage, new browser profile) and Circle then reports it as not found.
+      const deviceId = await sdk.getDeviceId()
+      setCookie('fairtab_did', deviceId, 30)
       const dtRes = await fetch('/api/wallet/device-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -333,7 +339,10 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
     if (!sdk || !circleAppId || !email.trim()) return
     setStep('loading'); setLoadMsg('Sending OTP to ' + email + '…'); setError(null)
     try {
-      const deviceId = getCookie('fairtab_did') || await sdk.getDeviceId()
+      // Always ask Circle for the live device id: a saved one can be stale (cleared
+      // browser storage, new browser profile) and Circle then reports it as not found.
+      const deviceId = await sdk.getDeviceId()
+      setCookie('fairtab_did', deviceId, 30)
       const res = await fetch('/api/wallet/request-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
