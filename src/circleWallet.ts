@@ -136,9 +136,26 @@ async function rpc(method: string, params: unknown[] | undefined) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params: params ?? [] }),
   })
-  const json = await res.json() as { result?: unknown; error?: { message: string; code: number } }
-  if (json.error) throw new Error(json.error.message)
+  const json = await res.json() as { result?: unknown; error?: { message: string; code: number; data?: unknown } }
+  if (json.error) {
+    // Keep the revert data: it carries the contract's error name and reason.
+    const data = typeof json.error.data === 'string' ? json.error.data : ''
+    throw new Error(data ? `${json.error.message} ${data}` : json.error.message)
+  }
   return json.result
+}
+
+const REASONS: Record<string, string> = {
+  'duplicate participant': 'The same wallet address is listed twice. Each participant must be different.',
+  'sum(amounts) must equal totalAmount': 'The participant amounts must add up to the total bill amount.',
+  'sum(percentages) must equal 10000': 'The shares must add up to 10 000 bps (100%).',
+  'bad threshold': 'The cancel votes setting is too high or too low for the number of participants.',
+  'threshold below minimum majority': 'The cancel votes setting is too low. More than half of the participants must be needed to cancel.',
+  'invalid payee: precompile': 'That payee address is not a normal wallet address.',
+  'too many participants': 'Too many participants (the maximum is 20).',
+  'participants/amounts length mismatch': 'Each participant needs an amount.',
+  'totalAmount must be > 0': 'The total amount must be more than zero.',
+  'percentage out of range': 'A share is above 10 000 bps (100%).',
 }
 
 /** Dry-runs the call so a call that would revert shows a readable reason instead of failing after the PIN. */
@@ -154,12 +171,14 @@ async function assertCallWouldSucceed(tx: TxParams, from: string) {
           abi: [...(artifact.abi as never[]), ...erc20Abi],
           data: hex as `0x${string}`,
         })
-        throw new Error(`The contract would reject this: ${decoded.errorName}`)
+        const reason = typeof decoded.args?.[0] === 'string' ? decoded.args[0] : ''
+        throw new Error(`Cannot create this: ${REASONS[reason] ?? (reason || decoded.errorName)}`)
       } catch (inner) {
-        if (inner instanceof Error && inner.message.startsWith('The contract would')) throw inner
+        if (inner instanceof Error && inner.message.startsWith('Cannot create this')) throw inner
       }
     }
-    throw new Error(`The contract would reject this: ${raw.replace(/^execution reverted:?\s*/i, '').slice(0, 120) || 'execution reverted'}`)
+    const plain = raw.replace(/^execution reverted:?\s*/i, '').replace(/0x[0-9a-fA-F]+/g, '').trim()
+    throw new Error(`Cannot send this: the contract refused it${plain ? ` (${plain.slice(0, 100)})` : ''}. Check the bill details.`)
   }
 }
 

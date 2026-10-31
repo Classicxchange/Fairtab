@@ -281,6 +281,8 @@ export function CreateBillPage({ onClose, onCreated, seedSession, onUpgradeSeedS
     if (!isAddress(r.address)) step2Problems.push(r.address ? `Participant ${i + 1}: not a valid wallet address` : `Participant ${i + 1}: enter a wallet address`)
     else if (r.value === '') step2Problems.push(`Participant ${i + 1}: enter ${usePercentages ? 'a share' : 'an amount'}`)
   })
+  const lowered = effectiveRows.map(r => r.address.toLowerCase()).filter(a => a)
+  if (new Set(lowered).size !== lowered.length) step2Problems.push('The same wallet address is listed twice')
   if (effectiveRows.length > 0 && effectiveRows.every(r => isAddress(r.address) && r.value !== '')) {
     if (!usePercentages && !allocationMatch) step2Problems.push("The amounts don't add up to the total")
     if (usePercentages && totalBps !== 10000) step2Problems.push('Shares must add up to 10 000 bps (100%)')
