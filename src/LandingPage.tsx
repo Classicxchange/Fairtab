@@ -22,10 +22,11 @@ export function LandingPage({ onGetStarted, dark, onToggleDark }: Props) {
   return (
     <div className="min-h-dvh flex flex-col" style={{ background: 'var(--bg)' }}>
       <header className="mx-auto w-full max-w-5xl flex items-center justify-between px-5 py-4">
-        <div className="flex items-center gap-3">
+        <button type="button" onClick={e => e.currentTarget.closest<HTMLElement>('.fixed')?.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="Fairtab home"
+          className="flex items-center gap-3 text-left">
           <img src="/logo.svg" alt="Fairtab" className="size-10 rounded-xl shadow" />
           <span className="display text-xl font-bold tracking-tight" style={{ color: 'var(--ink)' }}>Fairtab</span>
-        </div>
+        </button>
         <div className="flex items-center gap-2">
           {onToggleDark && (
             <button

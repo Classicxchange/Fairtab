@@ -28,6 +28,8 @@ interface Props {
   onSignOut: () => void
   dark: boolean
   onToggleDark?: () => void
+  /** Logo click: return to the public landing page */
+  onBackToLanding?: () => void
   /** Pre-filled Google identity from a redirect — skips straight to wallet onboarding */
   initialGoogleIdentity?: AccountSession | null
 }
@@ -48,7 +50,7 @@ type View = 'main' | 'google' | 'google-wallet' | 'seed'
 
 export function SignInPage({
   onSeedSignedIn, onSocialSignedIn, onSignOut,
-  dark, onToggleDark, initialGoogleIdentity,
+  dark, onToggleDark, onBackToLanding, initialGoogleIdentity,
 }: Props) {
   // Identity session from step 1 (Google) — used to scope wallet storage
   const [googleIdentity, setGoogleIdentity] = useState<AccountSession | null>(
@@ -92,13 +94,14 @@ export function SignInPage({
         <div className="absolute bottom-0 -left-20 size-64 rounded-full pointer-events-none"
           style={{ background: 'rgba(96,165,250,0.15)', filter: 'blur(70px)' }} />
 
-        <div className="relative flex items-center gap-3 z-10">
+        <button type="button" onClick={onBackToLanding} aria-label="Back to the Fairtab home page"
+          className="relative flex items-center gap-3 z-10 text-left self-start">
           <img src="/logo.svg" alt="Fairtab" className="size-12 rounded-2xl shadow-lg" />
           <div>
             <p className="display text-2xl font-bold text-white tracking-tight">Fairtab</p>
             <p className="text-sm text-blue-300">powered by Arc</p>
           </div>
-        </div>
+        </button>
 
         <div className="relative z-10 flex flex-col gap-8">
           <div>
@@ -142,13 +145,14 @@ export function SignInPage({
         )}
 
         {/* Mobile logo */}
-        <div className="md:hidden flex items-center gap-3 mb-10 self-start">
+        <button type="button" onClick={onBackToLanding} aria-label="Back to the Fairtab home page"
+          className="md:hidden flex items-center gap-3 mb-10 self-start text-left">
           <img src="/logo.svg" alt="Fairtab" className="size-10 rounded-xl shadow" />
           <div>
             <p className="display text-xl font-bold tracking-tight" style={{ color: 'var(--ink)' }}>Fairtab</p>
             <p className="text-xs" style={{ color: 'var(--subtle)' }}>powered by Arc</p>
           </div>
-        </div>
+        </button>
 
         <AnimatePresence mode="wait">
 

@@ -941,6 +941,7 @@ export default function App() {
             <SignInPage
               dark={dark}
               onToggleDark={toggleDark}
+              onBackToLanding={() => { setShowSignIn(false); void navigate('/', { replace: true }) }}
               initialGoogleIdentity={
                 // After a redirect, socialSession has address='' — pass it as
                 // the pre-filled identity so the wallet onboarding step appears
@@ -983,13 +984,18 @@ export default function App() {
         }}>
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 gap-2">
           {/* Logo */}
-          <div className="flex items-center gap-2 shrink-0 min-w-0">
+          <button
+            type="button"
+            onClick={() => { void navigate(address ? '/app' : '/') }}
+            aria-label="Fairtab home"
+            className="flex items-center gap-2 shrink-0 min-w-0 text-left"
+          >
             <img src="/logo.svg" alt="Fairtab" className="size-8 shrink-0 rounded-xl" />
             <div className="hidden xs:block">
               <span className="display text-sm font-bold leading-none tracking-tight" style={{ color: 'var(--ink)' }}>Fairtab</span>
               <p className="text-[10px] leading-none mt-0.5 hidden sm:block" style={{ color: 'var(--subtle)' }}>powered by Arc</p>
             </div>
-          </div>
+          </button>
 
           {/* Right controls */}
           <div className="flex items-center gap-1.5 min-w-0">
