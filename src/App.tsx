@@ -17,10 +17,9 @@ import {
   useConnect,
   useConfig,
   useReadContract,
-  useReadContracts,
 } from 'wagmi'
-import { disconnect as disconnectWallet } from 'wagmi/actions'
-import { useQueryClient } from '@tanstack/react-query'
+import { disconnect as disconnectWallet, readContracts } from 'wagmi/actions'
+import { useQueryClient, useQueries } from '@tanstack/react-query'
 import { ConnectKitButton } from 'connectkit'
 import { erc20Abi } from 'viem'
 import { arcChain, IS_MAINNET } from '@/config'
@@ -888,30 +887,37 @@ export default function App() {
   const PAGE_SIZE = 5
   const [page, setPage] = useState(0)
   const allIds = useMemo(() => Array.from({ length: count }, (_, i) => BigInt(i)).reverse(), [count])
-  const membership = useReadContracts({
-    contracts: (address
-      ? allIds.flatMap(id => [
+  // One cached lookup per bill: bills you already know stay on screen while a new one loads,
+  // so a freshly created bill appears next to your older ones straight away.
+  const membershipQueries = useQueries({
+    queries: allIds.map(id => ({
+      queryKey: ['fairtab-membership', CONTRACT_ADDRESS, address ?? '', id.toString()],
+      enabled: !!address,
+      queryFn: () => readContracts(wagmiConfig, {
+        contracts: [
           { address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getBill', args: [id], chainId: CHAIN_ID },
           { address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getShares', args: [id], chainId: CHAIN_ID },
-          { address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getParticipantStatus', args: [id, address], chainId: CHAIN_ID },
-        ])
-      : []) as never,
-    query: { enabled: !!address && count > 0 },
+          { address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getParticipantStatus', args: [id, address!], chainId: CHAIN_ID },
+        ] as never,
+      }),
+      retry: 3,
+      staleTime: 5_000,
+    })),
   })
-  const membershipData = membership.data as Array<{ result?: unknown }> | undefined
-  const membershipLoading = !!address && count > 0 && !membershipData
-  const myIds = useMemo(() => {
-    if (!membershipData || !address) return []
+  const membershipLoading = !!address && count > 0 && membershipQueries.some(q => q.isPending)
+  const myIds = (() => {
+    if (!address) return []
     const me = address.toLowerCase()
     return allIds.filter((_, i) => {
-      const bill = membershipData[i * 3]?.result as [`0x${string}`, `0x${string}`, bigint, bigint, number] | undefined
-      const shares = membershipData[i * 3 + 1]?.result as Array<{ participant: string }> | undefined
+      const r = membershipQueries[i]?.data as Array<{ result?: unknown }> | undefined
+      const bill = r?.[0]?.result as [`0x${string}`, `0x${string}`, bigint, bigint, number] | undefined
+      const shares = r?.[1]?.result as Array<{ participant: string }> | undefined
       if (!bill || !shares) return false
       const isCreator = bill[0].toLowerCase() === me
       const isPayee = bill[1].toLowerCase() === me
       const isParticipant = shares.some(sh => sh.participant.toLowerCase() === me)
       if (!isCreator && !isPayee && !isParticipant) return false
-      const myStatus = membershipData[i * 3 + 2]?.result as number | undefined
+      const myStatus = r?.[2]?.result as number | undefined
       const isPending = myStatus === 0 && isParticipant && !isCreator
       const isDone = bill[4] === 1 || bill[4] === 2
       if (filter === 'invites') return isPending
@@ -921,7 +927,7 @@ export default function App() {
       if (filter === 'done') return isDone
       return true
     })
-  }, [membershipData, address, allIds, filter])
+  })()
   const pageCount = Math.max(1, Math.ceil(myIds.length / PAGE_SIZE))
   const safePage = Math.min(page, pageCount - 1)
   const ids = myIds.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE)

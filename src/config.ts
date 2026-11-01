@@ -35,6 +35,7 @@ export const arcTestnetChain = defineChain({
     default: { name: 'ArcScan', url: 'https://explorer.testnet.arc.io' },
   },
   testnet: true,
+  contracts: { multicall3: { address: '0xcA11bde05977b3631167028862bE2a173976CA11' } },
 })
 
 export const arcMainnetChain = defineChain({
@@ -47,6 +48,7 @@ export const arcMainnetChain = defineChain({
   blockExplorers: {
     default: { name: 'ArcScan', url: 'https://explorer.arc.io' },
   },
+  contracts: { multicall3: { address: '0xcA11bde05977b3631167028862bE2a173976CA11' } },
 })
 
 // ─── Active network ───────────────────────────────────────────────────────────
