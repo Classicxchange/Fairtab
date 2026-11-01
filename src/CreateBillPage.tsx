@@ -88,6 +88,8 @@ const BILL_CATEGORIES: { icon: React.ElementType; label: string; color: string }
 interface Props {
   onClose: () => void
   onCreated: () => void
+  /** Called the moment the bill is confirmed onchain, so the lists can refresh behind the success screen */
+  onSuccess?: () => void
   seedSession?: SeedWalletSession | null
   /** Called when the user successfully unlocks their wallet mid-flow */
   onUpgradeSeedSession?: (upgraded: SeedWalletSession) => void
@@ -119,7 +121,7 @@ function saveDraft(d: BillDraft) {
 }
 function clearDraft() { localStorage.removeItem(DRAFT_KEY) }
 
-export function CreateBillPage({ onClose, onCreated, seedSession, onUpgradeSeedSession, googleUid }: Props) {
+export function CreateBillPage({ onClose, onCreated, onSuccess, seedSession, onUpgradeSeedSession, googleUid }: Props) {
   const { address: wagmiAddress, chainId } = useAccount()
   const { switchChain } = useSwitchChain()
   // Only flag wrong chain when a wagmi wallet is connected — seed/Circle wallets
@@ -181,6 +183,11 @@ export function CreateBillPage({ onClose, onCreated, seedSession, onUpgradeSeedS
   const isSuccess = seedSuccess || wagmiSuccess
   const isError = wagmiIsError || !!seedError
   const error = wagmiError ?? (seedError ? new Error(seedError) : null)
+  // Tell the app as soon as the bill is confirmed, not only when the success screen is dismissed
+  useEffect(() => {
+    if (isSuccess) onSuccess?.()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSuccess])
   const reset = () => { wagmiReset(); setSeedHash(null); setSeedSuccess(false); setSeedError(null); clearDraft() }
 
   const addRow = () => setRows(r => {

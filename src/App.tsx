@@ -756,6 +756,7 @@ export default function App() {
 
   const { data: billCount, refetch: refetchCount } = useReadContract({
     address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'billCount', chainId: CHAIN_ID,
+    query: { refetchInterval: 10_000 },
   })
 
   const [showCreate, setShowCreate] = useState(false)
@@ -902,6 +903,7 @@ export default function App() {
       }),
       retry: 3,
       staleTime: 5_000,
+      refetchInterval: 30_000,
     })),
   })
   const membershipLoading = !!address && count > 0 && membershipQueries.some(q => q.isPending)
@@ -931,6 +933,18 @@ export default function App() {
   const pageCount = Math.max(1, Math.ceil(myIds.length / PAGE_SIZE))
   const safePage = Math.min(page, pageCount - 1)
   const ids = myIds.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE)
+  // After a bill is created: wait for the new bill count to show up, then refresh every list.
+  const countRef = useRef(0)
+  useEffect(() => { countRef.current = count }, [count])
+  const refreshAfterCreate = useCallback(async () => {
+    const before = countRef.current
+    for (let i = 0; i < 12; i++) {
+      const r = await refetchCount()
+      if (Number(r.data ?? 0) > before) break
+      await new Promise<void>(resolve => setTimeout(resolve, 1500))
+    }
+    await queryClient.invalidateQueries()
+  }, [refetchCount, queryClient])
   const refetch = useCallback(() => {
     void refetchCount()
     void queryClient.invalidateQueries()
@@ -1447,10 +1461,10 @@ export default function App() {
         {showCreate && (
           <CreateBillPage
             onClose={() => setShowCreate(false)}
+            onSuccess={() => { void refreshAfterCreate() }}
             onCreated={() => {
               setShowCreate(false)
-              // Force full query invalidation so the new bill appears immediately
-              void refetchCount().then(() => queryClient.invalidateQueries())
+              void refreshAfterCreate()
             }}
             seedSession={seedSession}
             googleUid={socialSession?.googleUid}
