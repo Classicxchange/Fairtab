@@ -17,6 +17,7 @@ import {
   useConnect,
   useConfig,
   useReadContract,
+  useReadContracts,
 } from 'wagmi'
 import { disconnect as disconnectWallet } from 'wagmi/actions'
 import { useQueryClient } from '@tanstack/react-query'
@@ -882,11 +883,48 @@ export default function App() {
     if (node) setTimeout(() => node.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300)
   }, [])
 
-  const PAGE_SIZE = 10
+  // Pages are built from the bills this wallet is actually part of (not every bill on the
+  // contract), so a single bill never shows "Page 1 of 2". Five bills per page.
+  const PAGE_SIZE = 5
   const [page, setPage] = useState(0)
-  const allIds = Array.from({ length: count }, (_, i) => BigInt(i)).reverse()
-  const pageCount = Math.max(1, Math.ceil(allIds.length / PAGE_SIZE))
-  const ids = allIds.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE)
+  const allIds = useMemo(() => Array.from({ length: count }, (_, i) => BigInt(i)).reverse(), [count])
+  const membership = useReadContracts({
+    contracts: (address
+      ? allIds.flatMap(id => [
+          { address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getBill', args: [id], chainId: CHAIN_ID },
+          { address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getShares', args: [id], chainId: CHAIN_ID },
+          { address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getParticipantStatus', args: [id, address], chainId: CHAIN_ID },
+        ])
+      : []) as never,
+    query: { enabled: !!address && count > 0 },
+  })
+  const membershipData = membership.data as Array<{ result?: unknown }> | undefined
+  const membershipLoading = !!address && count > 0 && !membershipData
+  const myIds = useMemo(() => {
+    if (!membershipData || !address) return []
+    const me = address.toLowerCase()
+    return allIds.filter((_, i) => {
+      const bill = membershipData[i * 3]?.result as [`0x${string}`, `0x${string}`, bigint, bigint, number] | undefined
+      const shares = membershipData[i * 3 + 1]?.result as Array<{ participant: string }> | undefined
+      if (!bill || !shares) return false
+      const isCreator = bill[0].toLowerCase() === me
+      const isPayee = bill[1].toLowerCase() === me
+      const isParticipant = shares.some(sh => sh.participant.toLowerCase() === me)
+      if (!isCreator && !isPayee && !isParticipant) return false
+      const myStatus = membershipData[i * 3 + 2]?.result as number | undefined
+      const isPending = myStatus === 0 && isParticipant && !isCreator
+      const isDone = bill[4] === 1 || bill[4] === 2
+      if (filter === 'invites') return isPending
+      if (isPending) return false
+      if (filter === 'created') return isCreator
+      if (filter === 'owe') return isParticipant && !isDone
+      if (filter === 'done') return isDone
+      return true
+    })
+  }, [membershipData, address, allIds, filter])
+  const pageCount = Math.max(1, Math.ceil(myIds.length / PAGE_SIZE))
+  const safePage = Math.min(page, pageCount - 1)
+  const ids = myIds.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE)
   const refetch = useCallback(() => {
     void refetchCount()
     void queryClient.invalidateQueries()
@@ -1302,6 +1340,14 @@ export default function App() {
                         className="overflow-hidden rounded-2xl"
                         style={{ background: 'var(--surface)', boxShadow: 'var(--shadow)' }}
                         initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+                        {membershipLoading && (
+                          <div className="h-16 animate-pulse" style={{ background: 'var(--surface-muted)' }} />
+                        )}
+                        {!membershipLoading && ids.length === 0 && (
+                          <p className="px-4 py-8 text-center text-sm" style={{ color: 'var(--muted)' }}>
+                            {filter === 'invites' ? 'No pending invites.' : 'No bills here yet.'}
+                          </p>
+                        )}
                         {ids.map((id, i) => (
                           <div key={id.toString()}
                             ref={deepLinkBillId === id ? deepLinkRef : undefined}
@@ -1321,18 +1367,18 @@ export default function App() {
                       {pageCount > 1 && (
                         <div className="flex items-center justify-between pt-2">
                           <button
-                            onClick={() => setPage(p => Math.max(0, p - 1))}
-                            disabled={page === 0}
+                            onClick={() => setPage(Math.max(0, safePage - 1))}
+                            disabled={safePage === 0}
                             className="flex items-center gap-1.5 rounded-2xl px-4 py-2 text-xs font-semibold transition-all disabled:opacity-30 hover:scale-105 active:scale-95"
                             style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--ink-2)' }}>
                             <ChevronLeft className="size-3.5" /> Prev
                           </button>
                           <span className="text-xs font-medium" style={{ color: 'var(--muted)' }}>
-                            Page {page + 1} of {pageCount}
+                            Page {safePage + 1} of {pageCount}
                           </span>
                           <button
-                            onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}
-                            disabled={page >= pageCount - 1}
+                            onClick={() => setPage(Math.min(pageCount - 1, safePage + 1))}
+                            disabled={safePage >= pageCount - 1}
                             className="flex items-center gap-1.5 rounded-2xl px-4 py-2 text-xs font-semibold transition-all disabled:opacity-30 hover:scale-105 active:scale-95"
                             style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--ink-2)' }}>
                             Next <ChevronRight className="size-3.5" />
