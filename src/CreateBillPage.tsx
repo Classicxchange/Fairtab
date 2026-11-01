@@ -16,11 +16,13 @@ import {
   Plus, XCircle, CheckCircle2, Loader2, ExternalLink, Tag, Users,
   ArrowLeft, ArrowRight, RefreshCw, Calendar, Shield, AlertTriangle,
   ChevronDown, ChevronUp,
-  Home, Zap, Wifi, ShoppingCart, Car, Lightbulb,
-  Dumbbell, UtensilsCrossed, Plane, Package,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { siNetflix, siSpotify } from 'simple-icons'
+import {
+  HomeIcon, BoltIcon, WifiSignalIcon, CartIcon, CarIcon,
+  BulbIcon, DumbbellIcon, CutleryIcon, PlaneIcon, ParcelIcon,
+} from '@/CategoryIcons'
 import { buildTxExplorerUrl } from '@/onchain-facts'
 import { usdcDecimalsFor } from '@/onchain-money'
 import { arcChain } from '@/config'
@@ -69,18 +71,18 @@ const NetflixIcon = brandIcon(siNetflix.path)
 const SpotifyIcon = brandIcon(siSpotify.path)
 
 const BILL_CATEGORIES: { icon: React.ElementType; label: string; color: string }[] = [
-  { icon: Home,            label: 'Rent',        color: '#6366f1' },
-  { icon: Zap,             label: 'Electricity', color: '#f59e0b' },
-  { icon: Wifi,            label: 'Internet',    color: '#3b82f6' },
-  { icon: NetflixIcon,     label: 'Netflix',     color: `#${siNetflix.hex}` },
-  { icon: ShoppingCart,    label: 'Groceries',   color: '#10b981' },
-  { icon: Car,             label: 'Car / Gas',   color: '#f97316' },
-  { icon: Lightbulb,       label: 'Utilities',   color: '#eab308' },
-  { icon: SpotifyIcon,     label: 'Spotify',     color: `#${siSpotify.hex}` },
-  { icon: Dumbbell,        label: 'Gym',         color: '#8b5cf6' },
-  { icon: UtensilsCrossed, label: 'Dining',      color: '#ec4899' },
-  { icon: Plane,           label: 'Travel',      color: '#0ea5e9' },
-  { icon: Package,         label: 'Other',       color: '#94a3b8' },
+  { icon: HomeIcon, label: 'Rent', color: '#6366f1' },
+  { icon: BoltIcon, label: 'Electricity', color: '#f59e0b' },
+  { icon: WifiSignalIcon, label: 'Internet', color: '#3b82f6' },
+  { icon: NetflixIcon, label: 'Netflix', color: `#${siNetflix.hex}` },
+  { icon: CartIcon, label: 'Groceries', color: '#10b981' },
+  { icon: CarIcon, label: 'Car / Gas', color: '#f97316' },
+  { icon: BulbIcon, label: 'Utilities', color: '#eab308' },
+  { icon: SpotifyIcon, label: 'Spotify', color: `#${siSpotify.hex}` },
+  { icon: DumbbellIcon, label: 'Gym', color: '#8b5cf6' },
+  { icon: CutleryIcon, label: 'Dining', color: '#ec4899' },
+  { icon: PlaneIcon, label: 'Travel', color: '#0ea5e9' },
+  { icon: ParcelIcon, label: 'Other', color: '#94a3b8' },
 ]
 
 interface Props {
