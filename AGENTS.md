@@ -29,6 +29,10 @@ A USDC-based household bill splitter. One person creates a bill with a total amo
 | HouseholdBillSplitter v11 (mainnet, superseded) | Arc Mainnet | 0x8cd4db9811d7beda48f18c34e92f0eb5baa9dfb2 | https://explorer.arc.io/address/0x8cd4db9811d7beda48f18c34e92f0eb5baa9dfb2 |
 | HouseholdBillSplitter v12 (mainnet, ACTIVE — full invite/consent system: acceptInvite, rejectInvite, expireInvite, getParticipantStatus, 24h INVITE_EXPIRY, deployed via admin panel) | Arc Mainnet | 0xcd1dcf79d9bbf3246a21da10aecabde66fb47d08 | https://explorer.arc.io/address/0xcd1dcf79d9bbf3246a21da10aecabde66fb47d08 |
 
+| FairID (name registry, separate contract) | Arc Testnet | 0xca6b7fea9e936c793e63d0a7aab1f46e55b3d53c | https://explorer.testnet.arc.io/address/0xca6b7fea9e936c793e63d0a7aab1f46e55b3d53c |
+
+FairID has no constructor arguments and no admin. For mainnet, deploy contracts/FairID.sol yourself and set `VITE_FAIRID_MAINNET_ADDRESS` in Vercel; the FairID card and @name sending stay hidden on mainnet until it is set.
+
 Constructor arg (testnet): USDC = `0x3600000000000000000000000000000000000000` (Arc Testnet)
 Constructor arg (mainnet): USDC = `0x3600000000000000000000000000000000000000` (Arc Mainnet)
 
@@ -54,3 +58,13 @@ Constructor arg (mainnet): USDC = `0x3600000000000000000000000000000000000000` (
 bun install
 bun run dev
 ```
+
+## Known issues accepted (deployed bill contract, decided Nov 3 2026)
+
+The owner chose to keep the current mainnet bill contract address and not redeploy. Test work found:
+- Medium: a bill can get stuck Active if a participant rejects or their invite expires after the others have paid in full (settlement only runs inside `pay()`). Funds are released by the deadline refund or a cancel vote.
+- Medium: `cancelThreshold` is not rechecked after a share is removed, so it can exceed the number of eligible voters.
+- Low: addresses not on a bill can call `acceptInvite` / `rejectInvite` (misleading events, no fund risk).
+- Low: `acceptInvite` has no 24h expiry check until someone calls `expireInvite`.
+- Low: `expireInvite` / `rejectInvite` ignore the bill deadline.
+Revisit only if a new contract version is ever planned.
