@@ -72,7 +72,7 @@ const fadeUp = {
 type AdminSection = 'dashboard' | 'bills' | 'deploy' | 'fairid' | 'manage'
 
 // ─── Section: Dashboard ───────────────────────────────────────────────────────
-function DashboardSection() {
+function DashboardSection({ adminAddress }: { adminAddress: string }) {
   const { data: billCount, refetch } = useReadContract({
     address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'billCount', chainId: CHAIN_ID,
   })
@@ -167,7 +167,7 @@ function DashboardSection() {
           </a>
         </div>
       </div>
-      <FairIdDashboardCard />
+      <FairIdDashboardCard adminAddress={adminAddress} />
     </motion.div>
   )
 }
@@ -896,7 +896,7 @@ export default function AdminApp() {
         {/* Content */}
         <main className="flex-1 min-w-0 pb-24 md:pb-0">
           <AnimatePresence mode="wait">
-            {section === 'dashboard' && <DashboardSection key="dashboard" />}
+            {section === 'dashboard' && address && <DashboardSection key="dashboard" adminAddress={address} />}
             {section === 'bills'     && <BillsSection     key="bills" />}
             {section === 'deploy'    && <DeploySection    key="deploy" adminAddress={address} />}
             {section === 'fairid'    && address && <FairIdDeploySection key="fairid" adminAddress={address} />}

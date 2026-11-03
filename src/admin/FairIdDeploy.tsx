@@ -7,7 +7,7 @@ import { motion } from 'framer-motion'
 import { useAccount, useSwitchChain, useWalletClient } from 'wagmi'
 import { useQuery } from '@tanstack/react-query'
 import { FAIRID_ADDRESS } from '@/fairid'
-import { createPublicClient, formatUnits, http, isAddress, parseAbi, parseUnits } from 'viem'
+import { createPublicClient, formatUnits, getContractAddress, http, isAddress, parseAbi, parseUnits } from 'viem'
 import { toast } from 'sonner'
 import { AlertTriangle, CheckCircle2, Copy, ExternalLink, Loader2, Rocket, ShieldCheck, XCircle } from 'lucide-react'
 import { arcMainnetChain, arcTestnetChain, IS_MAINNET } from '@/config'
@@ -34,19 +34,6 @@ const fairAbi = parseAbi([
   'function feeRecipient() view returns (address)',
   'function claimFee() view returns (uint256)',
 ])
-
-const STORE_KEY = 'fairtab_admin_fairid_v1'
-interface DeploymentRecord { address: string; chainId: number; txHash: string; at: number }
-
-function saveDeployment(rec: Omit<DeploymentRecord, 'at'>) {
-  try { localStorage.setItem(STORE_KEY, JSON.stringify({ ...rec, at: Date.now() })) } catch { /* ignore */ }
-}
-function loadDeployment(): DeploymentRecord | null {
-  try {
-    const rec = JSON.parse(localStorage.getItem(STORE_KEY) ?? 'null') as DeploymentRecord | null
-    return rec && isAddress(rec.address) ? rec : null
-  } catch { return null }
-}
 
 function withTimeout<T>(p: Promise<T>, ms: number, message: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -179,7 +166,6 @@ export function FairIdDeploySection({ adminAddress }: { adminAddress: string }) 
       const addr = receipt.contractAddress
       setDeployed(addr)
       deployedRef.current = addr
-      saveDeployment({ address: addr, chainId: chain.id, txHash: hash })
       setVerifyFailed(false)
 
       // Read the settings back from the chain so you can see what was really deployed
@@ -299,14 +285,33 @@ export function FairIdDeploySection({ adminAddress }: { adminAddress: string }) 
   )
 }
 
-/** Dashboard card: which FairID contract the app uses, and the one last deployed from this browser. */
-export function FairIdDashboardCard() {
-  const last = loadDeployment()
-  const rows: Array<{ label: string; address: string }> = []
-  if (FAIRID_ADDRESS) rows.push({ label: 'Active in the app', address: FAIRID_ADDRESS })
-  if (last && last.chainId === chain.id && last.address.toLowerCase() !== (FAIRID_ADDRESS ?? '').toLowerCase()) {
-    rows.push({ label: `Last deployed here (${new Date(last.at).toLocaleString()}) — not active yet`, address: last.address })
+/** Finds FairID contracts this wallet deployed recently by checking its last contract addresses onchain. */
+async function findDeployedFairIds(deployer: `0x${string}`): Promise<`0x${string}`[]> {
+  const client = createPublicClient({ chain, transport: http(chain.rpcUrls.default.http[0]) })
+  const nonce = await client.getTransactionCount({ address: deployer })
+  const found: `0x${string}`[] = []
+  for (let i = Math.max(0, nonce - 25); i < nonce; i++) {
+    const addr = getContractAddress({ from: deployer, nonce: BigInt(i) })
+    const code = await client.getCode({ address: addr })
+    if (!code || code === '0x') continue
+    try {
+      await client.readContract({ address: addr, abi: fairAbi, functionName: 'claimFee' })
+      await client.readContract({ address: addr, abi: fairAbi, functionName: 'feeRecipient' })
+      found.push(addr)
+    } catch { /* not a FairID with a fee */ }
   }
+  return found.reverse()
+}
+
+/** Dashboard card: which FairID contract the app uses, and the ones deployed from this wallet. */
+export function FairIdDashboardCard({ adminAddress }: { adminAddress: string }) {
+  const { data: deployed } = useQuery({
+    queryKey: ['fairid-deployed', adminAddress, chain.id],
+    queryFn: () => findDeployedFairIds(adminAddress as `0x${string}`),
+    retry: false,
+  })
+  const active = (FAIRID_ADDRESS ?? '').toLowerCase()
+  const others = (deployed ?? []).filter(a => a.toLowerCase() !== active)
 
   return (
     <div className="p-5 rounded-2xl flex flex-col gap-3" style={card}>
@@ -314,15 +319,16 @@ export function FairIdDashboardCard() {
         <Rocket className="size-4" style={{ color: 'var(--accent)' }} />
         <span className="font-bold text-sm" style={{ color: 'var(--ink)' }}>FairID contract</span>
       </div>
-      {rows.length === 0 && (
+      {FAIRID_ADDRESS && <FairIdRow label="Active in the app" address={FAIRID_ADDRESS} />}
+      {others.map((a, i) => <FairIdRow key={a} label={i === 0 ? 'Deployed from your wallet (latest) — not active in the app yet' : 'Deployed from your wallet (earlier)'} address={a} />)}
+      {!FAIRID_ADDRESS && others.length === 0 && (
         <p className="text-xs" style={{ color: 'var(--muted)' }}>
-          Not deployed yet on {chain.name}. Use the FairID tab to deploy, then set <span className="mono">VITE_FAIRID_MAINNET_ADDRESS</span> in Vercel.
+          {deployed ? `No FairID contract found from this wallet on ${chain.name}.` : 'Looking for your FairID deployment…'} Use the FairID tab to deploy.
         </p>
       )}
-      {rows.map(r => <FairIdRow key={r.address} label={r.label} address={r.address as `0x${string}`} />)}
-      {last && last.address.toLowerCase() !== (FAIRID_ADDRESS ?? '').toLowerCase() && (
+      {!FAIRID_ADDRESS && others.length > 0 && (
         <p className="text-xs" style={{ color: 'var(--muted)' }}>
-          To switch the app to the new address, set <span className="mono">VITE_FAIRID_MAINNET_ADDRESS</span> to it in Vercel (Production) and redeploy. This record is saved in this browser only.
+          To switch the app on, set <span className="mono">VITE_FAIRID_MAINNET_ADDRESS</span> to the latest address in Vercel (Production) and redeploy.
         </p>
       )}
     </div>
