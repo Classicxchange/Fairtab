@@ -98,7 +98,7 @@ interface Props {
 }
 
 // ─── Draft persistence ────────────────────────────────────────────────────────
-const DRAFT_KEY = 'fairtab_bill_draft_v1'
+export const DRAFT_KEY = 'fairtab_bill_draft_v1'
 interface BillDraft {
   step: 1 | 2 | 3
   billLabel: string

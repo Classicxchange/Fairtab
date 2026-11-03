@@ -9,7 +9,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Copy, CheckCircle2, LogOut, Settings, ChevronDown,
-  Wallet, ExternalLink,
+  Wallet, ExternalLink, HelpCircle, Coins,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useDisconnectAll } from '@/useDisconnectAll'
@@ -21,10 +21,12 @@ const CHAIN_ID = arcChain.id
 interface Props {
   address: string
   onGoToAccount: () => void
+  onHelp?: () => void
+  onAddFunds?: () => void
   onSignOut: () => void
 }
 
-export function WalletDropdown({ address, onGoToAccount, onSignOut }: Props) {
+export function WalletDropdown({ address, onGoToAccount, onHelp, onAddFunds, onSignOut }: Props) {
   const [open, setOpen]   = useState(false)
   const [copied, setCopied] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -147,6 +149,30 @@ export function WalletDropdown({ address, onGoToAccount, onSignOut }: Props) {
                 <Settings className="size-4 shrink-0" style={{ color: 'var(--subtle)' }} />
                 Account settings
               </button>
+              {onAddFunds && (
+                <button
+                  onClick={() => { setOpen(false); onAddFunds() }}
+                  className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all text-left"
+                  style={{ color: 'var(--ink-2)' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-muted)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <Coins className="size-4 shrink-0" style={{ color: 'var(--subtle)' }} />
+                  Add USDC
+                </button>
+              )}
+              {onHelp && (
+                <button
+                  onClick={() => { setOpen(false); onHelp() }}
+                  className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all text-left"
+                  style={{ color: 'var(--ink-2)' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-muted)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <HelpCircle className="size-4 shrink-0" style={{ color: 'var(--subtle)' }} />
+                  Help
+                </button>
+              )}
               <button
                 onClick={() => { setOpen(false); void disconnectAll(); onSignOut() }}
                 className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all text-left"

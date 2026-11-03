@@ -98,6 +98,7 @@ export function LandingPage({ onGetStarted, signedIn = false, dark, onToggleDark
         <span>&copy; 2026 Fairtab</span>
         <a href="/privacy" className="underline">Privacy Policy</a>
         <a href="/terms" className="underline">Terms of Service</a>
+        <a href="/help" className="underline">Help</a>
         <a
           href="https://x.com/fairtab_xyz"
           target="_blank"

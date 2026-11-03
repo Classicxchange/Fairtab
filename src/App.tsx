@@ -7,6 +7,9 @@ import { WalletDropdown } from '@/WalletDropdown'
 import { AccountPage, recordSignInTime } from '@/AccountPage'
 import { SignInPage } from '@/SignInPage'
 import { LandingPage } from '@/LandingPage'
+import { BillAssistant } from '@/BillAssistant'
+import { HelpPage } from '@/HelpPage'
+import { AddFundsSheet } from '@/AddFundsSheet'
 import { circleConnector, setCircleAuth, onCircleSessionExpired } from '@/circleWallet'
 import { SendPage } from '@/SendPage'
 import { CreateBillPage } from '@/CreateBillPage'
@@ -760,6 +763,14 @@ export default function App() {
   })
 
   const [showCreate, setShowCreate] = useState(false)
+  const [showFunds, setShowFunds] = useState(false)
+  const { data: usdcBalance } = useReadContract({
+    address: USDC_ADDRESS, abi: erc20Abi, functionName: 'balanceOf',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address, refetchInterval: 15_000 }, chainId: CHAIN_ID,
+  })
+  // Under 1 USDC is not enough to do much (amounts plus the network fee are paid in USDC)
+  const lowBalance = usdcBalance !== undefined && (usdcBalance) < 1_000_000n
   const [filter, setFilter] = useState<'all' | 'created' | 'owe' | 'done' | 'invites'>('all')
   const [owedBillCount, setOwedBillCount] = useState(0)
   const [inviteBillCount, setInviteBillCount] = useState(0)
@@ -1001,9 +1012,18 @@ export default function App() {
         </div>
       )}
 
+      {showFunds && address && <AddFundsSheet address={address} onClose={() => setShowFunds(false)} />}
+
+      {/* ── Help page ── public, no sign-in needed ── */}
+      {location.pathname === '/help' && (
+        <div className="fixed inset-0 z-50 overflow-y-auto" style={{ background: 'var(--bg)' }}>
+          <HelpPage onBack={() => { void navigate(address ? '/app' : '/') }} />
+        </div>
+      )}
+
       {/* ── Sign-in page gate ── shown when no wallet is connected ─ */}
       <AnimatePresence>
-        {!address && redirectChecked && !showLanding && (
+        {!address && redirectChecked && !showLanding && location.pathname !== '/help' && (
           <motion.div
             key="signin-page"
             initial={{ opacity: 0 }}
@@ -1096,6 +1116,8 @@ export default function App() {
               <WalletDropdown
                 address={address}
                 onGoToAccount={() => setTab('account')}
+                onHelp={() => { void navigate('/help') }}
+                onAddFunds={() => setShowFunds(true)}
                 onSignOut={() => {
                   const uid = socialSession?.googleUid
                   setSeedSession(null)
@@ -1255,6 +1277,22 @@ export default function App() {
                         <Receipt className="size-5" style={{ color: '#fff' }} />
                       </div>
                     </div>
+                    {address && lowBalance && (
+                      <div className="flex items-center justify-between gap-3 rounded-2xl px-4 py-3"
+                        style={{ background: 'var(--warning-bg)', border: '1px solid var(--warning-border)' }}>
+                        <p className="text-xs leading-snug" style={{ color: 'var(--ink-2)' }}>
+                          Your wallet has {fmt(usdcBalance)} USDC. Add USDC to create and pay bills.
+                        </p>
+                        <button onClick={() => setShowFunds(true)}
+                          className="shrink-0 rounded-xl px-3 py-2 text-xs font-bold"
+                          style={{ background: 'var(--accent)', color: '#fff' }}>
+                          Add USDC
+                        </button>
+                      </div>
+                    )}
+                    {address && (
+                      <BillAssistant address={address} onDraftReady={() => setShowCreate(true)} />
+                    )}
                     {/* Filter chips */}
                     {address && (
                       <div className="flex gap-2 overflow-x-auto pb-1 pt-0.5 px-0.5 scrollbar-none -mx-0.5">
