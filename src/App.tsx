@@ -10,6 +10,8 @@ import { LandingPage } from '@/LandingPage'
 import { BillAssistant } from '@/BillAssistant'
 import { HelpPage } from '@/HelpPage'
 import { AddFundsSheet } from '@/AddFundsSheet'
+import { RemindersBell } from '@/RemindersBell'
+import { buildNotices, type BillSnapshot } from '@/reminders'
 import { circleConnector, setCircleAuth, onCircleSessionExpired } from '@/circleWallet'
 import { SendPage } from '@/SendPage'
 import { CreateBillPage } from '@/CreateBillPage'
@@ -671,6 +673,18 @@ function PayoutReadyToaster({ count, address: walletAddr }: { count: number; add
 }
 
 
+function rememberMissingPaid(snapshots: BillSnapshot[]) {
+  try {
+    const key = 'fairtab_seen_paid_v1'
+    const stored = JSON.parse(localStorage.getItem(key) ?? '{}') as Record<string, string>
+    let changed = false
+    for (const b of snapshots) {
+      if (stored[b.id.toString()] === undefined) { stored[b.id.toString()] = b.amountPaid.toString(); changed = true }
+    }
+    if (changed) localStorage.setItem(key, JSON.stringify(stored))
+  } catch { /* ignore */ }
+}
+
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
   const { address: wagmiAddress, chainId, connector: activeConnector } = useAccount()
@@ -910,6 +924,7 @@ export default function App() {
           { address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getBill', args: [id], chainId: CHAIN_ID },
           { address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getShares', args: [id], chainId: CHAIN_ID },
           { address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getParticipantStatus', args: [id, address!], chainId: CHAIN_ID },
+          { address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'getBillMeta', args: [id], chainId: CHAIN_ID },
         ] as never,
       }),
       retry: 3,
@@ -941,6 +956,39 @@ export default function App() {
       return true
     })
   })()
+  // ── In-app reminders ───────────────────────────────────────────────────────
+  const PAID_KEY = 'fairtab_seen_paid_v1'
+  const [baselinePaid] = useState<Record<string, string>>(() => {
+    try { return JSON.parse(localStorage.getItem(PAID_KEY) ?? '{}') as Record<string, string> } catch { return {} }
+  })
+  const snapshots: BillSnapshot[] = address ? allIds.flatMap((id, i) => {
+    const r = membershipQueries[i]?.data as Array<{ result?: unknown }> | undefined
+    const bill = r?.[0]?.result as [`0x${string}`, `0x${string}`, bigint, bigint, number, bigint] | undefined
+    const shares = r?.[1]?.result as Array<{ participant: string; amount: bigint; contributed: bigint }> | undefined
+    if (!bill || !shares) return []
+    const me = address.toLowerCase()
+    const member = bill[0].toLowerCase() === me || bill[1].toLowerCase() === me || shares.some(sh => sh.participant.toLowerCase() === me)
+    if (!member) return []
+    const meta = r?.[3]?.result as [`0x${string}`, number] | undefined
+    return [{
+      id, creator: bill[0], payee: bill[1], totalAmount: bill[2], amountPaid: bill[3], status: bill[4], deadline: bill[5],
+      label: meta ? bytes32ToLabel(meta[0]) : '', shares, myStatus: r?.[2]?.result as number | undefined,
+    }]
+  }) : []
+  const notices = address
+    ? buildNotices(snapshots, address, Math.floor(Date.now() / 1000), baselinePaid, id => `${window.location.origin}/bill/${id.toString()}?contract=${CONTRACT_ADDRESS}`)
+    : []
+  const rememberPaid = useCallback(() => {
+    try {
+      const next: Record<string, string> = { ...baselinePaid }
+      for (const b of snapshots) next[b.id.toString()] = b.amountPaid.toString()
+      localStorage.setItem(PAID_KEY, JSON.stringify(next))
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [membershipQueries.map(q => q.dataUpdatedAt).join(',')])
+  // First time we see a bill, remember its paid amount so only later payments count as new
+  useEffect(() => { if (snapshots.length) rememberMissingPaid(snapshots) })
+
   const pageCount = Math.max(1, Math.ceil(myIds.length / PAGE_SIZE))
   const safePage = Math.min(page, pageCount - 1)
   const ids = myIds.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE)
@@ -1111,6 +1159,13 @@ export default function App() {
               {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
             </motion.button>
 
+            {address && (
+              <RemindersBell
+                notices={notices}
+                onOpened={rememberPaid}
+                onOpenBill={id => { void navigate(`/bill/${id.toString()}?contract=${CONTRACT_ADDRESS}`) }}
+              />
+            )}
             {/* Wallet dropdown (only shown when connected) */}
             {address && (
               <WalletDropdown

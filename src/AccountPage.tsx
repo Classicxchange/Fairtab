@@ -28,6 +28,7 @@ import { GoogleIdentityBadge } from '@/AccountView'
 import { buildAddressExplorerUrl } from '@/onchain-facts'
 import { arcChain, IS_MAINNET } from '@/config'
 import { useDisconnectAll } from '@/useDisconnectAll'
+import { FairIDCard } from '@/FairIDCard'
 
 const CHAIN_ID = arcChain.id
 
@@ -592,6 +593,8 @@ export function AccountPage({ address, seedSession, socialSession, wagmiAddress,
           </a>
         </div>
       </div>
+
+      {wagmiAddress && <FairIDCard address={wagmiAddress} />}
 
       {/* ── Google identity badge (when signed in via Google) ───────── */}
       {socialSession?.method === 'google' && (

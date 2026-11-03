@@ -18,6 +18,7 @@ import { toast } from 'sonner'
 import {
   createPublicClient, http, encodeDeployData,
 } from 'viem'
+import { FairIdDeploySection } from '@/admin/FairIdDeploy'
 import { arcMainnetChain, arcTestnetChain, IS_MAINNET } from '@/config'
 import { buildTxExplorerUrl, buildAddressExplorerUrl } from '@/onchain-facts'
 import { formatUsdc } from '@/onchain-money'
@@ -68,7 +69,7 @@ const fadeUp = {
   transition: { duration: 0.18 },
 }
 
-type AdminSection = 'dashboard' | 'bills' | 'deploy' | 'manage'
+type AdminSection = 'dashboard' | 'bills' | 'deploy' | 'fairid' | 'manage'
 
 // ─── Section: Dashboard ───────────────────────────────────────────────────────
 function DashboardSection() {
@@ -829,6 +830,7 @@ export default function AdminApp() {
     { id: 'dashboard', label: 'Dashboard',  icon: LayoutDashboard },
     { id: 'bills',     label: 'All Bills',  icon: FileText         },
     { id: 'deploy',    label: 'Deploy',     icon: Rocket           },
+    { id: 'fairid',    label: 'FairID',     icon: Package          },
     { id: 'manage',    label: 'Manage',     icon: Settings         },
   ]
 
@@ -896,6 +898,7 @@ export default function AdminApp() {
             {section === 'dashboard' && <DashboardSection key="dashboard" />}
             {section === 'bills'     && <BillsSection     key="bills" />}
             {section === 'deploy'    && <DeploySection    key="deploy" adminAddress={address} />}
+            {section === 'fairid'    && address && <FairIdDeploySection key="fairid" adminAddress={address} />}
             {section === 'manage'    && <ManageSection    key="manage" />}
           </AnimatePresence>
         </main>

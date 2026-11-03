@@ -18,6 +18,7 @@ import { arcChain, IS_MAINNET } from '@/config'
 import type { Chain } from 'viem'
 import { type SeedWalletSession, WalletUnlockModal } from '@/SeedWalletAuth'
 import { privateKeyToAccount } from 'viem/accounts'
+import { FAIRID_ABI, FAIRID_ADDRESS, FAIRID_NAME_PATTERN, cleanFairId } from '@/fairid'
 import { TxConfirmModal, type TxDetail, type EstimateParams } from '@/TxConfirmModal'
 
 const CHAIN_ID = arcChain.id
@@ -64,7 +65,18 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
   const [txEstimateParams, setTxEstimateParams] = useState<EstimateParams | undefined>(undefined)
   const [showUnlockModal, setShowUnlockModal] = useState(false)
 
-  const toValid = isAddress(to)
+  // The recipient box accepts a wallet address or a FairID (@name)
+  const typed = to.trim()
+  const handle = cleanFairId(typed)
+  const looksLikeName = !!FAIRID_ADDRESS && !isAddress(typed) && FAIRID_NAME_PATTERN.test(handle)
+  const { data: nameOwner, isFetching: resolving } = useReadContract({
+    address: FAIRID_ADDRESS, abi: FAIRID_ABI, functionName: 'resolve', args: [handle],
+    chainId: CHAIN_ID, query: { enabled: looksLikeName },
+  })
+  const resolvedOwner = looksLikeName && nameOwner && nameOwner !== '0x0000000000000000000000000000000000000000'
+    ? (nameOwner) : null
+  const toAddr = (isAddress(typed) ? typed : (resolvedOwner ?? '')) as `0x${string}`
+  const toValid = isAddress(toAddr)
   const amountRaw = useMemo(() => {
     try { const v = parseFloat(amount); if (!v || v <= 0) return 0n; return parseUnits(v.toFixed(dec), dec) }
     catch { return 0n }
@@ -96,8 +108,8 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
     if (!sendValid) return
     if (!wagmiAddress) { toast.error('Your wallet is not connected. Sign out and sign in again.'); return }
     if (!ensureChain()) { toast.error('Switch your wallet to the ' + (IS_MAINNET ? 'Arc Mainnet' : 'Arc Testnet') + ' network.'); return }
-    writeSend({ address: USDC_ADDRESS, abi: erc20Abi, functionName: 'transfer', args: [to, amountRaw] })
-  }, [ensureChain, sendValid, to, amountRaw, writeSend, wagmiAddress])
+    writeSend({ address: USDC_ADDRESS, abi: erc20Abi, functionName: 'transfer', args: [toAddr, amountRaw] })
+  }, [ensureChain, sendValid, toAddr, amountRaw, writeSend, wagmiAddress])
 
   // Seed wallet: sign + send directly via viem
   const handleSeedSend = useCallback(async () => {
@@ -112,7 +124,7 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
       const data = encodeFunctionData({
         abi: erc20Abi,
         functionName: 'transfer',
-        args: [to, amountRaw],
+        args: [toAddr, amountRaw],
       })
       const txHash = await walletClient.sendTransaction({
         to: USDC_ADDRESS,
@@ -133,7 +145,7 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
     } finally {
       setSeedSending(false)
     }
-  }, [seedSession, sendValid, to, amountRaw, amount, refetchBalance])
+  }, [seedSession, sendValid, toAddr, amountRaw, amount, refetchBalance])
 
   if (sendSuccess && step !== 'success') {
     toast.success(`Sent ${amount} USDC`)
@@ -162,7 +174,7 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
           <p className="display text-3xl font-bold mb-1" style={{ color: 'var(--ink)', letterSpacing: '-0.04em' }}>
             {amount} USDC sent
           </p>
-          <p className="text-sm" style={{ color: 'var(--muted)' }}>to {to.slice(0,6)}…{to.slice(-4)}</p>
+          <p className="text-sm" style={{ color: 'var(--muted)' }}>to {resolvedOwner ? `@${handle}` : `${toAddr.slice(0,6)}…${toAddr.slice(-4)}`}</p>
           {memo && <p className="text-sm mt-1 italic" style={{ color: 'var(--subtle)' }}>"{memo}"</p>}
         </div>
         {sendHash && (
@@ -212,7 +224,7 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
           <div className="px-6 py-4 flex flex-col gap-3" style={{ borderTop: '1px solid var(--border)' }}>
             <div className="flex items-start justify-between gap-3">
               <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>To</span>
-              <span className="mono text-sm text-right break-all" style={{ color: 'var(--ink)' }}>{to}</span>
+              <span className="mono text-sm text-right break-all" style={{ color: 'var(--ink)' }}>{resolvedOwner ? `@${handle} · ${toAddr}` : toAddr}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Network</span>
@@ -231,7 +243,7 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
         <button
           onClick={seedSession ? () => {
             if (!seedSession.privateKey) { setShowUnlockModal(true); return }
-            const data = encodeFunctionData({ abi: erc20Abi, functionName: 'transfer', args: [to as `0x${string}`, amountRaw] })
+            const data = encodeFunctionData({ abi: erc20Abi, functionName: 'transfer', args: [toAddr, amountRaw] })
             setTxEstimateParams({ from: (unifiedAddress ?? wagmiAddress) as `0x${string}`, to: USDC_ADDRESS, data, value: 0n })
             setShowTxModal(true)
           } : handleWagmiSend}
@@ -300,9 +312,9 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
             <input
               value={to}
               onChange={e => { setTo(e.target.value) }}
-              placeholder="0x… wallet address"
+              placeholder="0x… address or @fairid"
               className="mono flex-1 bg-transparent text-sm outline-none placeholder:opacity-30"
-              style={{ color: toValid || !to ? 'var(--ink)' : 'var(--danger)' }}
+              style={{ color: toValid || !to || (looksLikeName && resolving) ? 'var(--ink)' : 'var(--danger)' }}
             />
             {to && toValid && (
               <div className="flex size-6 items-center justify-center rounded-full" style={{ background: 'var(--success-bg)' }}>
@@ -316,9 +328,17 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
               <Copy className="size-3" /> Paste
             </button>
           </div>
-          {to && !toValid && (
+          {resolvedOwner && (
+            <p className="mono text-xs mt-1.5 break-all" style={{ color: 'var(--success)' }}>
+              @{handle} → {resolvedOwner}
+            </p>
+          )}
+          {looksLikeName && resolving && (
+            <p className="text-xs mt-1.5" style={{ color: 'var(--muted)' }}>Looking up @{handle}…</p>
+          )}
+          {to && !toValid && !(looksLikeName && resolving) && (
             <p className="text-xs mt-1.5 flex items-center gap-1" style={{ color: 'var(--danger)' }}>
-              <AlertTriangle className="size-3" /> Invalid address
+              <AlertTriangle className="size-3" /> {looksLikeName ? `No FairID named @${handle}` : 'Invalid address'}
             </p>
           )}
         </div>
@@ -410,7 +430,7 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
           detail={{
             action: 'Send USDC',
             amount: `${amount} USDC`,
-            to: to.length > 10 ? `${to.slice(0, 8)}…${to.slice(-6)}` : to,
+            to: toAddr.length > 10 ? `${toAddr.slice(0, 8)}…${toAddr.slice(-6)}` : toAddr,
             rows: [
               ...(memo ? [{ label: 'Memo', value: memo }] : []),
             ],
@@ -429,7 +449,7 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
             const upgraded = { ...seedSession, privateKey: pk }
             onUpgradeSeedSession?.(upgraded)
             setShowUnlockModal(false)
-            const data = encodeFunctionData({ abi: erc20Abi, functionName: 'transfer', args: [to as `0x${string}`, amountRaw] })
+            const data = encodeFunctionData({ abi: erc20Abi, functionName: 'transfer', args: [toAddr, amountRaw] })
             setTxEstimateParams({ from: upgraded.address, to: USDC_ADDRESS, data, value: 0n })
             setShowTxModal(true)
           }}

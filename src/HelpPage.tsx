@@ -42,6 +42,14 @@ const FAQ: { q: string; a: string }[] = [
     a: 'Open the Invites tab and accept the invite within 24 hours. After you accept, you can pay your share. Declining removes you from the bill.',
   },
   {
+    q: 'What is a FairID?',
+    a: 'A FairID is a short name, like @tunde, that you claim for your wallet so people can pay you without a long wallet address. It is free and first come, first served. Claim yours on the Account page. To pay someone, type their @name in the Send page. A FairID is only a label for your wallet: it never holds money, and you can release it or move it to another wallet at any time.',
+  },
+  {
+    q: 'What are the reminders?',
+    a: 'The bell at the top shows invitations waiting for you, bills due within 3 days, overdue bills, new payments on bills you created, and bills where people still owe you. For those, "Copy reminder message" gives you a note to send on WhatsApp or X.',
+  },
+  {
     q: 'Can I pay my share in parts?',
     a: 'Yes. You can pay any amount up to what you owe, as many times as you like, until your share is covered or the deadline passes.',
   },

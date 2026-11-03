@@ -15,6 +15,7 @@ import { decodeErrorResult, erc20Abi, formatUnits, numberToHex } from 'viem'
 import type { W3SSdk as W3SSdkType } from '@circle-fin/w3s-pw-web-sdk'
 import { arcChain } from '@/config'
 import artifact from '../contracts/out/HouseholdBillSplitter.sol/HouseholdBillSplitter.json'
+import { FAIRID_ABI } from '@/fairid'
 
 const circleAppId = import.meta.env.VITE_CIRCLE_APP_ID as string | undefined
 const RPC_URL = arcChain.rpcUrls.default.http[0]
@@ -158,6 +159,18 @@ const REASONS: Record<string, string> = {
   'percentage out of range': 'A share is above 10 000 bps (100%).',
 }
 
+const FRIENDLY_ERRORS: Record<string, string> = {
+  InvalidName: 'FairIDs use 3 to 20 letters, numbers or underscores.',
+  NameTaken: 'That FairID is already taken.',
+  AlreadyHasName: 'This wallet already has a FairID. Release it first to pick another.',
+  NoName: 'This wallet has no FairID.',
+  NameReserved: 'That FairID was just released and is held for its previous owner for 30 days.',
+  ZeroAddress: 'That address is not valid.',
+  SameAddress: 'You cannot send a FairID to yourself.',
+  RecipientHasName: 'The other wallet already has a FairID.',
+  NoPendingTransfer: 'There is no pending FairID transfer to accept.',
+}
+
 /** Dry-runs the call so a call that would revert shows a readable reason instead of failing after the PIN. */
 async function assertCallWouldSucceed(tx: TxParams, from: string) {
   try {
@@ -168,17 +181,21 @@ async function assertCallWouldSucceed(tx: TxParams, from: string) {
     if (hex) {
       try {
         const decoded = decodeErrorResult({
-          abi: [...(artifact.abi as never[]), ...erc20Abi],
+          abi: [...(artifact.abi as never[]), ...erc20Abi, ...FAIRID_ABI],
           data: hex as `0x${string}`,
         })
-        const reason = typeof decoded.args?.[0] === 'string' ? decoded.args[0] : ''
-        throw new Error(`Cannot create this: ${REASONS[reason] ?? (reason || decoded.errorName)}`)
+        const arg0 = typeof decoded.args?.[0] === 'string' ? decoded.args[0] : ''
+        const errorName: string = decoded.errorName
+        const friendly = FRIENDLY_ERRORS[errorName]
+          ?? REASONS[arg0]
+          ?? (errorName === 'InvalidBillParams' ? arg0 : errorName)
+        throw new Error(`Not possible: ${friendly || errorName}`)
       } catch (inner) {
-        if (inner instanceof Error && inner.message.startsWith('Cannot create this')) throw inner
+        if (inner instanceof Error && inner.message.startsWith('Not possible')) throw inner
       }
     }
     const plain = raw.replace(/^execution reverted:?\s*/i, '').replace(/0x[0-9a-fA-F]+/g, '').trim()
-    throw new Error(`Cannot send this: the contract refused it${plain ? ` (${plain.slice(0, 100)})` : ''}. Check the bill details.`)
+    throw new Error(`Cannot send this: the contract refused it${plain ? ` (${plain.slice(0, 100)})` : ''}. Check the details.`)
   }
 }
 
