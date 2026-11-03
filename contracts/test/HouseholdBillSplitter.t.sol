@@ -56,6 +56,10 @@ contract BillSplitterHandler is Test {
         address payee = makeAddr("payee");
         vm.prank(alice);
         billId = splitter.createBill(TOTAL, bytes32(0), payee, participants, amounts, false, 0, false, 0, 2);
+
+        // alice is the creator (auto-Accepted); bob must explicitly accept his invite.
+        vm.prank(bob);
+        splitter.acceptInvite(billId);
     }
 
     function payAlice(uint256 seed) external {
@@ -152,6 +156,7 @@ contract HouseholdBillSplitterTest is Test {
 
         vm.prank(creator);
         billId = splitter.createBill(TOTAL_2P, bytes32(0), badPayee, participants, amounts, false, 0, false, 0, 2);
+        _acceptAB(billId);
     }
 
     /// @dev Create a 3-participant bill where the payee forces fallback (threshold=2).
@@ -170,6 +175,7 @@ contract HouseholdBillSplitterTest is Test {
 
         vm.prank(creator);
         billId = splitter.createBill(TOTAL_3P, bytes32(0), badPayee, participants, amounts, false, 0, false, 0, 2);
+        _acceptABC(billId);
     }
 
     /// @dev Create a 3-participant bill with bad payee and threshold=3.
@@ -188,6 +194,7 @@ contract HouseholdBillSplitterTest is Test {
 
         vm.prank(creator);
         billId = splitter.createBill(TOTAL_3P, bytes32(0), badPayee, participants, amounts, false, 0, false, 0, 3);
+        _acceptABC(billId);
     }
 
     /// @dev Force MockERC20 transfer to badPayee to return false (simulates a frozen/bad payee).
@@ -200,8 +207,24 @@ contract HouseholdBillSplitterTest is Test {
         );
     }
 
-    /// @dev Create a 2-participant bill [alice=500, bob=500], no deadline, no recur.
-    function _create2PBill() internal returns (uint256 billId) {
+    /// @dev Invite acceptance helpers: participants start Pending and must accept before pay()/voteCancel().
+    function _accept(uint256 billId, address who) internal {
+        vm.prank(who);
+        splitter.acceptInvite(billId);
+    }
+
+    function _acceptAB(uint256 billId) internal {
+        _accept(billId, alice);
+        _accept(billId, bob);
+    }
+
+    function _acceptABC(uint256 billId) internal {
+        _acceptAB(billId);
+        _accept(billId, carol);
+    }
+
+    /// @dev 2P bill [alice=500, bob=500], everyone still Pending (no acceptance).
+    function _create2PBillPending() internal returns (uint256 billId) {
         address[] memory participants = new address[](2);
         participants[0] = alice;
         participants[1] = bob;
@@ -212,6 +235,12 @@ contract HouseholdBillSplitterTest is Test {
 
         vm.prank(creator);
         billId = splitter.createBill(TOTAL_2P, bytes32(0), payee, participants, amounts, false, 0, false, 0, 2);
+    }
+
+    /// @dev Create a 2-participant bill [alice=500, bob=500], no deadline, no recur. Both participants accepted.
+    function _create2PBill() internal returns (uint256 billId) {
+        billId = _create2PBillPending();
+        _acceptAB(billId);
     }
 
     /// @dev Create a 2-participant bill with an explicit deadline.
@@ -226,6 +255,7 @@ contract HouseholdBillSplitterTest is Test {
 
         vm.prank(creator);
         billId = splitter.createBill(TOTAL_2P, bytes32(0), payee, participants, amounts, false, deadline, false, 0, 2);
+        _acceptAB(billId);
     }
 
     /// @dev Create a 3-participant bill [alice=400, bob=300, carol=300], no deadline, no recur, threshold=2.
@@ -242,6 +272,7 @@ contract HouseholdBillSplitterTest is Test {
 
         vm.prank(creator);
         billId = splitter.createBill(TOTAL_3P, bytes32(0), payee, participants, amounts, false, 0, false, 0, 2);
+        _acceptABC(billId);
     }
 
     /// @dev Create a 3-participant bill with cancelThreshold=3 (all must vote for redirect).
@@ -258,6 +289,7 @@ contract HouseholdBillSplitterTest is Test {
 
         vm.prank(creator);
         billId = splitter.createBill(TOTAL_3P, bytes32(0), payee, participants, amounts, false, 0, false, 0, 3);
+        _acceptABC(billId);
     }
 
     /// @dev Create a 2-participant recurring bill (interval = 30 days).
@@ -272,6 +304,7 @@ contract HouseholdBillSplitterTest is Test {
 
         vm.prank(creator);
         billId = splitter.createBill(TOTAL_2P, bytes32(0), payee, participants, amounts, false, 0, true, 30 days, 2);
+        _acceptAB(billId);
     }
 
     /// @dev Fully settle a 3-participant bill (alice+bob+carol all pay their shares).
@@ -849,23 +882,18 @@ contract HouseholdBillSplitterTest is Test {
         assertEq(splitter.payoutRedirectVotes(billId), 1, "vote count should be 1");
         assertEq(splitter.payoutRedirectCandidateVotes(billId, candidate), 1, "candidate vote tally should be 1");
 
-        // Bob votes — second vote
+        // Bob votes — second vote. Redirect quorum is ceil(3 contributors * 51%) = 2 votes for the
+        // same candidate (independent of cancelThreshold), so the redirect fires here.
         vm.expectEmit(true, true, true, true, address(splitter));
         emit HouseholdBillSplitter.PayoutRedirectVote(billId, bob, candidate, 2);
-        vm.prank(bob);
-        splitter.votePayoutRedirect(billId, candidate);
-
-        assertEq(splitter.payoutRedirectVotes(billId), 2, "vote count should be 2");
-
-        // Carol votes — threshold reached, PayeeRedirected emitted
-        vm.expectEmit(true, true, true, true, address(splitter));
-        emit HouseholdBillSplitter.PayoutRedirectVote(billId, carol, candidate, 3);
 
         vm.expectEmit(true, true, true, false, address(splitter));
         emit HouseholdBillSplitter.PayeeRedirected(billId, badPayee, candidate);
 
-        vm.prank(carol);
+        vm.prank(bob);
         splitter.votePayoutRedirect(billId, candidate);
+
+        assertEq(splitter.payoutRedirectVotes(billId), 2, "vote count should be 2");
 
         // bill.payee should now be candidate
         (, address newPayeeAddr, , , , , , , ,) = splitter.getBill(billId);
@@ -1253,6 +1281,388 @@ contract HouseholdBillSplitterTest is Test {
         vm.prank(creator);
         vm.expectRevert(HouseholdBillSplitter.ZeroAddress.selector);
         splitter.createBill(TOTAL_2P, bytes32(0), address(0), participants, amounts, false, 0, false, 0, 2);
+    }
+
+    // -----------------------------------------------------------------------
+    // 31. Invite / consent flow: acceptInvite, rejectInvite, expireInvite
+    // -----------------------------------------------------------------------
+    function test_InitialStatus_PendingForInvitee_AcceptedForCreatorParticipant() public {
+        address[] memory participants = new address[](2);
+        participants[0] = alice;
+        participants[1] = bob;
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = HALF;
+        amounts[1] = HALF;
+
+        vm.prank(alice); // alice is both creator and participant
+        uint256 billId = splitter.createBill(TOTAL_2P, bytes32(0), payee, participants, amounts, false, 0, false, 0, 2);
+
+        assertEq(uint8(splitter.getParticipantStatus(billId, alice)), uint8(HouseholdBillSplitter.ParticipantStatus.Accepted));
+        assertEq(uint8(splitter.getParticipantStatus(billId, bob)), uint8(HouseholdBillSplitter.ParticipantStatus.Pending));
+        assertEq(splitter.inviteTimestamp(billId, bob), block.timestamp, "invite timestamp recorded");
+
+        // Creator-participant can pay without calling acceptInvite
+        vm.prank(alice);
+        splitter.pay(billId, HALF);
+        (uint256 contributed,,) = splitter.getShareProgress(billId, alice);
+        assertEq(contributed, HALF);
+
+        // ...and acceptInvite is no longer applicable to them
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(HouseholdBillSplitter.InviteNotPending.selector, billId, alice));
+        splitter.acceptInvite(billId);
+    }
+
+    function test_AcceptInvite_SetsAcceptedAndEmits() public {
+        uint256 billId = _create2PBillPending();
+
+        vm.expectEmit(true, true, false, false, address(splitter));
+        emit HouseholdBillSplitter.InviteAccepted(billId, alice);
+        vm.prank(alice);
+        splitter.acceptInvite(billId);
+
+        assertEq(uint8(splitter.getParticipantStatus(billId, alice)), uint8(HouseholdBillSplitter.ParticipantStatus.Accepted));
+        assertEq(uint8(splitter.getParticipantStatus(billId, bob)), uint8(HouseholdBillSplitter.ParticipantStatus.Pending));
+    }
+
+    function test_AcceptInvite_Twice_Reverts() public {
+        uint256 billId = _create2PBillPending();
+        _accept(billId, alice);
+
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(HouseholdBillSplitter.InviteNotPending.selector, billId, alice));
+        splitter.acceptInvite(billId);
+    }
+
+    function test_AcceptInvite_AfterDeadline_Reverts() public {
+        uint256 deadline = block.timestamp + 12 hours;
+        address[] memory participants = new address[](2);
+        participants[0] = alice;
+        participants[1] = bob;
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = HALF;
+        amounts[1] = HALF;
+        vm.prank(creator);
+        uint256 billId = splitter.createBill(TOTAL_2P, bytes32(0), payee, participants, amounts, false, deadline, false, 0, 2);
+
+        vm.warp(deadline + 1);
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(HouseholdBillSplitter.DeadlineExpired.selector, billId));
+        splitter.acceptInvite(billId);
+    }
+
+    function test_AcceptInvite_UnknownBill_Reverts() public {
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(HouseholdBillSplitter.BillNotActive.selector, 42));
+        splitter.acceptInvite(42);
+    }
+
+    function test_Pay_PendingParticipant_RevertsParticipantNotAccepted() public {
+        uint256 billId = _create2PBillPending();
+
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(HouseholdBillSplitter.ParticipantNotAccepted.selector, billId, alice));
+        splitter.pay(billId, HALF);
+    }
+
+    function test_Pay_AfterAccept_Succeeds() public {
+        uint256 billId = _create2PBillPending();
+        _accept(billId, alice);
+
+        vm.prank(alice);
+        splitter.pay(billId, HALF);
+        (uint256 contributed,,) = splitter.getShareProgress(billId, alice);
+        assertEq(contributed, HALF);
+    }
+
+    function test_Pay_RejectedParticipant_RevertsParticipantNotAccepted() public {
+        uint256 billId = _create2PBillPending();
+        vm.prank(bob);
+        splitter.rejectInvite(billId);
+
+        vm.prank(bob);
+        vm.expectRevert(abi.encodeWithSelector(HouseholdBillSplitter.ParticipantNotAccepted.selector, billId, bob));
+        splitter.pay(billId, HALF);
+    }
+
+    function test_Pay_Outsider_RevertsEvenIfAcceptedInvite() public {
+        // A non-listed address has default status Pending (enum 0), so acceptInvite does not revert for it,
+        // but pay() must still refuse because it holds no share.
+        uint256 billId = _create2PBillPending();
+        address outsider = makeAddr("outsider");
+        usdc.mint(outsider, 1_000e6);
+        vm.prank(outsider);
+        usdc.approve(address(splitter), type(uint256).max);
+
+        vm.prank(outsider);
+        splitter.acceptInvite(billId);
+
+        vm.prank(outsider);
+        vm.expectRevert(abi.encodeWithSelector(HouseholdBillSplitter.NotParticipant.selector, billId, outsider));
+        splitter.pay(billId, 1);
+    }
+
+    function test_RejectInvite_RemovesShareAndReducesTotal() public {
+        uint256 billId = _create2PBillPending();
+
+        vm.expectEmit(true, true, false, false, address(splitter));
+        emit HouseholdBillSplitter.InviteRejected(billId, bob);
+        vm.prank(bob);
+        splitter.rejectInvite(billId);
+
+        assertEq(uint8(splitter.getParticipantStatus(billId, bob)), uint8(HouseholdBillSplitter.ParticipantStatus.Rejected));
+        (, , uint256 total, , , , , , ,) = splitter.getBill(billId);
+        assertEq(total, HALF, "totalAmount reduced by rejected share");
+        HouseholdBillSplitter.Share[] memory shares = splitter.getShares(billId);
+        assertEq(shares.length, 1);
+        assertEq(shares[0].participant, alice);
+        (, uint256 bobTotal,) = splitter.getShareProgress(billId, bob);
+        assertEq(bobTotal, 0, "bob no longer has a share");
+    }
+
+    function test_RejectInvite_AfterAccept_Reverts() public {
+        uint256 billId = _create2PBillPending();
+        _accept(billId, bob);
+
+        vm.prank(bob);
+        vm.expectRevert(abi.encodeWithSelector(HouseholdBillSplitter.InviteNotPending.selector, billId, bob));
+        splitter.rejectInvite(billId);
+    }
+
+    function test_RejectInvite_Twice_Reverts() public {
+        uint256 billId = _create2PBillPending();
+        vm.prank(bob);
+        splitter.rejectInvite(billId);
+
+        vm.prank(bob);
+        vm.expectRevert(abi.encodeWithSelector(HouseholdBillSplitter.InviteNotPending.selector, billId, bob));
+        splitter.rejectInvite(billId);
+    }
+
+    function test_ExpireInvite_BeforeExpiry_Reverts() public {
+        uint256 billId = _create2PBillPending();
+        vm.warp(block.timestamp + 24 hours - 1);
+
+        vm.expectRevert(abi.encodeWithSelector(HouseholdBillSplitter.InviteNotExpired.selector, billId, bob));
+        splitter.expireInvite(billId, bob);
+    }
+
+    function test_ExpireInvite_After24h_RemovesShare() public {
+        uint256 billId = _create2PBillPending();
+        vm.warp(block.timestamp + 24 hours);
+
+        vm.expectEmit(true, true, false, false, address(splitter));
+        emit HouseholdBillSplitter.InviteExpired(billId, bob);
+        // Permissionless: any third party may expire a stale invite
+        vm.prank(makeAddr("keeper"));
+        splitter.expireInvite(billId, bob);
+
+        assertEq(uint8(splitter.getParticipantStatus(billId, bob)), uint8(HouseholdBillSplitter.ParticipantStatus.Rejected));
+        (, , uint256 total, , , , , , ,) = splitter.getBill(billId);
+        assertEq(total, HALF, "totalAmount reduced by expired share");
+        assertEq(splitter.getShares(billId).length, 1);
+
+        vm.prank(bob);
+        vm.expectRevert(abi.encodeWithSelector(HouseholdBillSplitter.ParticipantNotAccepted.selector, billId, bob));
+        splitter.pay(billId, 1);
+    }
+
+    function test_ExpireInvite_AcceptedParticipant_Reverts() public {
+        uint256 billId = _create2PBillPending();
+        _accept(billId, bob);
+        vm.warp(block.timestamp + 25 hours);
+
+        vm.expectRevert(abi.encodeWithSelector(HouseholdBillSplitter.InviteNotPending.selector, billId, bob));
+        splitter.expireInvite(billId, bob);
+    }
+
+    function test_ExpireInvite_InactiveBill_Reverts() public {
+        vm.expectRevert(abi.encodeWithSelector(HouseholdBillSplitter.BillNotActive.selector, 7));
+        splitter.expireInvite(7, bob);
+    }
+
+    function testFuzz_ExpireInvite_Timing(uint256 elapsed) public {
+        uint256 billId = _create2PBillPending();
+        elapsed = bound(elapsed, 0, 48 hours);
+        vm.warp(block.timestamp + elapsed);
+
+        if (elapsed < 24 hours) {
+            vm.expectRevert(abi.encodeWithSelector(HouseholdBillSplitter.InviteNotExpired.selector, billId, bob));
+            splitter.expireInvite(billId, bob);
+        } else {
+            splitter.expireInvite(billId, bob);
+            assertEq(uint8(splitter.getParticipantStatus(billId, bob)), uint8(HouseholdBillSplitter.ParticipantStatus.Rejected));
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // 32. voteCancel eligibility (consent gating) and addParticipant
+    // -----------------------------------------------------------------------
+    function test_VoteCancel_PendingParticipant_RevertsNotAuthorized() public {
+        uint256 billId = _create2PBillPending();
+
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(HouseholdBillSplitter.NotAuthorizedToCancel.selector, billId, alice));
+        splitter.voteCancel(billId);
+    }
+
+    function test_VoteCancel_NonParticipantCreator_RevertsNotAuthorized() public {
+        uint256 billId = _create2PBill();
+
+        vm.prank(creator);
+        vm.expectRevert(abi.encodeWithSelector(HouseholdBillSplitter.NotAuthorizedToCancel.selector, billId, creator));
+        splitter.voteCancel(billId);
+    }
+
+    function test_VoteCancel_DoubleVote_Reverts() public {
+        uint256 billId = _create2PBill();
+        vm.prank(alice);
+        splitter.voteCancel(billId);
+
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(HouseholdBillSplitter.AlreadyVotedCancel.selector, billId, alice));
+        splitter.voteCancel(billId);
+    }
+
+    function test_VoteCancel_BelowThreshold_StaysActive_ThenCancelsAtThreshold() public {
+        uint256 billId = _create2PBill();
+
+        vm.expectEmit(true, true, false, false, address(splitter));
+        emit HouseholdBillSplitter.CancelVote(billId, alice);
+        vm.prank(alice);
+        splitter.voteCancel(billId);
+        (, , , , HouseholdBillSplitter.BillStatus s1, , , , , uint8 votes1) = splitter.getBill(billId);
+        assertEq(uint8(s1), uint8(HouseholdBillSplitter.BillStatus.Active));
+        assertEq(votes1, 1);
+
+        vm.expectEmit(true, false, false, false, address(splitter));
+        emit HouseholdBillSplitter.BillCancelled(billId);
+        vm.prank(bob);
+        splitter.voteCancel(billId);
+        (, , , , HouseholdBillSplitter.BillStatus s2, , , , ,) = splitter.getBill(billId);
+        assertEq(uint8(s2), uint8(HouseholdBillSplitter.BillStatus.Cancelled));
+    }
+
+    function test_CreateBill_ThresholdBelowMajority_Reverts() public {
+        address[] memory participants = new address[](3);
+        participants[0] = alice;
+        participants[1] = bob;
+        participants[2] = carol;
+        uint256[] memory amounts = new uint256[](3);
+        amounts[0] = ALICE_SHARE;
+        amounts[1] = BOB_SHARE;
+        amounts[2] = CAROL_SHARE;
+
+        vm.prank(creator);
+        vm.expectRevert(abi.encodeWithSelector(HouseholdBillSplitter.InvalidBillParams.selector, "threshold below minimum majority"));
+        splitter.createBill(TOTAL_3P, bytes32(0), payee, participants, amounts, false, 0, false, 0, 1);
+
+        vm.prank(creator);
+        vm.expectRevert(abi.encodeWithSelector(HouseholdBillSplitter.InvalidBillParams.selector, "bad threshold"));
+        splitter.createBill(TOTAL_3P, bytes32(0), payee, participants, amounts, false, 0, false, 0, 4);
+    }
+
+    function test_AddParticipant_CreatorAddsPendingInvitee() public {
+        uint256 billId = _create2PBill();
+        address dave = makeAddr("dave");
+
+        vm.expectEmit(true, true, false, true, address(splitter));
+        emit HouseholdBillSplitter.ParticipantAdded(billId, dave, 100e6);
+        vm.prank(creator);
+        splitter.addParticipant(billId, dave, 100e6);
+
+        assertEq(uint8(splitter.getParticipantStatus(billId, dave)), uint8(HouseholdBillSplitter.ParticipantStatus.Pending));
+        (, , uint256 total, , , , , , ,) = splitter.getBill(billId);
+        assertEq(total, TOTAL_2P + 100e6);
+        assertEq(splitter.getShares(billId).length, 3);
+
+        usdc.mint(dave, 100e6);
+        vm.prank(dave);
+        usdc.approve(address(splitter), type(uint256).max);
+        vm.prank(dave);
+        vm.expectRevert(abi.encodeWithSelector(HouseholdBillSplitter.ParticipantNotAccepted.selector, billId, dave));
+        splitter.pay(billId, 100e6);
+
+        _accept(billId, dave);
+        vm.prank(dave);
+        splitter.pay(billId, 100e6);
+        (uint256 contributed,,) = splitter.getShareProgress(billId, dave);
+        assertEq(contributed, 100e6);
+    }
+
+    function test_AddParticipant_NonCreator_Reverts() public {
+        uint256 billId = _create2PBill();
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(HouseholdBillSplitter.NotCreator.selector, billId, alice));
+        splitter.addParticipant(billId, makeAddr("dave"), 1e6);
+    }
+
+    function test_AddParticipant_Existing_Reverts() public {
+        uint256 billId = _create2PBill();
+        vm.prank(creator);
+        vm.expectRevert(abi.encodeWithSelector(HouseholdBillSplitter.ParticipantAlreadyExists.selector, billId, alice));
+        splitter.addParticipant(billId, alice, 1e6);
+    }
+
+    function test_AddParticipant_ZeroAddress_Reverts() public {
+        uint256 billId = _create2PBill();
+        vm.prank(creator);
+        vm.expectRevert(HouseholdBillSplitter.ZeroAddress.selector);
+        splitter.addParticipant(billId, address(0), 1e6);
+    }
+
+    // -----------------------------------------------------------------------
+    // 33. Recurring child bill requires fresh consent
+    // -----------------------------------------------------------------------
+    function test_RecurringChild_ParticipantsStartPendingAndMustReaccept() public {
+        uint256 billId = _create2PRecurringBill();
+        _settle2PBill(billId);
+        assertEq(splitter.billCount(), 2);
+
+        assertEq(uint8(splitter.getParticipantStatus(1, alice)), uint8(HouseholdBillSplitter.ParticipantStatus.Pending));
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(HouseholdBillSplitter.ParticipantNotAccepted.selector, 1, alice));
+        splitter.pay(1, HALF);
+
+        _accept(1, alice);
+        vm.prank(alice);
+        splitter.pay(1, HALF);
+        (uint256 contributed,,) = splitter.getShareProgress(1, alice);
+        assertEq(contributed, HALF);
+    }
+
+    // -----------------------------------------------------------------------
+    // 34. Redirect quorum is ceil(51% of contributors), independent of cancelThreshold
+    // -----------------------------------------------------------------------
+    function test_VotePayoutRedirect_TwoContributors_NeedBoth() public {
+        (uint256 billId, address badPayee) = _create2PBillWithBadPayee();
+        _mockBadPayeeTransferFail(badPayee, TOTAL_2P);
+        _settle2PBill(billId);
+        vm.clearMockedCalls();
+        vm.warp(block.timestamp + PAYOUT_REDIRECT_GRACE + 1);
+
+        address candidate = makeAddr("candidate");
+        vm.prank(alice);
+        splitter.votePayoutRedirect(billId, candidate);
+        (, address p1, , , , , , , ,) = splitter.getBill(billId);
+        assertEq(p1, badPayee, "1 of 2 contributors is not a quorum");
+
+        vm.prank(bob);
+        splitter.votePayoutRedirect(billId, candidate);
+        (, address p2, , , , , , , ,) = splitter.getBill(billId);
+        assertEq(p2, candidate, "2 of 2 reaches quorum");
+    }
+
+    function test_VotePayoutRedirect_CandidateIsContributor_Reverts() public {
+        (uint256 billId, address badPayee) = _create3PBillWithBadPayee();
+        _mockBadPayeeTransferFail(badPayee, TOTAL_3P);
+        _settle3PBill(billId);
+        vm.clearMockedCalls();
+        vm.warp(block.timestamp + PAYOUT_REDIRECT_GRACE + 1);
+
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(HouseholdBillSplitter.InvalidBillParams.selector, "candidate cannot be a contributor"));
+        splitter.votePayoutRedirect(billId, bob);
     }
 
     /// @dev votePayoutRedirect with candidate = address(3) must revert (precompile)
