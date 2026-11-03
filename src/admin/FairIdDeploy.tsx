@@ -5,9 +5,11 @@
 import { useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useAccount, useSwitchChain, useWalletClient } from 'wagmi'
+import { useQuery } from '@tanstack/react-query'
+import { FAIRID_ADDRESS } from '@/fairid'
 import { createPublicClient, formatUnits, http, isAddress, parseAbi, parseUnits } from 'viem'
 import { toast } from 'sonner'
-import { AlertTriangle, CheckCircle2, ExternalLink, Loader2, Rocket, ShieldCheck, XCircle } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Copy, ExternalLink, Loader2, Rocket, ShieldCheck, XCircle } from 'lucide-react'
 import { arcMainnetChain, arcTestnetChain, IS_MAINNET } from '@/config'
 import { buildAddressExplorerUrl, getUsdc } from '@/onchain-facts'
 import artifact from '../../contracts/out/FairID.sol/FairID.json'
@@ -32,6 +34,19 @@ const fairAbi = parseAbi([
   'function feeRecipient() view returns (address)',
   'function claimFee() view returns (uint256)',
 ])
+
+const STORE_KEY = 'fairtab_admin_fairid_v1'
+interface DeploymentRecord { address: string; chainId: number; txHash: string; at: number }
+
+function saveDeployment(rec: Omit<DeploymentRecord, 'at'>) {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify({ ...rec, at: Date.now() })) } catch { /* ignore */ }
+}
+function loadDeployment(): DeploymentRecord | null {
+  try {
+    const rec = JSON.parse(localStorage.getItem(STORE_KEY) ?? 'null') as DeploymentRecord | null
+    return rec && isAddress(rec.address) ? rec : null
+  } catch { return null }
+}
 
 function withTimeout<T>(p: Promise<T>, ms: number, message: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -164,6 +179,7 @@ export function FairIdDeploySection({ adminAddress }: { adminAddress: string }) 
       const addr = receipt.contractAddress
       setDeployed(addr)
       deployedRef.current = addr
+      saveDeployment({ address: addr, chainId: chain.id, txHash: hash })
       setVerifyFailed(false)
 
       // Read the settings back from the chain so you can see what was really deployed
@@ -280,5 +296,67 @@ export function FairIdDeploySection({ adminAddress }: { adminAddress: string }) 
         </div>
       )}
     </motion.div>
+  )
+}
+
+/** Dashboard card: which FairID contract the app uses, and the one last deployed from this browser. */
+export function FairIdDashboardCard() {
+  const last = loadDeployment()
+  const rows: Array<{ label: string; address: string }> = []
+  if (FAIRID_ADDRESS) rows.push({ label: 'Active in the app', address: FAIRID_ADDRESS })
+  if (last && last.chainId === chain.id && last.address.toLowerCase() !== (FAIRID_ADDRESS ?? '').toLowerCase()) {
+    rows.push({ label: `Last deployed here (${new Date(last.at).toLocaleString()}) — not active yet`, address: last.address })
+  }
+
+  return (
+    <div className="p-5 rounded-2xl flex flex-col gap-3" style={card}>
+      <div className="flex items-center gap-2">
+        <Rocket className="size-4" style={{ color: 'var(--accent)' }} />
+        <span className="font-bold text-sm" style={{ color: 'var(--ink)' }}>FairID contract</span>
+      </div>
+      {rows.length === 0 && (
+        <p className="text-xs" style={{ color: 'var(--muted)' }}>
+          Not deployed yet on {chain.name}. Use the FairID tab to deploy, then set <span className="mono">VITE_FAIRID_MAINNET_ADDRESS</span> in Vercel.
+        </p>
+      )}
+      {rows.map(r => <FairIdRow key={r.address} label={r.label} address={r.address as `0x${string}`} />)}
+      {last && last.address.toLowerCase() !== (FAIRID_ADDRESS ?? '').toLowerCase() && (
+        <p className="text-xs" style={{ color: 'var(--muted)' }}>
+          To switch the app to the new address, set <span className="mono">VITE_FAIRID_MAINNET_ADDRESS</span> to it in Vercel (Production) and redeploy. This record is saved in this browser only.
+        </p>
+      )}
+    </div>
+  )
+}
+
+function FairIdRow({ label, address }: { label: string; address: `0x${string}` }) {
+  const { data } = useQuery({
+    queryKey: ['fairid-row', address, chain.id],
+    queryFn: async () => {
+      const client = createPublicClient({ chain, transport: http(chain.rpcUrls.default.http[0]) })
+      const [fee, recipient] = await Promise.all([
+        client.readContract({ address, abi: fairAbi, functionName: 'claimFee' }),
+        client.readContract({ address, abi: fairAbi, functionName: 'feeRecipient' }),
+      ])
+      return { fee, recipient }
+    },
+    retry: false,
+  })
+  return (
+    <div className="rounded-xl px-3.5 py-3 flex flex-col gap-1.5" style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)' }}>
+      <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>{label}</p>
+      <p className="mono text-xs break-all" style={{ color: 'var(--ink)' }}>{address}</p>
+      <p className="text-xs" style={{ color: 'var(--muted)' }}>
+        {data ? `Claim fee ${formatUnits(data.fee, 6)} USDC → ${data.recipient.slice(0, 8)}…${data.recipient.slice(-6)}` : 'No claim fee (older test deployment) or still loading'}
+      </p>
+      <div className="flex gap-3">
+        <button onClick={() => { void navigator.clipboard.writeText(address); toast.success('Address copied') }} className="flex items-center gap-1 text-xs font-semibold" style={{ color: 'var(--accent)' }}>
+          <Copy className="size-3" /> Copy
+        </button>
+        <a href={buildAddressExplorerUrl(chain.id, address)} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs font-semibold" style={{ color: 'var(--accent)', textDecoration: 'none' }}>
+          <ExternalLink className="size-3" /> Explorer
+        </a>
+      </div>
+    </div>
   )
 }

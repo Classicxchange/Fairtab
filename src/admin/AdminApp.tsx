@@ -18,7 +18,7 @@ import { toast } from 'sonner'
 import {
   createPublicClient, http, encodeDeployData,
 } from 'viem'
-import { FairIdDeploySection } from '@/admin/FairIdDeploy'
+import { FairIdDeploySection, FairIdDashboardCard } from '@/admin/FairIdDeploy'
 import { arcMainnetChain, arcTestnetChain, IS_MAINNET } from '@/config'
 import { buildTxExplorerUrl, buildAddressExplorerUrl } from '@/onchain-facts'
 import { formatUsdc } from '@/onchain-money'
@@ -167,6 +167,7 @@ function DashboardSection() {
           </a>
         </div>
       </div>
+      <FairIdDashboardCard />
     </motion.div>
   )
 }
