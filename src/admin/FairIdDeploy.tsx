@@ -4,7 +4,8 @@
  */
 import { useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { createPublicClient, encodeDeployData, formatUnits, http, isAddress, parseAbi, parseUnits } from 'viem'
+import { useAccount, useSwitchChain, useWalletClient } from 'wagmi'
+import { createPublicClient, formatUnits, http, isAddress, parseAbi, parseUnits } from 'viem'
 import { toast } from 'sonner'
 import { AlertTriangle, CheckCircle2, ExternalLink, Loader2, Rocket, ShieldCheck, XCircle } from 'lucide-react'
 import { arcMainnetChain, arcTestnetChain, IS_MAINNET } from '@/config'
@@ -32,6 +33,13 @@ const fairAbi = parseAbi([
   'function claimFee() view returns (uint256)',
 ])
 
+function withTimeout<T>(p: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(message)), ms)
+    p.then(v => { clearTimeout(t); resolve(v) }, e => { clearTimeout(t); reject(e instanceof Error ? e : new Error(String(e))) })
+  })
+}
+
 function parseFee(text: string): { raw: bigint; ok: boolean } {
   // Plain decimal numbers only, at most 6 decimal places. Nothing is rewritten or rounded.
   if (!/^\d+(\.\d{1,6})?$/.test(text.trim())) return { raw: 0n, ok: false }
@@ -58,6 +66,10 @@ export function FairIdDeploySection({ adminAddress }: { adminAddress: string }) 
   const [verifyFailed, setVerifyFailed] = useState(false)
   const [error, setError] = useState('')
   const deployedRef = useRef('')
+  const { chainId: walletChainId } = useAccount()
+  const { data: walletClient } = useWalletClient()
+  const { switchChainAsync } = useSwitchChain()
+  const [stage, setStage] = useState('')
 
   const client = createPublicClient({ chain, transport: http(chain.rpcUrls.default.http[0]) })
   const bytecode = ((artifact.bytecode as unknown as { object?: string }).object ?? '') as `0x${string}`
@@ -128,18 +140,26 @@ export function FairIdDeploySection({ adminAddress }: { adminAddress: string }) 
     setDeploying(true)
     setError('')
     try {
-      const ethereum = (window as unknown as { ethereum?: { request: (a: { method: string; params: unknown[] }) => Promise<unknown> } }).ethereum
-      if (!ethereum) throw new Error('No browser wallet found.')
-      const chainHex = (await ethereum.request({ method: 'eth_chainId', params: [] })) as string
-      if (parseInt(chainHex, 16) !== chain.id) throw new Error(`Switch your wallet to ${chain.name} (chain ${chain.id}) first.`)
-
-      const data = encodeDeployData({
-        abi: artifact.abi, bytecode,
-        args: [usdc as `0x${string}`, recipient as `0x${string}`, feeRaw],
-      })
-      const hash = (await ethereum.request({ method: 'eth_sendTransaction', params: [{ from: adminAddress, data }] })) as string
+      // Use the wallet you connected on this page (not whichever extension owns window.ethereum)
+      if (!walletClient) throw new Error('Your wallet is not ready. Reconnect it and try again.')
+      if (walletChainId !== chain.id) {
+        setStage(`Switch your wallet to ${chain.name}…`)
+        await switchChainAsync({ chainId: chain.id })
+      }
+      setStage('Confirm the deployment in your wallet…')
+      const hash = await withTimeout(
+        walletClient.deployContract({
+          abi: artifact.abi, bytecode,
+          args: [usdc as `0x${string}`, recipient as `0x${string}`, feeRaw],
+          account: adminAddress as `0x${string}`,
+          chain,
+        }),
+        90_000,
+        'Your wallet did not respond. Open your wallet app or extension, look for a pending request, then try again.',
+      )
       setTxHash(hash)
-      const receipt = await client.waitForTransactionReceipt({ hash: hash as `0x${string}`, timeout: 180_000 })
+      setStage('Waiting for the network to confirm…')
+      const receipt = await client.waitForTransactionReceipt({ hash: hash, timeout: 180_000 })
       if (receipt.status !== 'success' || !receipt.contractAddress) throw new Error('Deployment transaction failed.')
       const addr = receipt.contractAddress
       setDeployed(addr)
@@ -171,6 +191,7 @@ export function FairIdDeploySection({ adminAddress }: { adminAddress: string }) 
       toast.error(deployedRef.current ? 'Deployed, but could not verify the settings' : 'Deployment failed')
     } finally {
       setDeploying(false)
+      setStage('')
     }
   }
 
@@ -231,7 +252,7 @@ export function FairIdDeploySection({ adminAddress }: { adminAddress: string }) 
         <input value={confirmText} onChange={e => setConfirmText(e.target.value)} placeholder="DEPLOY" disabled={checking || deploying || !!deployed} className="mono rounded-xl px-4 py-2.5 text-sm outline-none" style={input} />
         <button onClick={() => { void handleDeploy() }} disabled={!canDeploy}
           className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-40" style={{ background: 'var(--accent)', color: '#fff' }}>
-          {deploying ? <><Loader2 className="size-4 animate-spin" /> Waiting for confirmation…</> : <><Rocket className="size-4" /> Deploy FairID</>}
+          {deploying ? <><Loader2 className="size-4 animate-spin" /> {stage || 'Working…'}</> : <><Rocket className="size-4" /> Deploy FairID</>}
         </button>
         {!feeOk && feeText && <p className="text-xs" style={{ color: 'var(--danger)' }}>Enter a plain number such as 1 or 2.5 (up to 6 decimals, no commas).</p>}
         {!checksPassed && <p className="text-xs" style={{ color: 'var(--subtle)' }}>Run the checks first. A failed check blocks deployment.</p>}
