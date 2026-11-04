@@ -47,7 +47,7 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: 'What is Commit, and is it safe?',
-    a: 'Commit lets you put idle USDC into a lending vault on Arc (Steakhouse Prime USDC or Galaxy USDC, both run on Morpho) to earn yield. Your money goes straight from your wallet into the vault, and Fairtab never holds it or charges a fee. It is not a savings account: the yield changes and is not guaranteed, you can lose money if a borrower or the vault fails, and because most of the USDC is lent out you may have to wait to withdraw if many people leave at once. Each deposit is limited to 1 to 1,000 USDC. Start small.',
+    a: 'Commit lets you put idle USDC into a lending vault on Arc (Steakhouse Prime USDC or Galaxy USDC, both run on Morpho) to earn yield. Your money goes straight from your wallet into the vault, and Fairtab never holds it. When you commit, Fairtab takes a small fee (0.23%) once; withdrawing is free. It is not a savings account: the yield changes and is not guaranteed, you can lose money if a borrower or the vault fails, and because most of the USDC is lent out you may have to wait to withdraw if many people leave at once. Each deposit is limited to 0.10 to 1,000 USDC. Start small.',
   },
   {
     q: 'What are the reminders?',

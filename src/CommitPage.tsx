@@ -12,9 +12,10 @@ import { AlertTriangle, Info, Loader2, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { arcMainnetChain, IS_MAINNET } from '@/config'
 import { getUsdc } from '@/onchain-facts'
+import { COMMIT_ROUTER_ABI, COMMIT_ROUTER_ADDRESS } from '@/commitRouter'
 
 const CHAIN_ID = arcMainnetChain.id
-const MIN_DEPOSIT = 1_000_000n        // 1 USDC
+const MIN_DEPOSIT = 100_000n          // 0.10 USDC
 const MAX_DEPOSIT = 1_000_000_000n    // 1,000 USDC
 const GAS_BUFFER = 100_000n           // keep 0.10 USDC for network fees
 
@@ -29,6 +30,7 @@ const vaultAbi = parseAbi([
   'function redeem(uint256 shares, address receiver, address owner) returns (uint256 assets)',
   'function balanceOf(address account) view returns (uint256)',
   'function convertToAssets(uint256 shares) view returns (uint256)',
+  'function previewDeposit(uint256 assets) view returns (uint256 shares)',
 ])
 
 const card = { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, boxShadow: 'var(--shadow-sm)' } as React.CSSProperties
@@ -80,9 +82,15 @@ export function CommitPage() {
   const { data: committed, refetch: refetchCommitted } = useReadContract({
     address: vault.address, abi: vaultAbi, functionName: 'convertToAssets', args: [shares ?? 0n], chainId: CHAIN_ID, query: { enabled: enabled && shares !== undefined },
   })
+  // With the router set up, deposits go through it (it takes the fee); otherwise straight to the vault
+  const spender = COMMIT_ROUTER_ADDRESS ?? vault.address
   const { data: allowance, refetch: refetchAllowance } = useReadContract({
-    address: usdc, abi: erc20Abi, functionName: 'allowance', args: [address as `0x${string}`, vault.address], chainId: CHAIN_ID, query: { enabled },
+    address: usdc, abi: erc20Abi, functionName: 'allowance', args: [address as `0x${string}`, spender], chainId: CHAIN_ID, query: { enabled },
   })
+  const { data: feeBpsRead } = useReadContract({
+    address: COMMIT_ROUTER_ADDRESS, abi: COMMIT_ROUTER_ABI, functionName: 'feeBps', chainId: CHAIN_ID, query: { enabled: !!COMMIT_ROUTER_ADDRESS },
+  })
+  const feeBps = COMMIT_ROUTER_ADDRESS && feeBpsRead !== undefined ? BigInt(feeBpsRead) : 0n
 
   const { writeContract, data: hash, isPending: signing, reset } = useWriteContract({
     mutation: { onError: err => { toast.error(errorText(err)); setPendingMsg('') } },
@@ -96,6 +104,14 @@ export function CommitPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [confirmed])
 
+  const amount = parseAmount(amountText)
+  const fee = amount !== null ? (amount * feeBps) / 10_000n : 0n
+  const net = amount !== null ? amount - fee : 0n
+  const { data: expectedShares } = useReadContract({
+    address: vault.address, abi: vaultAbi, functionName: 'previewDeposit', args: [net], chainId: CHAIN_ID,
+    query: { enabled: enabled && mode === 'commit' && net > 0n },
+  })
+
   if (!IS_MAINNET) {
     return (
       <div className="p-5 flex flex-col gap-2" style={card}>
@@ -106,7 +122,6 @@ export function CommitPage() {
   }
 
   const busy = signing || confirming
-  const amount = parseAmount(amountText)
   const wallet = walletUsdc ?? 0n
   const myCommitted = committed ?? 0n
   const maxDeposit = wallet > GAS_BUFFER ? (wallet - GAS_BUFFER < MAX_DEPOSIT ? wallet - GAS_BUFFER : MAX_DEPOSIT) : 0n
@@ -116,7 +131,7 @@ export function CommitPage() {
   let problem = ''
   if (amountText && amount === null) problem = 'Enter a plain number such as 25 or 12.5.'
   else if (amount !== null && mode === 'commit') {
-    if (amount < MIN_DEPOSIT) problem = 'The minimum is 1 USDC.'
+    if (amount < MIN_DEPOSIT) problem = 'The minimum is 0.10 USDC.'
     else if (amount > MAX_DEPOSIT) problem = 'The maximum per deposit is 1,000 USDC.'
     else if (amount > maxDeposit) problem = 'That is more than your wallet holds (a little USDC is kept for network fees).'
   } else if (amount !== null && mode === 'withdraw') {
@@ -131,7 +146,12 @@ export function CommitPage() {
     if (mode === 'commit') {
       if (needsApprove) {
         setPendingMsg('Approved. Now press Commit to finish.')
-        writeContract({ address: usdc, abi: erc20Abi, functionName: 'approve', args: [vault.address, amount] })
+        writeContract({ address: usdc, abi: erc20Abi, functionName: 'approve', args: [spender, amount] })
+      } else if (COMMIT_ROUTER_ADDRESS) {
+        // Accept up to 0.5% fewer shares than the vault quoted, otherwise stop
+        const minShares = expectedShares !== undefined ? (expectedShares * 995n) / 1000n : 0n
+        setPendingMsg(`Committed ${fmt(net)} USDC`)
+        writeContract({ address: COMMIT_ROUTER_ADDRESS, abi: COMMIT_ROUTER_ABI, functionName: 'commit', args: [vault.address, amount, minShares] })
       } else {
         setPendingMsg(`Committed ${fmt(amount)} USDC`)
         writeContract({ address: vault.address, abi: vaultAbi, functionName: 'deposit', args: [amount, address] })
@@ -157,7 +177,7 @@ export function CommitPage() {
           <li>Your USDC goes into a lending vault run by a third party, not by Fairtab. Fairtab never holds it and cannot recover it.</li>
           <li>The yield is variable and not guaranteed. You can lose money if a borrower or the vault fails.</li>
           <li>Most of a vault's USDC is lent out. If many people withdraw, you may have to wait until borrowers repay.</li>
-          <li>This is real money on Arc Mainnet. Start small. Each deposit must be between 1 and 1,000 USDC.</li>
+          <li>This is real money on Arc Mainnet. Start small. Each deposit must be between 0.10 and 1,000 USDC.</li>
         </ul>
       </div>
 
@@ -219,6 +239,12 @@ export function CommitPage() {
               {liquidity !== null && myCommitted > liquidity && ' The rest becomes available as borrowers repay.'}
             </p>
           )}
+          {mode === 'commit' && amount !== null && amount >= MIN_DEPOSIT && feeBps > 0n && (
+            <div className="rounded-xl px-3.5 py-2.5 text-xs flex flex-col gap-1" style={{ background: 'var(--surface-muted)', color: 'var(--ink-2)' }}>
+              <span className="flex justify-between"><span>Fairtab fee ({(Number(feeBps) / 100).toFixed(2)}%, charged once)</span><strong>{fmt(fee)} USDC</strong></span>
+              <span className="flex justify-between"><span>Goes into the vault</span><strong>{fmt(net)} USDC</strong></span>
+            </div>
+          )}
           {problem && <p className="text-xs" style={{ color: 'var(--danger)' }}>{problem}</p>}
 
           <button disabled={!canGo} onClick={go} className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-40" style={{ background: 'var(--accent)', color: '#fff' }}>
@@ -227,7 +253,7 @@ export function CommitPage() {
               : needsApprove ? 'Step 1 of 2: allow this amount' : 'Commit'}
           </button>
           <p className="flex items-start gap-1.5 text-[11px]" style={{ color: 'var(--subtle)' }}>
-            <Info className="size-3 shrink-0 mt-0.5" /> Fairtab charges no fee. Network fees are paid in USDC. Figures like yield and availability come from Morpho and change often.
+            <Info className="size-3 shrink-0 mt-0.5" /> {feeBps > 0n ? `Fairtab takes a ${(Number(feeBps) / 100).toFixed(2)}% fee when you commit, and nothing when you withdraw.` : 'Fairtab charges no fee.'} Network fees are paid in USDC. Figures like yield and availability come from Morpho and change often.
           </p>
         </div>
       )}

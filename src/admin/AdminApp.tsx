@@ -19,6 +19,7 @@ import {
   createPublicClient, http, encodeDeployData,
 } from 'viem'
 import { FairIdDeploySection, FairIdDashboardCard } from '@/admin/FairIdDeploy'
+import { CommitRouterDeploySection, CommitRouterDashboardCard } from '@/admin/CommitRouterDeploy'
 import { arcMainnetChain, arcTestnetChain, IS_MAINNET } from '@/config'
 import { buildTxExplorerUrl, buildAddressExplorerUrl } from '@/onchain-facts'
 import { formatUsdc } from '@/onchain-money'
@@ -69,7 +70,7 @@ const fadeUp = {
   transition: { duration: 0.18 },
 }
 
-type AdminSection = 'dashboard' | 'bills' | 'deploy' | 'fairid' | 'manage'
+type AdminSection = 'dashboard' | 'bills' | 'deploy' | 'fairid' | 'router' | 'manage'
 
 // ─── Section: Dashboard ───────────────────────────────────────────────────────
 function DashboardSection({ adminAddress }: { adminAddress: string }) {
@@ -168,6 +169,7 @@ function DashboardSection({ adminAddress }: { adminAddress: string }) {
         </div>
       </div>
       <FairIdDashboardCard adminAddress={adminAddress} />
+      <CommitRouterDashboardCard adminAddress={adminAddress} />
     </motion.div>
   )
 }
@@ -832,6 +834,7 @@ export default function AdminApp() {
     { id: 'bills',     label: 'All Bills',  icon: FileText         },
     { id: 'deploy',    label: 'Deploy',     icon: Rocket           },
     { id: 'fairid',    label: 'FairID',     icon: Package          },
+    { id: 'router',    label: 'Commit',     icon: DollarSign       },
     { id: 'manage',    label: 'Manage',     icon: Settings         },
   ]
 
@@ -900,6 +903,7 @@ export default function AdminApp() {
             {section === 'bills'     && <BillsSection     key="bills" />}
             {section === 'deploy'    && <DeploySection    key="deploy" adminAddress={address} />}
             {section === 'fairid'    && address && <FairIdDeploySection key="fairid" adminAddress={address} />}
+            {section === 'router'    && address && <CommitRouterDeploySection key="router" adminAddress={address} />}
             {section === 'manage'    && <ManageSection    key="manage" />}
           </AnimatePresence>
         </main>

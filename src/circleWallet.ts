@@ -16,6 +16,7 @@ import type { W3SSdk as W3SSdkType } from '@circle-fin/w3s-pw-web-sdk'
 import { arcChain } from '@/config'
 import artifact from '../contracts/out/HouseholdBillSplitter.sol/HouseholdBillSplitter.json'
 import { FAIRID_ABI } from '@/fairid'
+import { COMMIT_ROUTER_ABI } from '@/commitRouter'
 
 const circleAppId = import.meta.env.VITE_CIRCLE_APP_ID as string | undefined
 const RPC_URL = arcChain.rpcUrls.default.http[0]
@@ -169,6 +170,11 @@ const FRIENDLY_ERRORS: Record<string, string> = {
   SameAddress: 'You cannot send a FairID to yourself.',
   RecipientHasName: 'The other wallet already has a FairID.',
   NoPendingTransfer: 'There is no pending FairID transfer to accept.',
+  VaultNotAllowed: 'That vault is not supported.',
+  ZeroAmount: 'Enter an amount above zero.',
+  SlippageExceeded: 'The vault would give you fewer shares than expected. Try again in a moment.',
+  ShareDeliveryMismatch: 'The vault did not deliver the expected shares, so nothing was sent.',
+  LeftoverFunds: 'The vault did not accept the full amount, so nothing was sent.',
 }
 
 /** Dry-runs the call so a call that would revert shows a readable reason instead of failing after the PIN. */
@@ -181,7 +187,7 @@ async function assertCallWouldSucceed(tx: TxParams, from: string) {
     if (hex) {
       try {
         const decoded = decodeErrorResult({
-          abi: [...(artifact.abi as never[]), ...erc20Abi, ...FAIRID_ABI],
+          abi: [...(artifact.abi as never[]), ...erc20Abi, ...FAIRID_ABI, ...COMMIT_ROUTER_ABI],
           data: hex as `0x${string}`,
         })
         const arg0 = typeof decoded.args?.[0] === 'string' ? decoded.args[0] : ''
