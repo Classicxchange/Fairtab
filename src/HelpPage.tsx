@@ -46,6 +46,10 @@ const FAQ: { q: string; a: string }[] = [
     a: 'A FairID is a short name, like @tunde, that you claim for your wallet so people can pay you without a long wallet address. It is free and first come, first served. Claim yours on the Account page. To pay someone, type their @name in the Send page. A FairID is only a label for your wallet: it never holds money, and you can release it or move it to another wallet at any time.',
   },
   {
+    q: 'What is Commit, and is it safe?',
+    a: 'Commit lets you put idle USDC into a lending vault on Arc (Steakhouse Prime USDC or Galaxy USDC, both run on Morpho) to earn yield. Your money goes straight from your wallet into the vault, and Fairtab never holds it or charges a fee. It is not a savings account: the yield changes and is not guaranteed, you can lose money if a borrower or the vault fails, and because most of the USDC is lent out you may have to wait to withdraw if many people leave at once. Each deposit is limited to 1 to 1,000 USDC. Start small.',
+  },
+  {
     q: 'What are the reminders?',
     a: 'The bell at the top shows invitations waiting for you, bills due within 3 days, overdue bills, new payments on bills you created, and bills where people still owe you. For those, "Copy reminder message" gives you a note to send on WhatsApp or X.',
   },

@@ -14,6 +14,7 @@ import { RemindersBell } from '@/RemindersBell'
 import { buildNotices, type BillSnapshot } from '@/reminders'
 import { circleConnector, setCircleAuth, onCircleSessionExpired } from '@/circleWallet'
 import { SendPage } from '@/SendPage'
+import { CommitPage } from '@/CommitPage'
 import { CreateBillPage } from '@/CreateBillPage'
 import { BillDetailPage } from '@/BillDetailPage'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -32,7 +33,7 @@ import {
   Plus, AlertTriangle, Receipt,
   Users, Wallet, CheckCircle2, Copy,
   Send, QrCode, Link2, LayoutGrid,
-  Sun, Moon, UserCircle,
+  Sun, Moon, UserCircle, TrendingUp,
   List, PenLine, ArrowDownCircle, CircleCheckBig,
   Bell, ChevronLeft, ChevronRight,
   ChevronRight as ChevronRightIcon,
@@ -799,10 +800,11 @@ export default function App() {
   const prefilledTo = urlParams.get('to')
 
   // Derive the active tab from the pathname
-  type Tab = 'bills' | 'send' | 'receive' | 'account'
+  type Tab = 'bills' | 'send' | 'receive' | 'commit' | 'account'
   const tab = useMemo((): Tab => {
     if (location.pathname === '/app/send')    return 'send'
     if (location.pathname === '/app/receive') return 'receive'
+    if (location.pathname === '/app/commit')  return 'commit'
     if (location.pathname === '/app/account') return 'account'
     return 'bills'
   }, [location.pathname])
@@ -1212,6 +1214,7 @@ export default function App() {
                 { id: 'bills',   label: 'Bills',   icon: LayoutGrid },
                 { id: 'send',    label: 'Send',    icon: Send       },
                 { id: 'receive', label: 'Receive', icon: QrCode     },
+                { id: 'commit',  label: 'Commit',  icon: TrendingUp },
                 { id: 'account', label: 'Account', icon: UserCircle },
               ] as const).map(({ id, label, icon: Icon }) => (
                 <button key={id} onClick={() => setTab(id)}
@@ -1272,6 +1275,7 @@ export default function App() {
                 { id: 'bills',   label: 'Bills',   icon: LayoutGrid },
                 { id: 'send',    label: 'Send',    icon: Send       },
                 { id: 'receive', label: 'Receive', icon: QrCode     },
+                { id: 'commit',  label: 'Commit',  icon: TrendingUp },
                 { id: 'account', label: 'Account', icon: UserCircle },
               ] as const).map(({ id, label, icon: Icon }) => (
                 <button key={id} onClick={() => setTab(id)}
@@ -1304,6 +1308,13 @@ export default function App() {
                   initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}
                   transition={{ duration: 0.18 }}>
                   <ReceiveView unifiedAddress={address} />
+                </motion.div>
+              )}
+              {tab === 'commit' && (
+                <motion.div key="commit"
+                  initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}
+                  transition={{ duration: 0.18 }}>
+                  <CommitPage />
                 </motion.div>
               )}
               {tab === 'bills' && (
