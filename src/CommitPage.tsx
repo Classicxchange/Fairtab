@@ -6,7 +6,7 @@
 
 import { useEffect, useState } from 'react'
 import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from 'wagmi'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueries } from '@tanstack/react-query'
 import { erc20Abi, formatUnits, parseAbi, parseUnits } from 'viem'
 import { AlertTriangle, Info, Loader2, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
@@ -31,6 +31,8 @@ const vaultAbi = parseAbi([
   'function balanceOf(address account) view returns (uint256)',
   'function convertToAssets(uint256 shares) view returns (uint256)',
   'function previewDeposit(uint256 assets) view returns (uint256 shares)',
+  'function totalAssets() view returns (uint256)',
+  'function totalSupply() view returns (uint256)',
 ])
 
 const card = { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, boxShadow: 'var(--shadow-sm)' } as React.CSSProperties
@@ -73,12 +75,43 @@ export function CommitPage() {
   const liquidity = liveSel?.liquidity ? BigInt(liveSel.liquidity) : null
 
   const enabled = !!address && !!usdc && IS_MAINNET
+
+  // What this wallet has put in and taken out of each vault, so we can show what it earned
+  const historyQueries = useQueries({
+    queries: VAULTS.map(v => ({
+      queryKey: ['commit-history', address, v.address],
+      enabled: !!address && IS_MAINNET,
+      refetchInterval: 60_000,
+      retry: 1,
+      queryFn: async () => {
+        const r = await fetch(`/api/commit/yield?address=${address}&vault=${v.address}`)
+        if (!r.ok) throw new Error('unavailable')
+        const j = await r.json() as { deposited: string; withdrawn: string; complete: boolean }
+        return { deposited: BigInt(j.deposited), withdrawn: BigInt(j.withdrawn), complete: j.complete }
+      },
+    })),
+  })
+  const vaultIndex = VAULTS.findIndex(v => v.id === vaultId)
+  const historySel = historyQueries[vaultIndex]?.data
   const { data: walletUsdc, refetch: refetchWallet } = useReadContract({
     address: usdc, abi: erc20Abi, functionName: 'balanceOf', args: [address as `0x${string}`], chainId: CHAIN_ID, query: { enabled },
   })
   const { data: shares, refetch: refetchShares } = useReadContract({
-    address: vault.address, abi: vaultAbi, functionName: 'balanceOf', args: [address as `0x${string}`], chainId: CHAIN_ID, query: { enabled },
+    address: vault.address, abi: vaultAbi, functionName: 'balanceOf', args: [address as `0x${string}`], chainId: CHAIN_ID,
+    query: { enabled, refetchInterval: 3000 },
   })
+  // Vaults earn a little on every block (about every half second). Reading the vault's total every 500 ms
+  // lets the earned figure move live. Polling pauses while the tab is hidden.
+  const { data: vaultAssets } = useReadContract({
+    address: vault.address, abi: vaultAbi, functionName: 'totalAssets', chainId: CHAIN_ID, query: { enabled, refetchInterval: 500 },
+  })
+  const { data: vaultSupply } = useReadContract({
+    address: vault.address, abi: vaultAbi, functionName: 'totalSupply', chainId: CHAIN_ID, query: { enabled, refetchInterval: 10_000 },
+  })
+  // Your share of the vault in units of 0.000000000001 USDC (six more digits than the token itself)
+  const committedPrecise = shares !== undefined && vaultAssets !== undefined && vaultSupply !== undefined && vaultSupply > 0n
+    ? (shares * vaultAssets * 1_000_000n) / vaultSupply
+    : undefined
   const { data: committed, refetch: refetchCommitted } = useReadContract({
     address: vault.address, abi: vaultAbi, functionName: 'convertToAssets', args: [shares ?? 0n], chainId: CHAIN_ID, query: { enabled: enabled && shares !== undefined },
   })
@@ -205,6 +238,7 @@ export function CommitPage() {
         <div className="p-4 text-sm" style={{ ...card, color: 'var(--muted)' }}>Sign in with a wallet that can approve transactions to commit USDC.</div>
       ) : (
         <div className="p-4 flex flex-col gap-3.5" style={card}>
+          <EarnedSummary committed={myCommitted} committedPrecise={committedPrecise} history={historySel} complete={historySel?.complete ?? false} />
           <div className="grid grid-cols-2 gap-3">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>In your wallet</p>
@@ -212,7 +246,9 @@ export function CommitPage() {
             </div>
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Committed here</p>
-              <p className="display text-lg font-bold" style={{ color: 'var(--success)' }}>{fmt(myCommitted)} USDC</p>
+              <p className="display text-lg font-bold tabular-nums" style={{ color: 'var(--success)' }}>
+                {committedPrecise !== undefined ? Number(formatUnits(committedPrecise, 12)).toLocaleString(undefined, { minimumFractionDigits: 6, maximumFractionDigits: 6 }) : fmt(myCommitted)} USDC
+              </p>
             </div>
           </div>
 
@@ -257,6 +293,48 @@ export function CommitPage() {
           </p>
         </div>
       )}
+    </div>
+  )
+}
+
+/** Shows how much you put in and how much it has grown. Hidden when there is no history to base it on. */
+function EarnedSummary({ committed, committedPrecise, history, complete }: {
+  committed: bigint
+  committedPrecise: bigint | undefined
+  history: { deposited: bigint; withdrawn: bigint } | undefined
+  complete: boolean
+}) {
+  if (!history) return null
+  const { deposited, withdrawn } = history
+  if (deposited === 0n && withdrawn === 0n) {
+    return committed > 0n ? (
+      <p className="text-xs" style={{ color: 'var(--muted)' }}>Your history is still loading, so earnings are not shown yet.</p>
+    ) : null
+  }
+  // Everything you have ever taken out plus what is still there, minus everything you put in.
+  // Worked out with six extra digits so it can move with every block.
+  const scale = 1_000_000n
+  const nowValue = committedPrecise ?? committed * scale
+  const earned = nowValue + (withdrawn - deposited) * scale
+  const stillIn = deposited > withdrawn ? deposited - withdrawn : 0n
+  const positive = earned >= 0n
+  const abs = positive ? earned : -earned
+  const pct = deposited > 0n ? (Number(earned) / Number(deposited * scale)) * 100 : 0
+  const shown = formatUnits(abs, 12)
+  const [whole, frac = ''] = shown.split('.')
+  const text = `${positive ? '+' : '-'}${whole}.${frac.padEnd(8, '0').slice(0, 8)}`
+  return (
+    <div className="rounded-xl px-3.5 py-3 flex flex-col gap-1.5" style={{ background: positive ? 'var(--success-bg)' : 'var(--danger-bg)' }}>
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Earned so far · live</span>
+        <span className="display text-lg font-bold tabular-nums" style={{ color: positive ? 'var(--success)' : 'var(--danger)' }}>{text} USDC</span>
+      </div>
+      <p className="text-[11px]" style={{ color: 'var(--ink-2)' }}>
+        You put in {fmt(deposited)} USDC{withdrawn > 0n ? ` and took out ${fmt(withdrawn)}` : ''}. {stillIn > 0n ? `About ${fmt(stillIn)} of that is still committed. ` : ''}
+        {pct !== 0 ? `That is ${pct > 0 ? '+' : ''}${pct.toFixed(4)}% on what you put in.` : ''}
+      </p>
+      <p className="text-[11px]" style={{ color: 'var(--subtle)' }}>Updates with every block. USDC itself only has 6 decimals, so the extra digits are shown to see it grow.</p>
+      {!complete && <p className="text-[11px]" style={{ color: 'var(--subtle)' }}>Older history could not be loaded, so this may be incomplete.</p>}
     </div>
   )
 }
