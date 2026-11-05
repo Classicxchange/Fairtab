@@ -34,6 +34,10 @@ const FAQ: { q: string; a: string }[] = [
     a: 'Yes. Fairtab runs on Arc Mainnet, so USDC and fees are real and transactions cannot be reversed. Start with a small bill to learn how it works.',
   },
   {
+    q: 'What is Veltra?',
+    a: 'Veltra is the Fairtab assistant on the Bills page. Describe a bill in your own words, for example "Split $120 rent with 0x… and 0x…, I get paid", and Veltra fills in the bill form for you. It only prepares a draft. It never signs or sends anything, so you review every detail and confirm the transaction yourself. Veltra only uses wallet addresses you typed, and the amounts are calculated for you. It runs on a third-party AI service, so please do not type private keys, PINs or recovery phrases into it. It appears once it is switched on.',
+  },
+  {
     q: 'How does signing in with Google work?',
     a: 'Google proves who you are, and Circle creates a wallet for your Google account. The same Google account always gets the same wallet. You approve every transaction with your own PIN, and your sign-in lasts about an hour before you need to sign in again.',
   },

@@ -44,7 +44,7 @@ export function BillAssistant({ address, onDraftReady }: { address: string; onDr
       })
       const data = await res.json() as DraftResponse
       if (!res.ok || data.error) {
-        toast.error(data.error ?? 'The assistant could not draft that. Try again.')
+        toast.error(data.error ?? 'Veltra could not draft that. Try again.')
         return
       }
       // Same format the bill form already saves, so it opens exactly where it should
@@ -62,7 +62,7 @@ export function BillAssistant({ address, onDraftReady }: { address: string; onDr
       }
       data.warnings.slice(0, 2).forEach(w => toast.message(w))
     } catch {
-      toast.error('Could not reach the assistant. Check your connection.')
+      toast.error('Could not reach Veltra. Check your connection.')
     } finally {
       setBusy(false)
     }
@@ -77,7 +77,7 @@ export function BillAssistant({ address, onDraftReady }: { address: string; onDr
         <span className="flex size-7 items-center justify-center rounded-xl" style={{ background: 'var(--accent-light)' }}>
           <Sparkles className="size-3.5" style={{ color: 'var(--accent)' }} />
         </span>
-        <p className="text-sm font-semibold" style={{ color: 'var(--ink)' }}>Create a bill by describing it</p>
+        <p className="text-sm font-semibold" style={{ color: 'var(--ink)' }}>Veltra <span className="font-normal" style={{ color: 'var(--muted)' }}>· describe your bill</span></p>
       </div>
       <div className="flex items-center gap-2">
         <input
@@ -99,7 +99,7 @@ export function BillAssistant({ address, onDraftReady }: { address: string; onDr
         </button>
       </div>
       <p className="text-[11px]" style={{ color: 'var(--subtle)' }}>
-        It only fills in the form. You review it and confirm the transaction yourself.
+        Veltra only fills in the form. You review it and confirm the transaction yourself.
       </p>
     </div>
   )
