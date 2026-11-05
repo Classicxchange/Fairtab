@@ -46,6 +46,10 @@ const FAQ: { q: string; a: string }[] = [
     a: 'A FairID is a short name, like @tunde, that you claim for your wallet so people can pay you without a long wallet address. It is free and first come, first served. Claim yours on the Account page. To pay someone, type their @name in the Send page. A FairID is only a label for your wallet: it never holds money, and you can release it or move it to another wallet at any time.',
   },
   {
+    q: 'What can I swap?',
+    a: 'On the Swap tab you can swap between USDC, EURC (euro stablecoin) and cirBTC (Circle\'s tokenized Bitcoin) on Arc. These are the only tokens Circle\'s swap service supports on Arc today. You see a quote and a minimum amount you will receive before you confirm. Prices come from a third-party aggregator and can move, euro and Bitcoin prices change, and every swap uses real money that cannot be reversed, so start small. Fairtab adds no fee to swaps.',
+  },
+  {
     q: 'What is Commit, and is it safe?',
     a: 'Commit lets you put idle USDC into a lending vault on Arc (Steakhouse Prime USDC or Galaxy USDC, both run on Morpho) to earn yield. Your money goes straight from your wallet into the vault, and Fairtab never holds it. When you commit, Fairtab takes a small fee (0.23%) once; withdrawing is free. It is not a savings account: the yield changes and is not guaranteed, you can lose money if a borrower or the vault fails, and because most of the USDC is lent out you may have to wait to withdraw if many people leave at once. Each deposit is limited to 0.10 to 1,000 USDC. Start small.',
   },

@@ -18,8 +18,8 @@
     "contracts:test": "forge test"
   },
   "dependencies": {
-    "@circle-fin/adapter-viem-v2": "^1.18.0",
-    "@circle-fin/app-kit": "^1.15.2",
+    "@circle-fin/adapter-viem-v2": "^1.20.0",
+    "@circle-fin/app-kit": "^1.20.0",
     "@circle-fin/developer-controlled-wallets": "^10.8.0",
     "@circle-fin/modular-wallets-core": "^1.0.16",
     "@circle-fin/onramp-kit": "^1.0.3",

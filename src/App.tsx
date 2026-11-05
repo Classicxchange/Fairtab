@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
+import { useState, useCallback, useMemo, useEffect, useRef, lazy, Suspense } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { restoreCircleSession, clearCredential } from '@/CircleWalletAuth'
 import { type SeedWalletSession, clearSeedWallet, hasSeedWallet, getSeedWalletAddress } from '@/SeedWalletAuth'
@@ -15,6 +15,7 @@ import { buildNotices, type BillSnapshot } from '@/reminders'
 import { circleConnector, setCircleAuth, onCircleSessionExpired } from '@/circleWallet'
 import { SendPage } from '@/SendPage'
 import { CommitPage } from '@/CommitPage'
+const SwapPage = lazy(() => import('@/SwapPage').then(m => ({ default: m.SwapPage })))
 import { CreateBillPage } from '@/CreateBillPage'
 import { BillDetailPage } from '@/BillDetailPage'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -33,7 +34,7 @@ import {
   Plus, AlertTriangle, Receipt,
   Users, Wallet, CheckCircle2, Copy,
   Send, QrCode, Link2, LayoutGrid,
-  Sun, Moon, UserCircle, TrendingUp,
+  Sun, Moon, UserCircle, TrendingUp, ArrowLeftRight,
   List, PenLine, ArrowDownCircle, CircleCheckBig,
   Bell, ChevronLeft, ChevronRight,
   ChevronRight as ChevronRightIcon,
@@ -800,10 +801,11 @@ export default function App() {
   const prefilledTo = urlParams.get('to')
 
   // Derive the active tab from the pathname
-  type Tab = 'bills' | 'send' | 'receive' | 'commit' | 'account'
+  type Tab = 'bills' | 'send' | 'receive' | 'swap' | 'commit' | 'account'
   const tab = useMemo((): Tab => {
     if (location.pathname === '/app/send')    return 'send'
     if (location.pathname === '/app/receive') return 'receive'
+    if (location.pathname === '/app/swap')    return 'swap'
     if (location.pathname === '/app/commit')  return 'commit'
     if (location.pathname === '/app/account') return 'account'
     return 'bills'
@@ -1214,6 +1216,7 @@ export default function App() {
                 { id: 'bills',   label: 'Bills',   icon: LayoutGrid },
                 { id: 'send',    label: 'Send',    icon: Send       },
                 { id: 'receive', label: 'Receive', icon: QrCode     },
+                { id: 'swap',    label: 'Swap',    icon: ArrowLeftRight },
                 { id: 'commit',  label: 'Commit',  icon: TrendingUp },
                 { id: 'account', label: 'Account', icon: UserCircle },
               ] as const).map(({ id, label, icon: Icon }) => (
@@ -1275,6 +1278,7 @@ export default function App() {
                 { id: 'bills',   label: 'Bills',   icon: LayoutGrid },
                 { id: 'send',    label: 'Send',    icon: Send       },
                 { id: 'receive', label: 'Receive', icon: QrCode     },
+                { id: 'swap',    label: 'Swap',    icon: ArrowLeftRight },
                 { id: 'commit',  label: 'Commit',  icon: TrendingUp },
                 { id: 'account', label: 'Account', icon: UserCircle },
               ] as const).map(({ id, label, icon: Icon }) => (
@@ -1308,6 +1312,15 @@ export default function App() {
                   initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}
                   transition={{ duration: 0.18 }}>
                   <ReceiveView unifiedAddress={address} />
+                </motion.div>
+              )}
+              {tab === 'swap' && (
+                <motion.div key="swap"
+                  initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}
+                  transition={{ duration: 0.18 }}>
+                  <Suspense fallback={<div className="p-6 text-sm" style={{ color: 'var(--muted)' }}>Loading swap…</div>}>
+                    <SwapPage />
+                  </Suspense>
                 </motion.div>
               )}
               {tab === 'commit' && (
