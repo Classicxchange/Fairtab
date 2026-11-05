@@ -33,8 +33,8 @@ import { arcChain, IS_MAINNET } from '@/config'
 import {
   Plus, AlertTriangle, Receipt,
   Users, Wallet, CheckCircle2, Copy,
-  Send, QrCode, Link2, LayoutGrid,
-  Sun, Moon, UserCircle, TrendingUp, ArrowLeftRight,
+  Send, QrCode, Link2, ReceiptText, ChartCandlestick,
+  Sun, Moon, CircleUserRound, TrendingUp, ArrowLeftRight,
   List, PenLine, ArrowDownCircle, CircleCheckBig,
   Bell, ChevronLeft, ChevronRight,
   ChevronRight as ChevronRightIcon,
@@ -1220,9 +1220,9 @@ export default function App() {
             {/* Nav */}
             <motion.div className="flex flex-col gap-1" {...fadeUp} transition={{ delay: 0.05 }}>
               {([
-                { id: 'bills',   label: 'Bills',   icon: LayoutGrid },
-                { id: 'trade',   label: 'Trade',   icon: ArrowLeftRight },
-                { id: 'account', label: 'Account', icon: UserCircle },
+                { id: 'bills',   label: 'Bills',   icon: ReceiptText },
+                { id: 'trade',   label: 'Trade',   icon: ChartCandlestick },
+                { id: 'account', label: 'Account', icon: CircleUserRound },
               ] as const).map(({ id, label, icon: Icon }) => (
                 <button key={id} onClick={() => goNav(id)}
                   className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition-all hover:scale-[1.01] text-left"
@@ -1279,9 +1279,9 @@ export default function App() {
             <div className="md:hidden flex rounded-2xl overflow-hidden p-1 gap-1"
               style={{ background: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
               {([
-                { id: 'bills',   label: 'Bills',   icon: LayoutGrid },
-                { id: 'trade',   label: 'Trade',   icon: ArrowLeftRight },
-                { id: 'account', label: 'Account', icon: UserCircle },
+                { id: 'bills',   label: 'Bills',   icon: ReceiptText },
+                { id: 'trade',   label: 'Trade',   icon: ChartCandlestick },
+                { id: 'account', label: 'Account', icon: CircleUserRound },
               ] as const).map(({ id, label, icon: Icon }) => (
                 <button key={id} onClick={() => goNav(id)}
                   className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2.5 text-xs font-semibold transition-all rounded-xl"
