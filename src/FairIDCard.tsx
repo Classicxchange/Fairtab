@@ -143,7 +143,7 @@ export function FairIDCard({ address }: { address: string }) {
               <Copy className="size-3" /> Copy
             </button>
           </div>
-          <p className="text-xs" style={{ color: 'var(--muted)' }}>People can now pay you by typing <strong>@{myName}</strong> on the Send page.</p>
+          <p className="text-xs" style={{ color: 'var(--muted)' }}>People can now pay you by typing <strong>@{myName}</strong> under Trade, on the Send tab.</p>
 
           <div className="flex flex-col gap-2">
             <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Move to another wallet</p>

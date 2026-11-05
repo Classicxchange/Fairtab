@@ -816,6 +816,13 @@ export default function App() {
     void navigate(path, { replace: false })
   }, [navigate])
 
+  // Top-level navigation is Bills, Trade and Account. Trade groups Send, Receive, Swap and Commit.
+  const isTradeTab = tab === 'send' || tab === 'receive' || tab === 'swap' || tab === 'commit'
+  const lastTradeTab = useRef<Tab>('send')
+  useEffect(() => { if (isTradeTab) lastTradeTab.current = tab }, [isTradeTab, tab])
+  const navActive: 'bills' | 'trade' | 'account' = isTradeTab ? 'trade' : tab === 'account' ? 'account' : 'bills'
+  const goNav = (id: 'bills' | 'trade' | 'account') => setTab(id === 'trade' ? (isTradeTab ? tab : lastTradeTab.current) : id)
+
   // Deep-link: /bill/<id> or legacy ?bill=N
   const deepLinkBillId = useMemo(() => {
     const pathMatch = location.pathname.match(/^\/bill\/(\d+)$/)
@@ -1214,18 +1221,15 @@ export default function App() {
             <motion.div className="flex flex-col gap-1" {...fadeUp} transition={{ delay: 0.05 }}>
               {([
                 { id: 'bills',   label: 'Bills',   icon: LayoutGrid },
-                { id: 'send',    label: 'Send',    icon: Send       },
-                { id: 'receive', label: 'Receive', icon: QrCode     },
-                { id: 'swap',    label: 'Swap',    icon: ArrowLeftRight },
-                { id: 'commit',  label: 'Commit',  icon: TrendingUp },
+                { id: 'trade',   label: 'Trade',   icon: ArrowLeftRight },
                 { id: 'account', label: 'Account', icon: UserCircle },
               ] as const).map(({ id, label, icon: Icon }) => (
-                <button key={id} onClick={() => setTab(id)}
+                <button key={id} onClick={() => goNav(id)}
                   className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition-all hover:scale-[1.01] text-left"
                   style={{
-                    background: tab === id ? 'var(--accent-light)' : 'transparent',
-                    color: tab === id ? 'var(--accent)' : 'var(--ink-2)',
-                    border: `1px solid ${tab === id ? 'var(--accent-light)' : 'transparent'}`,
+                    background: navActive === id ? 'var(--accent-light)' : 'transparent',
+                    color: navActive === id ? 'var(--accent)' : 'var(--ink-2)',
+                    border: `1px solid ${navActive === id ? 'var(--accent-light)' : 'transparent'}`,
                   }}>
                   <Icon className="size-4 shrink-0" /> {label}
                 </button>
@@ -1276,23 +1280,39 @@ export default function App() {
               style={{ background: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
               {([
                 { id: 'bills',   label: 'Bills',   icon: LayoutGrid },
-                { id: 'send',    label: 'Send',    icon: Send       },
-                { id: 'receive', label: 'Receive', icon: QrCode     },
-                { id: 'swap',    label: 'Swap',    icon: ArrowLeftRight },
-                { id: 'commit',  label: 'Commit',  icon: TrendingUp },
+                { id: 'trade',   label: 'Trade',   icon: ArrowLeftRight },
                 { id: 'account', label: 'Account', icon: UserCircle },
               ] as const).map(({ id, label, icon: Icon }) => (
-                <button key={id} onClick={() => setTab(id)}
+                <button key={id} onClick={() => goNav(id)}
                   className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2.5 text-xs font-semibold transition-all rounded-xl"
                   style={{
-                    background: tab === id ? 'var(--accent)' : 'transparent',
-                    color: tab === id ? '#fff' : 'var(--subtle)',
+                    background: navActive === id ? 'var(--accent)' : 'transparent',
+                    color: navActive === id ? '#fff' : 'var(--subtle)',
                   }}>
                   <Icon className="size-4" />
                   <span className="text-[10px] font-semibold">{label}</span>
                 </button>
               ))}
             </div>
+
+            {isTradeTab && (
+              <div className="flex rounded-2xl overflow-hidden p-1 gap-1" role="tablist" aria-label="Trade"
+                style={{ background: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
+                {([
+                  { id: 'send',    label: 'Send',    icon: Send           },
+                  { id: 'receive', label: 'Receive', icon: QrCode         },
+                  { id: 'swap',    label: 'Swap',    icon: ArrowLeftRight },
+                  { id: 'commit',  label: 'Commit',  icon: TrendingUp     },
+                ] as const).map(({ id, label, icon: Icon }) => (
+                  <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
+                    className="flex flex-1 items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-all rounded-xl"
+                    style={{ background: tab === id ? 'var(--accent)' : 'transparent', color: tab === id ? '#fff' : 'var(--subtle)' }}>
+                    <Icon className="size-4" />
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
 
             <AnimatePresence mode="wait">
               {tab === 'send' && (
