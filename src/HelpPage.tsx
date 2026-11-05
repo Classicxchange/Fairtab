@@ -23,7 +23,7 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: 'Does Fairtab hold my money?',
-    a: 'No. Payments go to a smart contract on Arc, not to Fairtab. Fairtab cannot access, freeze or recover your funds, and it does not charge a fee. You only pay the small network fee.',
+    a: 'No. Payments go to a smart contract on Arc, not to Fairtab. Fairtab cannot access, freeze or recover your funds, and it does not charge anything for splitting a bill: you only pay the small network fee. Two optional extras have their own prices, shown before you confirm: claiming a FairID name costs a one-time 1 USDC, and Commit may carry a small one-time fee.',
   },
   {
     q: 'What do I need before I can use it?',

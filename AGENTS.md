@@ -29,6 +29,7 @@ A USDC-based household bill splitter. One person creates a bill with a total amo
 | HouseholdBillSplitter v11 (mainnet, superseded) | Arc Mainnet | 0x8cd4db9811d7beda48f18c34e92f0eb5baa9dfb2 | https://explorer.arc.io/address/0x8cd4db9811d7beda48f18c34e92f0eb5baa9dfb2 |
 | HouseholdBillSplitter v12 (mainnet, ACTIVE — full invite/consent system: acceptInvite, rejectInvite, expireInvite, getParticipantStatus, 24h INVITE_EXPIRY, deployed via admin panel) | Arc Mainnet | 0xcd1dcf79d9bbf3246a21da10aecabde66fb47d08 | https://explorer.arc.io/address/0xcd1dcf79d9bbf3246a21da10aecabde66fb47d08 |
 
+| FairID (name registry, 1 USDC claim fee, immutable) | Arc Mainnet | 0x7B8574866272b19aA4cBF95033f1399f636bef3F | https://explorer.arc.io/address/0x7B8574866272b19aA4cBF95033f1399f636bef3F |
 | FairID (name registry, separate contract) | Arc Testnet | 0xca6b7fea9e936c793e63d0a7aab1f46e55b3d53c | https://explorer.testnet.arc.io/address/0xca6b7fea9e936c793e63d0a7aab1f46e55b3d53c |
 
 FairID has no constructor arguments and no admin. For mainnet, deploy contracts/FairID.sol yourself and set `VITE_FAIRID_MAINNET_ADDRESS` in Vercel; the FairID card and @name sending stay hidden on mainnet until it is set.
@@ -68,3 +69,7 @@ The owner chose to keep the current mainnet bill contract address and not redepl
 - Low: `acceptInvite` has no 24h expiry check until someone calls `expireInvite`.
 - Low: `expireInvite` / `rejectInvite` ignore the bill deadline.
 Revisit only if a new contract version is ever planned.
+
+
+CommitRouter (0.23% commit fee, contracts/CommitRouter.sol) is written, reviewed and tested but NOT deployed yet. Deploy it from /auth/admin (Commit tab), then set VITE_COMMIT_ROUTER_ADDRESS in Vercel. Until then the Commit tab deposits straight to the vault with no fee.
+On-chain check (Nov 5): the mainnet FairID bytecode matches the reviewed artifact exactly.

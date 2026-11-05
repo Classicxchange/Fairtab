@@ -68,7 +68,8 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
   // The recipient box accepts a wallet address or a FairID (@name)
   const typed = to.trim()
   const handle = cleanFairId(typed)
-  const looksLikeName = !!FAIRID_ADDRESS && !isAddress(typed) && FAIRID_NAME_PATTERN.test(handle)
+  // A partly typed wallet address (starting 0x) is not a FairID, so it keeps the plain "Invalid address" hint
+  const looksLikeName = !!FAIRID_ADDRESS && !isAddress(typed) && !/^@?0x/i.test(typed) && FAIRID_NAME_PATTERN.test(handle)
   const { data: nameOwner, isFetching: resolving } = useReadContract({
     address: FAIRID_ADDRESS, abi: FAIRID_ABI, functionName: 'resolve', args: [handle],
     chainId: CHAIN_ID, query: { enabled: looksLikeName },
