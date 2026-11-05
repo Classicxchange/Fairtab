@@ -6,7 +6,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAccount, useReadContract, useSwitchChain } from 'wagmi'
-import { erc20Abi, formatUnits, parseUnits } from 'viem'
+import { erc20Abi, formatUnits, parseUnits, type EIP1193Provider } from 'viem'
 import { TokenBTC, TokenEURC, TokenUSDC } from '@web3icons/react'
 import { AlertTriangle, ArrowDownUp, ChevronDown, ExternalLink, Info, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -47,6 +47,33 @@ function friendlyError(e: unknown): string {
   if (/slippage|price/i.test(m)) return 'The price moved too much. Review a fresh quote and try again.'
   if (/rate limit|429/i.test(m)) return 'Too many requests. Wait a moment and try again.'
   return m.replace(/\s+/g, ' ').slice(0, 200)
+}
+
+const ARC_RPC = arcMainnetChain.rpcUrls.default.http[0]
+
+/**
+ * A read-only wallet connection used only to ask for price quotes. It reports your address and forwards
+ * reads to the Arc network. It cannot sign or send anything, so typing an amount never opens your wallet.
+ */
+function quoteProvider(address: `0x${string}`): EIP1193Provider {
+  return {
+    async request({ method, params }: { method: string; params?: unknown }) {
+      if (method === 'eth_accounts' || method === 'eth_requestAccounts') return [address]
+      if (method === 'eth_chainId') return `0x${CHAIN_ID.toString(16)}`
+      if (method === 'wallet_switchEthereumChain') return null
+      if (method === 'eth_sendTransaction' || method.startsWith('eth_sign') || method === 'personal_sign') {
+        throw new Error('This connection can only get quotes.')
+      }
+      const r = await fetch(ARC_RPC, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params: params ?? [] }),
+      })
+      const j = await r.json() as { result?: unknown; error?: { message: string } }
+      if (j.error) throw new Error(j.error.message)
+      return j.result
+    },
+    on() {}, removeListener() {},
+  } as unknown as EIP1193Provider
 }
 
 /** The token's logo. cirBTC is Circle's tokenized Bitcoin, so it uses the Bitcoin logo. */
@@ -105,7 +132,8 @@ export function SwapPage() {
   const [amountText, setAmountText] = useState('')
   const [slippage, setSlippage] = useState(100)
   const [quote, setQuote] = useState<Quote | null>(null)
-  const [quoting, setQuoting] = useState(false)
+  const [quoteError, setQuoteError] = useState<{ key: string; message: string } | null>(null)
+  const [tick, setTick] = useState(0)
   const [swapping, setSwapping] = useState(false)
   const [error, setError] = useState('')
   const [txHash, setTxHash] = useState('')
@@ -139,7 +167,7 @@ export function SwapPage() {
   else if (amountRaw !== null && amountRaw === 0n) problem = 'Enter an amount above zero.'
   else if (amountRaw !== null && amountRaw > maxSpend) problem = from.kit === 'USDC' ? 'That is more than you hold (a little USDC is kept for network fees).' : `That is more than your ${from.symbol} balance.`
 
-  const clear = () => { setQuote(null); setError(''); setTxHash('') }
+  const clear = () => { setQuote(null); setQuoteError(null); setError(''); setTxHash('') }
 
   const flip = () => { setFromSym(toSym); setToSym(fromSym); setAmountText(''); clear() }
 
@@ -155,30 +183,48 @@ export function SwapPage() {
     return { kit: new AppKit(), adapter }
   }, [connector, chainId, switchChainAsync])
 
-  const review = async () => {
-    if (!address || amountRaw === null || problem || from.kit === to.kit) return
-    setQuoting(true); setError(''); setQuote(null); setTxHash('')
+  // Quote automatically as you type: a short pause after the last keystroke, then a fresh estimate.
+  // It also refreshes every 15 seconds so the price you confirm is recent.
+  const canQuote = !!address && amountRaw !== null && !problem && from.kit !== to.kit && IS_MAINNET
+  useEffect(() => {
+    if (!canQuote || !address) return
+    let cancelled = false
     const key = currentKey
-    try {
-      const { kit, adapter } = await getAdapterAndKit()
-      const est = await kit.estimateSwap({
-        from: { adapter, chain: 'Arc' },
-        tokenIn: from.kit, tokenOut: to.kit,
-        amountIn: amountText.trim(),
-        config: { slippageBps: slippage, allowanceStrategy: 'approve' },
-      })
-      const out = est.estimatedOutput
-      const stop = (est as { stopLimit?: { amount: string } }).stopLimit
-      setQuote({
-        key, out: out.amount, outSymbol: to.symbol, min: stop?.amount ?? null,
-        fees: (est.fees ?? []).map(f => ({ type: String(f.type), amount: String(f.amount), token: String(f.token) })),
-      })
-    } catch (e) {
-      setError(friendlyError(e))
-    } finally {
-      setQuoting(false)
-    }
-  }
+    const timer = setTimeout(() => {
+      void (async () => {
+        try {
+          const [{ AppKit }, { createViemAdapterFromProvider }] = await Promise.all([
+            import('@circle-fin/app-kit'),
+            import('@circle-fin/adapter-viem-v2'),
+          ])
+          const adapter = await createViemAdapterFromProvider({ provider: quoteProvider(address) })
+          const est = await new AppKit().estimateSwap({
+            from: { adapter, chain: 'Arc' },
+            tokenIn: from.kit, tokenOut: to.kit,
+            amountIn: amountText.trim(),
+            config: { slippageBps: slippage, allowanceStrategy: 'approve' },
+          })
+          if (cancelled) return
+          const stop = (est as { stopLimit?: { amount: string } }).stopLimit
+          setQuote({
+            key, out: est.estimatedOutput.amount, outSymbol: to.symbol, min: stop?.amount ?? null,
+            fees: (est.fees ?? []).map(f => ({ type: String(f.type), amount: String(f.amount), token: String(f.token) })),
+          })
+          setQuoteError(null)
+        } catch (e) {
+          if (!cancelled) setQuoteError({ key, message: friendlyError(e) })
+        }
+      })()
+    }, tick === 0 ? 350 : 0)
+    return () => { cancelled = true; clearTimeout(timer) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canQuote, currentKey, tick])
+
+  useEffect(() => {
+    if (!canQuote || swapping) return
+    const id = setInterval(() => setTick(t => t + 1), 15_000)
+    return () => clearInterval(id)
+  }, [canQuote, swapping])
 
   const swap = async () => {
     if (!quote || quote.key !== currentKey || amountRaw === null) return
@@ -212,8 +258,10 @@ export function SwapPage() {
   }
 
   const quoteFresh = quote !== null && quote.key === currentKey
+  const quoteFailed = quoteError !== null && quoteError.key === currentKey
+  const quoting = canQuote && !quoteFresh && !quoteFailed
   const bigSwap = (from.kit !== 'CIRBTC' && amountRaw !== null && Number(formatUnits(amountRaw, from.decimals)) > BIG_AMOUNT_USD)
-  const busy = quoting || swapping
+  const busy = swapping
 
   return (
     <div className="flex flex-col gap-4">
@@ -260,7 +308,9 @@ export function SwapPage() {
               <span>Balance {fmtUnits(toBalance ?? 0n, to.decimals)}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="display flex-1 min-w-0 text-2xl font-bold" style={{ color: quoteFresh ? 'var(--ink)' : 'var(--subtle)' }}>{quoteFresh ? quote.out : '0.00'}</span>
+              <span className="display flex-1 min-w-0 text-2xl font-bold" style={{ color: quoteFresh ? 'var(--ink)' : 'var(--subtle)' }}>
+                {quoteFresh ? quote.out : quoting ? <span className="inline-flex items-center gap-2 text-base font-semibold"><Loader2 className="size-4 animate-spin" /> Getting price…</span> : '0.00'}
+              </span>
               <TokenPicker value={toSym} disabled={busy} onChange={v => { setToSym(v); if (v === fromSym) setFromSym(toSym); setAmountText(''); clear() }} />
             </div>
           </div>
@@ -290,19 +340,15 @@ export function SwapPage() {
           )}
 
           {bigSwap && <p className="flex items-start gap-1.5 text-xs" style={{ color: 'var(--warning)' }}><AlertTriangle className="size-3.5 shrink-0 mt-0.5" /> This is more than {BIG_AMOUNT_USD} in value. Consider a small test swap first.</p>}
-          {error && <p className="text-xs" style={{ color: 'var(--danger)' }}>{error}</p>}
+          {(error || quoteFailed) && <p className="text-xs" style={{ color: 'var(--danger)' }}>{error || quoteError?.message}</p>}
 
-          {!quoteFresh ? (
-            <button disabled={busy || !amountText || !!problem || amountRaw === null} onClick={() => { void review() }}
-              className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-40" style={{ background: 'var(--accent)', color: '#fff' }}>
-              {quoting ? <><Loader2 className="size-4 animate-spin" /> Getting a quote…</> : 'Review quote'}
-            </button>
-          ) : (
-            <button disabled={busy} onClick={() => { void swap() }}
-              className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-40" style={{ background: 'var(--accent)', color: '#fff' }}>
-              {swapping ? <><Loader2 className="size-4 animate-spin" /> Swapping… confirm each step</> : `Swap ${amountText.trim()} ${from.symbol} to ${to.symbol}`}
-            </button>
-          )}
+          <button disabled={busy || !quoteFresh} onClick={() => { void swap() }}
+            className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-40" style={{ background: 'var(--accent)', color: '#fff' }}>
+            {swapping ? <><Loader2 className="size-4 animate-spin" /> Swapping… confirm each step</>
+              : quoting ? <><Loader2 className="size-4 animate-spin" /> Getting a quote…</>
+              : quoteFresh ? `Swap ${amountText.trim()} ${from.symbol} to ${to.symbol}`
+              : amountText && !problem ? 'No quote available' : 'Enter an amount'}
+          </button>
 
           {txHash && (
             <a href={buildTxExplorerUrl(CHAIN_ID, txHash)} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs font-semibold" style={{ color: 'var(--accent)', textDecoration: 'none' }}>
