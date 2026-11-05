@@ -4,21 +4,22 @@
  * Your wallet signs every transaction. Fairtab never holds your tokens.
  */
 
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAccount, useReadContract, useSwitchChain } from 'wagmi'
 import { erc20Abi, formatUnits, parseUnits } from 'viem'
-import { AlertTriangle, ArrowDownUp, ExternalLink, Info, Loader2 } from 'lucide-react'
+import { TokenBTC, TokenEURC, TokenUSDC } from '@web3icons/react'
+import { AlertTriangle, ArrowDownUp, ChevronDown, ExternalLink, Info, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { arcMainnetChain, IS_MAINNET } from '@/config'
 import { buildTxExplorerUrl } from '@/onchain-facts'
 
 const CHAIN_ID = arcMainnetChain.id
 
-interface SwapToken { symbol: string; kit: 'USDC' | 'EURC' | 'CIRBTC'; address: `0x${string}`; decimals: number }
+interface SwapToken { symbol: string; name: string; kit: 'USDC' | 'EURC' | 'CIRBTC'; address: `0x${string}`; decimals: number }
 const TOKENS: SwapToken[] = [
-  { symbol: 'USDC', kit: 'USDC', address: '0x3600000000000000000000000000000000000000', decimals: 6 },
-  { symbol: 'EURC', kit: 'EURC', address: '0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1', decimals: 6 },
-  { symbol: 'cirBTC', kit: 'CIRBTC', address: '0x171A4217b86A807A64eB94757Db6849fb4bDbAA0', decimals: 8 },
+  { symbol: 'USDC', name: 'USD Coin', kit: 'USDC', address: '0x3600000000000000000000000000000000000000', decimals: 6 },
+  { symbol: 'EURC', name: 'Euro Coin', kit: 'EURC', address: '0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1', decimals: 6 },
+  { symbol: 'cirBTC', name: 'Circle Bitcoin', kit: 'CIRBTC', address: '0x171A4217b86A807A64eB94757Db6849fb4bDbAA0', decimals: 8 },
 ]
 const SLIPPAGES = [{ bps: 50, label: '0.5%' }, { bps: 100, label: '1%' }, { bps: 300, label: '3%' }]
 const GAS_RESERVE = 100_000n // keep 0.10 USDC for network fees when swapping all of your USDC
@@ -46,6 +47,54 @@ function friendlyError(e: unknown): string {
   if (/slippage|price/i.test(m)) return 'The price moved too much. Review a fresh quote and try again.'
   if (/rate limit|429/i.test(m)) return 'Too many requests. Wait a moment and try again.'
   return m.replace(/\s+/g, ' ').slice(0, 200)
+}
+
+/** The token's logo. cirBTC is Circle's tokenized Bitcoin, so it uses the Bitcoin logo. */
+function TokenLogo({ symbol, size = 24 }: { symbol: string; size?: number }) {
+  if (symbol === 'EURC') return <TokenEURC variant="branded" size={size} />
+  if (symbol === 'cirBTC') return <TokenBTC variant="branded" size={size} />
+  return <TokenUSDC variant="branded" size={size} />
+}
+
+/** A token chooser that shows each token's logo, name and symbol. */
+function TokenPicker({ value, onChange, disabled }: { value: string; onChange: (symbol: string) => void; disabled?: boolean }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const close = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [open])
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <button type="button" disabled={disabled} onClick={() => setOpen(o => !o)} aria-haspopup="listbox" aria-expanded={open}
+        className="flex items-center gap-2 rounded-full pl-1.5 pr-2.5 py-1.5 text-sm font-bold"
+        style={{ background: 'var(--surface)', color: 'var(--ink)', border: '1px solid var(--border)' }}>
+        <TokenLogo symbol={value} size={24} />
+        {value}
+        <ChevronDown className="size-4" style={{ color: 'var(--subtle)' }} />
+      </button>
+      {open && (
+        <ul role="listbox" className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-2xl p-1.5"
+          style={{ background: 'var(--popover)', border: '1px solid var(--border-strong)', boxShadow: 'var(--shadow-lg)' }}>
+          {TOKENS.map(t => (
+            <li key={t.symbol} role="option" aria-selected={t.symbol === value}>
+              <button type="button" onClick={() => { onChange(t.symbol); setOpen(false) }}
+                className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left"
+                style={{ background: t.symbol === value ? 'var(--accent-light)' : 'transparent' }}>
+                <TokenLogo symbol={t.symbol} size={28} />
+                <span className="flex flex-col">
+                  <span className="text-sm font-bold" style={{ color: 'var(--ink)' }}>{t.symbol}</span>
+                  <span className="text-[11px]" style={{ color: 'var(--muted)' }}>{t.name}</span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
 }
 
 export function SwapPage() {
@@ -195,10 +244,7 @@ export function SwapPage() {
             <div className="flex items-center gap-2">
               <input value={amountText} onChange={e => { setAmountText(e.target.value); clear() }} inputMode="decimal" placeholder="0.00" disabled={busy}
                 className="display flex-1 min-w-0 bg-transparent text-2xl font-bold outline-none" style={{ color: 'var(--ink)' }} />
-              <select value={fromSym} disabled={busy} onChange={e => { const v = e.target.value; setFromSym(v); if (v === toSym) setToSym(fromSym); setAmountText(''); clear() }}
-                className="rounded-lg px-2.5 py-2 text-sm font-bold outline-none" style={{ background: 'var(--surface)', color: 'var(--ink)', border: '1px solid var(--border)' }}>
-                {TOKENS.map(t => <option key={t.symbol} value={t.symbol}>{t.symbol}</option>)}
-              </select>
+              <TokenPicker value={fromSym} disabled={busy} onChange={v => { setFromSym(v); if (v === toSym) setToSym(fromSym); setAmountText(''); clear() }} />
             </div>
           </div>
 
@@ -215,10 +261,7 @@ export function SwapPage() {
             </div>
             <div className="flex items-center gap-2">
               <span className="display flex-1 min-w-0 text-2xl font-bold" style={{ color: quoteFresh ? 'var(--ink)' : 'var(--subtle)' }}>{quoteFresh ? quote.out : '0.00'}</span>
-              <select value={toSym} disabled={busy} onChange={e => { const v = e.target.value; setToSym(v); if (v === fromSym) setFromSym(toSym); setAmountText(''); clear() }}
-                className="rounded-lg px-2.5 py-2 text-sm font-bold outline-none" style={{ background: 'var(--surface)', color: 'var(--ink)', border: '1px solid var(--border)' }}>
-                {TOKENS.map(t => <option key={t.symbol} value={t.symbol}>{t.symbol}</option>)}
-              </select>
+              <TokenPicker value={toSym} disabled={busy} onChange={v => { setToSym(v); if (v === fromSym) setFromSym(toSym); setAmountText(''); clear() }} />
             </div>
           </div>
 
@@ -236,8 +279,8 @@ export function SwapPage() {
 
           {quoteFresh && (
             <div className="rounded-xl px-3.5 py-3 text-xs flex flex-col gap-1.5" style={{ background: 'var(--success-bg)', color: 'var(--ink-2)' }}>
-              <span className="flex justify-between gap-3"><span>You pay</span><strong>{amountText.trim()} {from.symbol}</strong></span>
-              <span className="flex justify-between gap-3"><span>You get about</span><strong>{quote.out} {quote.outSymbol}</strong></span>
+              <span className="flex justify-between items-center gap-3"><span>You pay</span><strong className="flex items-center gap-1.5"><TokenLogo symbol={from.symbol} size={16} />{amountText.trim()} {from.symbol}</strong></span>
+              <span className="flex justify-between items-center gap-3"><span>You get about</span><strong className="flex items-center gap-1.5"><TokenLogo symbol={quote.outSymbol} size={16} />{quote.out} {quote.outSymbol}</strong></span>
               {quote.min && <span className="flex justify-between gap-3"><span>At least ({(slippage / 100).toString()}% slippage)</span><strong>{quote.min} {quote.outSymbol}</strong></span>}
               {quote.fees.map((f, i) => (
                 <span key={i} className="flex justify-between gap-3"><span>{f.type === 'gas' ? 'Estimated network fee' : 'Swap fee'}</span><strong>{Number(f.amount).toLocaleString(undefined, { maximumFractionDigits: 8 })} {f.token}</strong></span>
