@@ -11,7 +11,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
  *  - the output is validated and capped before it is returned
  *
  * Environment (server only): LLM_API_KEY, optional LLM_BASE_URL (OpenAI-compatible,
- * default https://api.openai.com/v1) and LLM_MODEL (default gpt-4o-mini).
+ * default https://api.openai.com/v1) and LLM_MODEL (default gpt-4o-mini; set it to the model name you chose, e.g. gpt-6-luna).
  */
 
 const CATEGORIES = [
@@ -243,14 +243,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const timer = setTimeout(() => controller.abort(), 20_000)
 
   try {
-    const r = await fetch(`${base}/chat/completions`, {
+    // OpenAI's newer models want max_completion_tokens and only accept the default
+    // temperature; many other OpenAI-compatible providers still use max_tokens.
+    // Try the style that matches the base URL first, and fall back once on a 400.
+    const send = (openAiStyle: boolean) => fetch(`${base}/chat/completions`, {
       method: 'POST',
       signal: controller.signal,
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
         model: process.env.LLM_MODEL ?? 'gpt-4o-mini',
-        temperature: 0,
-        max_tokens: 500,
+        ...(openAiStyle ? { max_completion_tokens: 2000 } : { temperature: 0, max_tokens: 500 }),
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: systemPrompt(today) },
@@ -258,6 +260,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ],
       }),
     })
+    const openAiFirst = base.includes('api.openai.com')
+    let r = await send(openAiFirst)
+    if (r.status === 400) r = await send(!openAiFirst)
     if (!r.ok) return res.status(502).json({ error: 'The assistant is unavailable right now. Please try again.' })
     const data = await r.json() as { choices?: { message?: { content?: string } }[] }
     const content = data.choices?.[0]?.message?.content ?? ''
