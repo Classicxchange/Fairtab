@@ -7,7 +7,7 @@ import { WalletDropdown } from '@/WalletDropdown'
 import { AccountPage, recordSignInTime } from '@/AccountPage'
 import { SignInPage } from '@/SignInPage'
 import { LandingPage } from '@/LandingPage'
-import { BillAssistant } from '@/BillAssistant'
+import { VeltraChat } from '@/VeltraChat'
 import { HelpPage } from '@/HelpPage'
 import { AddFundsSheet } from '@/AddFundsSheet'
 import { RemindersBell } from '@/RemindersBell'
@@ -1320,6 +1320,7 @@ export default function App() {
                   initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}
                   transition={{ duration: 0.18 }}>
                   <SendPage
+                    key={location.search}
                     unifiedAddress={address}
                     seedSession={seedSession}
                     googleUid={socialSession?.googleUid}
@@ -1339,7 +1340,7 @@ export default function App() {
                   initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}
                   transition={{ duration: 0.18 }}>
                   <Suspense fallback={<div className="p-6 text-sm" style={{ color: 'var(--muted)' }}>Loading swap…</div>}>
-                    <SwapPage />
+                    <SwapPage key={location.search} />
                   </Suspense>
                 </motion.div>
               )}
@@ -1388,9 +1389,6 @@ export default function App() {
                           Add USDC
                         </button>
                       </div>
-                    )}
-                    {address && (
-                      <BillAssistant address={address} onDraftReady={() => setShowCreate(true)} />
                     )}
                     {/* Filter chips */}
                     {address && (
@@ -1571,6 +1569,13 @@ export default function App() {
               )}
             </AnimatePresence>
           </main>
+          {address && (
+            <VeltraChat
+              address={address}
+              onOpenBill={() => setShowCreate(true)}
+              onGo={path => { void navigate(path) }}
+            />
+          )}
         </div>
       </div>
 

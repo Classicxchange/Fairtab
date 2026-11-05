@@ -35,7 +35,7 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: 'What is Veltra?',
-    a: 'Veltra is the Fairtab assistant on the Bills page. Describe a bill in your own words, for example "Split $120 rent with 0x… and 0x…, I get paid", and Veltra fills in the bill form for you. It only prepares a draft. It never signs or sends anything, so you review every detail and confirm the transaction yourself. Veltra only uses wallet addresses you typed, and the amounts are calculated for you. It runs on a third-party AI service, so please do not type private keys, PINs or recovery phrases into it. It appears once it is switched on.',
+    a: 'Veltra is the Fairtab assistant. Tap the blue Veltra button at the bottom right of any screen to chat. Ask how something works, or say what you want to do, for example "Split $120 rent with 0x… and 0x…, I get paid", "Send 10 USDC to @name" or "Swap 5 USDC to EURC". Veltra gets the bill, send or swap ready on the normal screen. It never signs or sends anything, so you review every detail and confirm the transaction yourself. Veltra only uses wallet addresses and names you typed, and amounts are calculated for you. It runs on a third-party AI service, so never type private keys, PINs or recovery phrases into it. Its answers are not financial advice. It appears once it is switched on.',
   },
   {
     q: 'How does signing in with Google work?',

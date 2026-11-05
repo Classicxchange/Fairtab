@@ -4,7 +4,7 @@
  * Your wallet signs every transaction. Fairtab never holds your tokens.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAccount, useReadContract, useSwitchChain } from 'wagmi'
 import { erc20Abi, formatUnits, parseUnits, type EIP1193Provider } from 'viem'
 import { TokenBTC, TokenEURC, TokenUSDC } from '@web3icons/react'
@@ -127,9 +127,24 @@ function TokenPicker({ value, onChange, disabled }: { value: string; onChange: (
 export function SwapPage() {
   const { address, connector, chainId } = useAccount()
   const { switchChainAsync } = useSwitchChain()
-  const [fromSym, setFromSym] = useState('USDC')
-  const [toSym, setToSym] = useState('EURC')
-  const [amountText, setAmountText] = useState('')
+  const prefill = useMemo(() => {
+    const q = new URLSearchParams(window.location.search)
+    const sym = (v: string | null) => {
+      const u = (v ?? '').toUpperCase()
+      return TOKENS.some(t => t.symbol.toUpperCase() === u) ? TOKENS.find(t => t.symbol.toUpperCase() === u)!.symbol : null
+    }
+    const from = sym(q.get('from'))
+    const to = sym(q.get('to'))
+    const amt = q.get('amount') ?? ''
+    return {
+      from: from ?? 'USDC',
+      to: to && to !== (from ?? 'USDC') ? to : (from === 'EURC' ? 'USDC' : 'EURC'),
+      amount: /^\d+(\.\d{1,8})?$/.test(amt) ? amt : '',
+    }
+  }, [])
+  const [fromSym, setFromSym] = useState(prefill.from)
+  const [toSym, setToSym] = useState(prefill.to)
+  const [amountText, setAmountText] = useState(prefill.amount)
   const [slippage, setSlippage] = useState(100)
   const [quote, setQuote] = useState<Quote | null>(null)
   const [quoteError, setQuoteError] = useState<{ key: string; message: string } | null>(null)
