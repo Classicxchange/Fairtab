@@ -285,13 +285,6 @@ export function SwapPage() {
         <p className="text-sm mt-0.5" style={{ color: 'var(--muted)' }}>Swap between USDC, EURC and cirBTC (Circle&apos;s tokenized Bitcoin) on Arc.</p>
       </div>
 
-      <div className="p-4 flex flex-col gap-2" style={{ ...card, background: 'var(--warning-bg)', border: '1px solid var(--warning)' }}>
-        <p className="flex items-center gap-1.5 text-xs font-bold" style={{ color: 'var(--ink)' }}><AlertTriangle className="size-3.5" /> Real money</p>
-        <p className="text-xs leading-relaxed" style={{ color: 'var(--ink-2)' }}>
-          Swaps use real tokens on Arc Mainnet and cannot be undone. Prices can move between the quote and the swap, so you set a slippage limit. Start with a small amount. Bitcoin and euro prices change, so what you get back can be worth less than what you put in.
-        </p>
-      </div>
-
       {!address ? (
         <div className="p-4 text-sm" style={{ ...card, color: 'var(--muted)' }}>Sign in with a wallet that can approve transactions to swap.</div>
       ) : (

@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react'
 import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from 'wagmi'
 import { useQuery, useQueries } from '@tanstack/react-query'
 import { erc20Abi, formatUnits, parseAbi, parseUnits } from 'viem'
-import { AlertTriangle, Info, Loader2, TrendingUp } from 'lucide-react'
+import { Info, Loader2, TrendingUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { arcMainnetChain, IS_MAINNET } from '@/config'
 import { getUsdc } from '@/onchain-facts'
@@ -202,16 +202,6 @@ export function CommitPage() {
       <div>
         <h2 className="display text-xl font-bold" style={{ color: 'var(--ink)' }}>Commit</h2>
         <p className="text-sm mt-0.5" style={{ color: 'var(--muted)' }}>Put idle USDC to work and earn yield. Withdraw whenever the vault has the funds available.</p>
-      </div>
-
-      <div className="p-4 flex flex-col gap-2" style={{ ...card, background: 'var(--warning-bg)', border: '1px solid var(--warning)' }}>
-        <p className="flex items-center gap-1.5 text-xs font-bold" style={{ color: 'var(--ink)' }}><AlertTriangle className="size-3.5" /> Read this first</p>
-        <ul className="text-xs leading-relaxed list-disc pl-4" style={{ color: 'var(--ink-2)' }}>
-          <li>Your USDC goes into a lending vault run by a third party, not by Fairtab. Fairtab never holds it and cannot recover it.</li>
-          <li>The yield is variable and not guaranteed. You can lose money if a borrower or the vault fails.</li>
-          <li>Most of a vault's USDC is lent out. If many people withdraw, you may have to wait until borrowers repay.</li>
-          <li>This is real money on Arc Mainnet. Start small. Each deposit must be between 0.10 and 1,000 USDC.</li>
-        </ul>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
