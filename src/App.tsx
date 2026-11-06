@@ -8,6 +8,7 @@ import { AccountPage, recordSignInTime } from '@/AccountPage'
 import { SignInPage } from '@/SignInPage'
 import { LandingPage } from '@/LandingPage'
 import { VeltraChat } from '@/VeltraChat'
+import { BulkSendPage } from '@/BulkSendPage'
 import { HelpPage } from '@/HelpPage'
 import { AddFundsSheet } from '@/AddFundsSheet'
 import { RemindersBell } from '@/RemindersBell'
@@ -801,9 +802,10 @@ export default function App() {
   const prefilledTo = urlParams.get('to')
 
   // Derive the active tab from the pathname
-  type Tab = 'bills' | 'send' | 'receive' | 'swap' | 'commit' | 'account'
+  type Tab = 'bills' | 'send' | 'bulk' | 'receive' | 'swap' | 'commit' | 'account'
   const tab = useMemo((): Tab => {
     if (location.pathname === '/app/send')    return 'send'
+    if (location.pathname === '/app/bulk')    return 'bulk'
     if (location.pathname === '/app/receive') return 'receive'
     if (location.pathname === '/app/swap')    return 'swap'
     if (location.pathname === '/app/commit')  return 'commit'
@@ -817,7 +819,7 @@ export default function App() {
   }, [navigate])
 
   // Top-level navigation is Bills, Trade and Account. Trade groups Send, Receive, Swap and Commit.
-  const isTradeTab = tab === 'send' || tab === 'receive' || tab === 'swap' || tab === 'commit'
+  const isTradeTab = tab === 'send' || tab === 'bulk' || tab === 'receive' || tab === 'swap' || tab === 'commit'
   const lastTradeTab = useRef<Tab>('send')
   useEffect(() => { if (isTradeTab) lastTradeTab.current = tab }, [isTradeTab, tab])
   const navActive: 'bills' | 'trade' | 'account' = isTradeTab ? 'trade' : tab === 'account' ? 'account' : 'bills'
@@ -1300,6 +1302,7 @@ export default function App() {
                 style={{ background: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
                 {([
                   { id: 'send',    label: 'Send',    icon: Send           },
+                  { id: 'bulk',    label: 'Bulk',    icon: Users          },
                   { id: 'receive', label: 'Receive', icon: QrCode         },
                   { id: 'swap',    label: 'Swap',    icon: ArrowLeftRight },
                   { id: 'commit',  label: 'Commit',  icon: TrendingUp     },
@@ -1326,6 +1329,13 @@ export default function App() {
                     googleUid={socialSession?.googleUid}
                     onUpgradeSeedSession={upgraded => setSeedSession(upgraded)}
                   />
+                </motion.div>
+              )}
+              {tab === 'bulk' && (
+                <motion.div key="bulk"
+                  initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}
+                  transition={{ duration: 0.18 }}>
+                  <BulkSendPage key={location.search} />
                 </motion.div>
               )}
               {tab === 'receive' && (

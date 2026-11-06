@@ -34,6 +34,10 @@ const FAQ: { q: string; a: string }[] = [
     a: 'Yes. Fairtab runs on Arc Mainnet, so USDC and fees are real and transactions cannot be reversed. Start with a small bill to learn how it works.',
   },
   {
+    q: 'Can I pay many people at once (bulk send)?',
+    a: 'Yes. Open Trade, then Bulk. Paste one wallet or @name per line with an amount, or choose "Same amount for all", or upload a CSV file. Fairtab shows a table with the total, your balance and any lines with a problem. Step 1 checks which recipients can receive USDC. Step 2 sends them in batches of 50, with one confirmation per batch. Every transfer comes from your own wallet, and Fairtab adds no fee. Transfers cannot be reversed, so check every address. You can also ask Veltra to prepare a bulk send for you to review.',
+  },
+  {
     q: 'What is Veltra?',
     a: 'Veltra is the Fairtab assistant. Tap the blue Veltra button at the bottom right of any screen to chat. Ask how something works, or say what you want to do, for example "Split $120 rent with 0x… and 0x…, I get paid", "Send 10 USDC to @name" or "Swap 5 USDC to EURC". Veltra gets the bill, send or swap ready on the normal screen. It never signs or sends anything, so you review every detail and confirm the transaction yourself. Veltra only uses wallet addresses and names you typed, and amounts are calculated for you. It runs on a third-party AI service, so never type private keys, PINs or recovery phrases into it. Its answers are not financial advice. It appears once it is switched on.',
   },

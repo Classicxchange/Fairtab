@@ -220,7 +220,7 @@ function systemPrompt(today: string): string {
 // ---------------------------------------------------------------------------
 
 const SWAP_TOKENS = ['USDC', 'EURC', 'CIRBTC'] as const
-const NAV_TABS = ['bills', 'send', 'receive', 'swap', 'commit', 'account', 'help'] as const
+const NAV_TABS = ['bills', 'send', 'bulk', 'receive', 'swap', 'commit', 'account', 'help'] as const
 const MAX_CHAT_TURNS = 10
 const MAX_REPLY_CHARS = 1000
 
@@ -240,7 +240,7 @@ function fairtabFacts(): string {
   "ABOUT FAIRTAB:",
   "Fairtab splits shared bills in USDC on Arc Mainnet and also lets people send, receive, swap and commit USDC. It is real money and transactions cannot be reversed. Recommend small amounts first. The contracts have had internal reviews, not an independent audit.",
   "Fairtab does not hold keys or funds and cannot access, freeze or recover them. Bill money sits in a smart contract. Fairtab charges nothing for splitting a bill; you only pay the small network fee, in USDC.",
-  "Screens: Bills (create and manage bills, with filters for All, Created by you, You owe, Done and Invites), Trade (Send, Receive, Swap, Commit), Account (profile, FairID, sign out), and Help. A bell shows reminders. The Add USDC button shows how to top up, and a banner appears when the balance is under 1 USDC.",
+  "Screens: Bills (create and manage bills, with filters for All, Created by you, You owe, Done and Invites), Trade (Send, Bulk, Receive, Swap, Commit), Account (profile, FairID, sign out), and Help. A bell shows reminders. The Add USDC button shows how to top up, and a banner appears when the balance is under 1 USDC.",
   "",
   "BILLS:",
   "Create a bill: a name and category, the total in USDC, the payee (who gets paid), who owes what, and an optional deadline. Shares are fixed USDC amounts or percentages. Up to 20 people per bill. You review it and confirm onchain.",
@@ -270,6 +270,9 @@ function fairtabFacts(): string {
   "Send (under Trade): USDC only, to a wallet address or a FairID like @name. Optional memo up to 80 characters. The gas fee is shown and you review everything before confirming. Opening a payment link fills in the address, amount and memo.",
   "Receive (under Trade): shows your wallet address with a copy button, and builds a payment link with an optional amount and memo to send to whoever owes you. There is no QR code.",
   "FairID: a short name like @tunde (3 to 20 letters, numbers or underscores, first come first served) that points to your wallet so people can pay you without a long address. Claiming costs a one-time 1 USDC. It only labels your wallet and never holds money; you can release it or move it to another wallet. Claim it on the Account page.",
+  "",
+  "BULK SEND:",
+  "Bulk (under Trade) sends USDC to many wallets with one confirmation. Paste one wallet or @name per line with an amount, or use Same amount for all, or upload a CSV. Up to 200 recipients, sent in batches of 50 per confirmation. It uses Arc's built-in Multicall3From, so every transfer still comes from your own wallet and Fairtab has no contract or fee involved. Step 1 checks which recipients can receive USDC, then Step 2 sends. Transfers cannot be reversed, so check every address. USDC only.",
   "",
   "SWAP:",
   "Swap (under Trade) works between USDC, EURC and cirBTC only. Pick tokens, type an amount and the estimate refreshes as you type and every 15 seconds. You see the estimated network fee, any swap fee and the minimum you will receive. You choose a slippage limit of 0.5%, 1% or 3% (1% is the default). The first swap of a token asks for an approval, then the swap, and you confirm each.",
@@ -331,6 +334,7 @@ function chatSystemPrompt(today: string): string {
     '  { "type": "bill" }  when the user wants to split or create a bill and gave enough to start (the app will read their messages),',
     '  { "type": "send", "to": "<0x address or @name exactly as typed>", "amount": "<number>" }  to prepare a USDC send (to is required, amount optional),',
     `  { "type": "swap", "from": one of ${SWAP_TOKENS.join('/')}, "to": one of ${SWAP_TOKENS.join('/')}, "amount": "<number or empty>" }  to prepare a swap,`,
+    '  { "type": "bulk", "rows": [{ "to": "<0x address or @name exactly as typed>", "amount": "<number, only if that person has their own amount>" }], "amount": "<number, only when everyone gets the same amount>" }  to prepare a bulk send to several wallets. List EVERY recipient the user named and nobody else. Never add the user\'s own wallet, and never add, drop or change an amount,',
     `  { "type": "navigate", "tab": one of ${NAV_TABS.join('/')} }  to open a screen. }`,
     'When you set an action, say the user can tap the button below to review it and that nothing happens until they confirm.',
     'If details are missing (who to send to, how much), ask a short question and set action to null.',
@@ -365,7 +369,8 @@ async function callLlm(
 }
 
 export interface ChatAction {
-  type: 'bill' | 'send' | 'swap' | 'navigate'
+  type: 'bill' | 'send' | 'bulk' | 'swap' | 'navigate'
+  rows?: { to: string; amount: string }[]
   to?: string
   amount?: string
   from?: string
@@ -398,6 +403,23 @@ export function validateAction(raw: unknown, userText: string): ChatAction | nul
       const okName = /^@[a-z0-9_]{3,20}$/.test(to.toLowerCase()) && lowerText.includes(to.toLowerCase())
       if (!okAddr && !okName) return null
       return { type: 'send', to: okName ? to.toLowerCase() : to, amount: amountOk(a.amount, 6, MAX_TOTAL_USDC) }
+    }
+    case 'bulk': {
+      if (!Array.isArray(a.rows) || a.rows.length === 0 || a.rows.length > 100) return null
+      const same = amountOk(a.amount, 6, MAX_TOTAL_USDC)
+      const rows: { to: string; amount: string }[] = []
+      for (const r of a.rows as unknown[]) {
+        if (!r || typeof r !== 'object') return null
+        const o = r as Record<string, unknown>
+        const to = typeof o.to === 'string' ? o.to.trim() : ''
+        const okAddr = /^0x[a-fA-F0-9]{40}$/.test(to) && typed.has(to.toLowerCase())
+        const okName = /^@[a-z0-9_]{3,20}$/.test(to.toLowerCase()) && lowerText.includes(to.toLowerCase())
+        if (!okAddr && !okName) return null // one made-up recipient voids the whole list
+        const amt = same || amountOk(o.amount, 6, MAX_TOTAL_USDC)
+        if (!amt) return null
+        rows.push({ to: okName ? to.toLowerCase() : to, amount: amt })
+      }
+      return { type: 'bulk', rows, ...(same ? { amount: same } : {}) }
     }
     case 'swap': {
       const from = typeof a.from === 'string' ? a.from.toUpperCase() : ''

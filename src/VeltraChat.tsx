@@ -10,9 +10,11 @@ import { X, Send, ArrowRight, ShieldCheck } from 'lucide-react'
 import { VeltraBadge, VELTRA_TILE } from '@/VeltraMark'
 import { toast } from 'sonner'
 import { DRAFT_KEY } from '@/CreateBillPage'
+import { BULK_DRAFT_KEY } from '@/BulkSendPage'
 
 interface Action {
-  type: 'bill' | 'send' | 'swap' | 'navigate'
+  type: 'bill' | 'send' | 'bulk' | 'swap' | 'navigate'
+  rows?: { to: string; amount: string }[]
   to?: string
   amount?: string
   from?: string
@@ -27,13 +29,14 @@ interface Msg { role: 'user' | 'assistant'; content: string; action?: Action | n
 const SUGGESTIONS = [
   'Split a bill with friends',
   'How do I send USDC?',
+  'Send USDC to many wallets',
   'Swap USDC to EURC',
   'Is Fairtab custodial?',
   'What is Arc?',
 ]
 
 const TAB_PATH: Record<string, string> = {
-  bills: '/app', send: '/app/send', receive: '/app/receive', swap: '/app/swap',
+  bills: '/app', send: '/app/send', bulk: '/app/bulk', receive: '/app/receive', swap: '/app/swap',
   commit: '/app/commit', account: '/app/account', help: '/help',
 }
 
@@ -41,6 +44,7 @@ function actionLabel(a: Action): string {
   switch (a.type) {
     case 'bill': return a.step === 3 ? 'Review bill draft' : 'Continue bill draft'
     case 'send': return a.amount ? `Open Send · ${a.amount} USDC` : 'Open Send'
+    case 'bulk': return `Review bulk send · ${a.rows?.length ?? 0} wallet${(a.rows?.length ?? 0) === 1 ? '' : 's'}`
     case 'swap': return a.amount ? `Open Swap · ${a.amount} ${a.from} to ${a.to}` : `Open Swap · ${a.from} to ${a.to}`
     default: return `Open ${a.tab ?? 'screen'}`
   }
@@ -84,6 +88,14 @@ export function VeltraChat({ address, onOpenBill, onGo }: {
       const q = new URLSearchParams({ to: a.to })
       if (a.amount) q.set('amount', a.amount)
       onGo(`/app/send?${q.toString()}`)
+    } else if (a.type === 'bulk' && a.rows?.length) {
+      const same = !!a.amount
+      localStorage.setItem(BULK_DRAFT_KEY, JSON.stringify({
+        mode: same ? 'same' : 'lines',
+        sameAmount: a.amount ?? '',
+        text: a.rows.map(r => (same ? r.to : `${r.to} ${r.amount}`)).join('\n'),
+      }))
+      onGo('/app/bulk?draft=1')
     } else if (a.type === 'swap' && a.from && a.to) {
       const q = new URLSearchParams({ from: a.from, to: a.to })
       if (a.amount) q.set('amount', a.amount)
