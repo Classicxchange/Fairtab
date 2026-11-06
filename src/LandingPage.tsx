@@ -6,11 +6,11 @@
 
 import type { ComponentType, ReactNode } from 'react'
 import {
-  Sun, Moon, ArrowRight, Receipt, Send, HandCoins, TrendingUp, ArrowDownUp, KeyRound, Check,
+  Sun, Moon, ArrowRight, Receipt, Send, HandCoins, AtSign, TrendingUp, ArrowDownUp, KeyRound, Check, Bell, Wallet, Mail,
 } from 'lucide-react'
 import { VeltraGlyph } from '@/VeltraMark'
 import {
-  BillsVisual, SendVisual, ReceiveVisual, CommitVisual, SwapVisual, VeltraVisual, WalletVisual,
+  BillsVisual, SendVisual, ReceiveVisual, FairIdVisual, CommitVisual, SwapVisual, VeltraVisual, WalletVisual,
 } from '@/LandingVisuals'
 
 interface Props {
@@ -77,6 +77,18 @@ const PRODUCTS: Product[] = [
     visual: <ReceiveVisual />,
   },
   {
+    id: 'fairid', label: 'FairID', icon: AtSign,
+    title: 'A short name instead of a long address.',
+    intro: 'Claim a name like @tunde and let people pay you without copying a long wallet address.',
+    points: [
+      'Pick 3 to 20 letters, numbers or underscores. Names are first come, first served.',
+      'Claiming costs a one-time 1 USDC, shown before you confirm.',
+      'People pay you by typing your @name on the Send screen.',
+      'A FairID is only a label for your wallet. It never holds money, and you can release it or move it to another wallet.',
+    ],
+    visual: <FairIdVisual />,
+  },
+  {
     id: 'commit', label: 'Commit', icon: TrendingUp,
     title: 'Put idle USDC to work.',
     intro: 'Commit spare USDC to Morpho lending vaults on Arc and watch your earnings grow live, block by block.',
@@ -122,6 +134,12 @@ const PRODUCTS: Product[] = [
     ],
     visual: <WalletVisual />,
   },
+]
+
+const EXTRAS = [
+  { icon: Bell,   title: 'Reminders', text: 'A bell shows invitations waiting, bills due soon and who still owes you, with a ready-made message to nudge them on WhatsApp or X.' },
+  { icon: Mail,   title: 'Invites you control', text: 'Nobody can be charged without saying yes. Open the Invites tab to accept or decline within 24 hours.' },
+  { icon: Wallet, title: 'Easy top-ups', text: 'Add USDC shows your address and the steps to fund your wallet, and a banner reminds you when your balance runs low.' },
 ]
 
 function ProductSection({ p, index }: { p: Product; index: number }) {
@@ -228,7 +246,7 @@ export function LandingPage({ onGetStarted, signedIn = false, dark, onToggleDark
 
         <section className="mt-16">
           <h2 className="display text-2xl font-bold tracking-tight" style={{ color: 'var(--ink)' }}>Everything in one place</h2>
-          <p className="mt-2 text-sm max-w-xl" style={{ color: 'var(--muted)' }}>Seven tools, one wallet. Scroll to see each one, or jump straight to it.</p>
+          <p className="mt-2 text-sm max-w-xl" style={{ color: 'var(--muted)' }}>Eight tools, one wallet. Scroll to see each one, or jump straight to it.</p>
         </section>
 
         <nav aria-label="Fairtab features" className="sticky top-0 z-20 -mx-5 mt-5 px-5 py-3 flex gap-2 overflow-x-auto"
@@ -243,6 +261,21 @@ export function LandingPage({ onGetStarted, signedIn = false, dark, onToggleDark
         </nav>
 
         {PRODUCTS.map((p, i) => <ProductSection key={p.id} p={p} index={i} />)}
+
+        <section className="mt-4 py-12 md:py-16" style={{ borderTop: '1px solid var(--border)' }}>
+          <h2 className="display text-2xl font-bold tracking-tight" style={{ color: 'var(--ink)' }}>And the small things that save time</h2>
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            {EXTRAS.map(({ icon: Icon, title, text }) => (
+              <div key={title} className="rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <div className="size-9 rounded-xl flex items-center justify-center mb-3" style={{ background: 'var(--accent)' }}>
+                  <Icon className="size-4 text-white" />
+                </div>
+                <h3 className="font-semibold" style={{ color: 'var(--ink)' }}>{title}</h3>
+                <p className="mt-1 text-sm leading-relaxed" style={{ color: 'var(--muted)' }}>{text}</p>
+              </div>
+            ))}
+          </div>
+        </section>
 
         <section className="mt-16 grid gap-6 md:grid-cols-2">
           <div>

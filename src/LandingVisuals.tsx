@@ -110,6 +110,26 @@ export function ReceiveVisual() {
   )
 }
 
+export function FairIdVisual() {
+  return (
+    <Frame label="A FairID claim screen turning a short @name into a wallet">
+      <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Claim your FairID</p>
+      <div className="mt-2 flex items-center gap-2 rounded-2xl px-3 py-3" style={inner}>
+        <AtSign className="size-4" style={{ color: 'var(--accent)' }} />
+        <span className="text-sm" style={{ color: 'var(--ink-2)' }}>yourname</span>
+      </div>
+      <p className="mt-2 text-xs" style={{ color: 'var(--muted)' }}>3 to 20 letters, numbers or underscores. First come, first served.</p>
+      <div className="my-4 flex justify-center"><ArrowDownUp className="size-4" style={{ color: 'var(--subtle)' }} /></div>
+      <div className="flex items-center gap-3 rounded-2xl px-3 py-3" style={inner}>
+        <span className="size-9 shrink-0 rounded-xl flex items-center justify-center" style={{ background: 'var(--accent)', color: '#fff' }}><Wallet className="size-4" /></span>
+        <div className="flex flex-1 flex-col gap-2"><Bar w="70%" /><Bar w="40%" /></div>
+        <Chip tone="ok">Your wallet</Chip>
+      </div>
+      <p className="mt-4 text-xs" style={{ color: 'var(--muted)' }}>A FairID is only a label. It never holds money.</p>
+    </Frame>
+  )
+}
+
 export function CommitVisual() {
   const vaults = [
     { name: 'Steakhouse Prime USDC', by: 'Curated by Steakhouse Financial' },
