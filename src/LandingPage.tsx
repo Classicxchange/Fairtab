@@ -104,7 +104,7 @@ const PRODUCTS: Product[] = [
     title: 'Ask Veltra instead of filling forms.',
     intro: 'Veltra is the built-in assistant. Describe what you want in plain words and it prepares the screen for you.',
     points: [
-      'Answers questions about bills, sends, swaps and how Fairtab works.',
+      'Answers questions about bills, sends, swaps, how Fairtab works and the Arc blockchain it runs on.',
       'Prepares a bill draft, a send or a swap, then opens the normal screen.',
       'Uses only the wallet addresses you type. It never adds your wallet on its own.',
       'Veltra never signs or sends anything. You review and confirm every transaction.',

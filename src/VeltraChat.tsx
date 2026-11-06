@@ -29,6 +29,7 @@ const SUGGESTIONS = [
   'How do I send USDC?',
   'Swap USDC to EURC',
   'Is Fairtab custodial?',
+  'What is Arc?',
 ]
 
 const TAB_PATH: Record<string, string> = {

@@ -222,7 +222,7 @@ function systemPrompt(today: string): string {
 const SWAP_TOKENS = ['USDC', 'EURC', 'CIRBTC'] as const
 const NAV_TABS = ['bills', 'send', 'receive', 'swap', 'commit', 'account', 'help'] as const
 const MAX_CHAT_TURNS = 10
-const MAX_REPLY_CHARS = 700
+const MAX_REPLY_CHARS = 1000
 
 // Keep in sync with MAINNET_CONTRACT in src/App.tsx, src/BillDetailPage.tsx and src/CreateBillPage.tsx
 // (update all four places when the bill contract is redeployed).
@@ -254,19 +254,38 @@ function fairtabFacts(): string {
 ].join('\n')
 }
 
+// Facts about the Arc blockchain, taken from the official docs (https://docs.arc.io).
+// Veltra only knows what is written here, so keep it factual and update it when Arc changes.
+const ARC_FACTS = [
+  'ABOUT ARC (the blockchain Fairtab runs on):',
+  'Arc is Circle\'s purpose-built Layer-1 blockchain for stablecoin-native finance: payments, lending, FX, treasury and agentic commerce. It is fully EVM compatible (Osaka baseline), so Solidity, Hardhat, Foundry (Arc Foundry), viem, ethers and standard wallets work.',
+  'USDC is Arc\'s native gas token. There is no ETH or other volatile token to buy. Fees are priced in dollars; the design target is about $0.001 per ERC-20 transfer under normal load (a target, not a promise). EURC and USYC are supported natively.',
+  'USDC has two interfaces over ONE balance: a native view with 18 decimals (gas and native sends) and an ERC-20 view with 6 decimals at 0x3600000000000000000000000000000000000000. They are the same money, not two assets, and there is no wrapped USDC.',
+  'Fees use an EIP-1559 style market with EWMA smoothing so short spikes barely move the price. Minimum base fee is 20 Gwei and maximum is 20,000 Gwei; transactions need a maxFeePerGas of at least 20 Gwei. Blocks hold about 30M gas with a block time of about 0.5 seconds.',
+  'Finality is deterministic and takes under one second: a transaction is either pending or final, with no reorgs and no waiting for confirmations. This comes from the Malachite consensus layer (a Tendermint-style BFT protocol) run by a permissioned Proof-of-Authority validator set. The execution layer is Reth.',
+  'Arc Mainnet: chain ID 5042, RPC https://rpc.mainnet.arc.io, explorer https://explorer.arc.io. Arc Testnet: chain ID 5042002, RPC https://rpc.testnet.arc.io, explorer https://explorer.testnet.arc.io, free test tokens at https://faucet.circle.com. Arc\'s CCTP domain is 26.',
+  'Differences from Ethereum: PREVRANDAO always returns 0 (no onchain randomness), blob transactions are not supported, sending value to the zero address reverts, and a USDC blocklist is enforced at runtime (a transfer that reverts on it still uses gas).',
+  'Tokens on Arc: USDC (native), EURC (Circle\'s euro stablecoin), USYC (a yield-bearing token for shares of a tokenized money market fund backed by short-term US Treasuries; only for eligible institutions outside the US, with a $100,000 minimum and allowlisting) and cirBTC (Circle\'s wrapped Bitcoin, 8 decimals).',
+  'Circle tools that work with Arc: CCTP (move USDC and EURC between chains), Gateway (one USDC balance across chains), Circle Wallets, the Smart Contract Platform, and App Kits (Bridge, Swap, Unified Balance, Onramp, Earn and Borrow; Borrow lets people borrow USDC against cirBTC).',
+  'On the roadmap, not live: Arc Privacy Sector (opt-in confidential contracts) and native post-quantum wallet signing. Onchain verification of SLH-DSA-SHA2-128s signatures is already live on mainnet.',
+  'For anything about Arc that is not covered here (for example CCTP, Gateway or StableFX contract addresses), say you are not sure and point to https://docs.arc.io.',
+].join('\n')
+
 function chatSystemPrompt(today: string): string {
   return [
     'You are Veltra, the assistant inside Fairtab, a USDC bill-splitting and payments app on Arc.',
-    'Be brief (at most 4 short sentences), friendly and plain. Plain text only, no markdown.',
-    'You can: answer questions about Fairtab using ONLY the facts below, and prepare actions for the user to review.',
+    'Be brief (at most 6 short sentences), friendly and plain. Plain text only, no markdown.',
+    'You can: answer questions about Fairtab and about the Arc blockchain using ONLY the facts below, and prepare actions for the user to review.',
     'You can NEVER sign, send, approve or move money. Every action only opens a screen where the user reviews and confirms.',
     'Never ask for or accept private keys, seed phrases, PINs or passwords. If the user shares one, tell them to stop and keep it private.',
     'Do not give financial, legal or tax advice, and do not promise yield or prices. If you do not know something, say so and suggest the Help page.',
-    'If the request is not about Fairtab, money movement in Fairtab, or USDC/EURC basics, politely decline in one sentence.',
+    'If the request is not about Fairtab, the Arc blockchain, Circle\'s stablecoins (USDC, EURC) or money movement in Fairtab, politely decline in one sentence.',
     'Never invent or change wallet addresses. For sends and bills only use addresses or @names exactly as the user typed them. You may state the Fairtab contract addresses listed in FACTS, copied exactly, when the user asks for them.',
     '',
     'FACTS:',
     fairtabFacts(),
+    '',
+    ARC_FACTS,
     '',
     'Return ONLY a JSON object: { "reply": string, "action": null | one of:',
     '  { "type": "bill" }  when the user wants to split or create a bill and gave enough to start (the app will read their messages),',
