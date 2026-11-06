@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAccount, useReadContract, useSwitchChain } from 'wagmi'
 import { erc20Abi, formatUnits, parseUnits, type EIP1193Provider } from 'viem'
 import { TokenBTC, TokenEURC, TokenUSDC } from '@web3icons/react'
-import { AlertTriangle, ArrowDownUp, ChevronDown, ExternalLink, Info, Loader2 } from 'lucide-react'
+import { ArrowDownUp, ChevronDown, ExternalLink, Info, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { arcMainnetChain, IS_MAINNET } from '@/config'
 import { buildTxExplorerUrl } from '@/onchain-facts'
@@ -23,7 +23,6 @@ const TOKENS: SwapToken[] = [
 ]
 const SLIPPAGES = [{ bps: 50, label: '0.5%' }, { bps: 100, label: '1%' }, { bps: 300, label: '3%' }]
 const GAS_RESERVE = 100_000n // keep 0.10 USDC for network fees when swapping all of your USDC
-const BIG_AMOUNT_USD = 100
 
 const card = { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, boxShadow: 'var(--shadow-sm)' } as React.CSSProperties
 
@@ -275,7 +274,6 @@ export function SwapPage() {
   const quoteFresh = quote !== null && quote.key === currentKey
   const quoteFailed = quoteError !== null && quoteError.key === currentKey
   const quoting = canQuote && !quoteFresh && !quoteFailed
-  const bigSwap = (from.kit !== 'CIRBTC' && amountRaw !== null && Number(formatUnits(amountRaw, from.decimals)) > BIG_AMOUNT_USD)
   const busy = swapping
 
   return (
@@ -347,7 +345,6 @@ export function SwapPage() {
             </div>
           )}
 
-          {bigSwap && <p className="flex items-start gap-1.5 text-xs" style={{ color: 'var(--warning)' }}><AlertTriangle className="size-3.5 shrink-0 mt-0.5" /> This is more than {BIG_AMOUNT_USD} in value. Consider a small test swap first.</p>}
           {(error || quoteFailed) && <p className="text-xs" style={{ color: 'var(--danger)' }}>{error || quoteError?.message}</p>}
 
           <button disabled={busy || !quoteFresh} onClick={() => { void swap() }}
