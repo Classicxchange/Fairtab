@@ -4,7 +4,7 @@
  * Options:
  *  1. MetaMask / WalletConnect (wagmi ConnectKit)
  *  2. Self-custodial seed wallet (create / import / unlock)
- *  3. Google / Email OTP / Passkey (Circle user-controlled wallets — still available)
+ *  3. Google (Circle user-controlled wallet). Email sign-in is switched off until SMTP is set up in the Circle Console
  */
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -170,14 +170,14 @@ export function SignInModal({
                 </ConnectKitButton.Custom>
               </div>
 
-              {/* ── Advanced: Circle social/email/passkey (collapsible) ────── */}
+              {/* ── More options: Circle Google sign-in (collapsible) ────── */}
               <div className="px-5 pb-5">
                 <button
                   onClick={() => setShowAdvanced(s => !s)}
                   className="w-full flex items-center justify-between text-xs font-semibold py-2"
                   style={{ color: 'var(--subtle)' }}
                 >
-                  <span className="uppercase tracking-wide">More options (Google / Email / Passkey)</span>
+                  <span className="uppercase tracking-wide">More options (Google)</span>
                   {showAdvanced ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
                 </button>
 

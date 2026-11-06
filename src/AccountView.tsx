@@ -24,6 +24,13 @@ const circleAppId    = import.meta.env.VITE_CIRCLE_APP_ID     as string | undefi
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID  as string | undefined
 export const circleConfigured = !!(circleAppId)
 
+/**
+ * Email sign-in needs an SMTP server set up in the Circle Console (Wallets > User Controlled >
+ * Configurator > Authentication Methods > Email). Until that is done, keep this false so only
+ * Google sign-in is shown. Set it to true once codes are being delivered.
+ */
+const EMAIL_SIGN_IN_ENABLED = false
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface AccountSession {
   address:        string
@@ -493,12 +500,14 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
         </button>
       )}
 
-      <button onClick={() => { setStep('email-input'); setError(null) }}
-        className="w-full flex items-center justify-center gap-3 rounded-2xl px-5 py-4 text-sm font-semibold transition-all hover:scale-[1.01] active:scale-[0.98]"
-        style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', color: 'var(--ink)' }}>
-        <Mail className="size-5" style={{ color: 'var(--accent)' }} />
-        Continue with Email
-      </button>
+      {EMAIL_SIGN_IN_ENABLED && (
+        <button onClick={() => { setStep('email-input'); setError(null) }}
+          className="w-full flex items-center justify-center gap-3 rounded-2xl px-5 py-4 text-sm font-semibold transition-all hover:scale-[1.01] active:scale-[0.98]"
+          style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', color: 'var(--ink)' }}>
+          <Mail className="size-5" style={{ color: 'var(--accent)' }} />
+          Continue with Email
+        </button>
+      )}
 
       <p className="text-xs text-center" style={{ color: 'var(--subtle)' }}>
         A Circle wallet is created automatically — no seed phrase needed.
