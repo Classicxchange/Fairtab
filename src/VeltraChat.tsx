@@ -6,7 +6,8 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { Sparkles, X, Send, Loader2, ArrowRight, ShieldCheck } from 'lucide-react'
+import { X, Send, ArrowRight, ShieldCheck } from 'lucide-react'
+import { VeltraBadge, VeltraGlyph, VELTRA_GRADIENT } from '@/VeltraMark'
 import { toast } from 'sonner'
 import { DRAFT_KEY } from '@/CreateBillPage'
 
@@ -129,8 +130,8 @@ export function VeltraChat({ address, onOpenBill, onGo }: {
           onClick={() => setOpen(true)}
           aria-label="Open Veltra, the Fairtab assistant"
           className="fixed right-4 z-40 flex h-12 items-center gap-2 rounded-full px-4 text-sm font-semibold shadow-lg transition-transform hover:scale-105 active:scale-95 bottom-[calc(1rem+env(safe-area-inset-bottom))] lg:bottom-6 lg:right-6"
-          style={{ background: 'var(--accent)', color: '#fff' }}>
-          <Sparkles className="size-4" />
+          style={{ background: VELTRA_GRADIENT, color: '#fff', boxShadow: '0 8px 24px rgba(59,94,245,0.45), inset 0 1px 0 rgba(255,255,255,0.28)' }}>
+          <VeltraGlyph className="size-5" />
           Veltra
         </button>
       )}
@@ -142,9 +143,7 @@ export function VeltraChat({ address, onOpenBill, onGo }: {
           <div className="flex h-[85dvh] w-full flex-col overflow-hidden rounded-t-3xl lg:h-[600px] lg:w-[400px] lg:rounded-3xl"
             style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg, 0 20px 60px rgba(0,0,0,.35))' }}>
             <div className="flex items-center gap-2.5 px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
-              <span className="flex size-9 items-center justify-center rounded-xl" style={{ background: 'var(--accent-light)' }}>
-                <Sparkles className="size-4" style={{ color: 'var(--accent)' }} />
-              </span>
+              <VeltraBadge size={36} />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold" style={{ color: 'var(--ink)' }}>Veltra</p>
                 <p className="text-[11px]" style={{ color: 'var(--subtle)' }}>Fairtab assistant</p>
@@ -157,6 +156,7 @@ export function VeltraChat({ address, onOpenBill, onGo }: {
             <div className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3">
               {messages.length === 0 && (
                 <div className="flex flex-col gap-3">
+                  <VeltraBadge size={44} />
                   <p className="text-sm" style={{ color: 'var(--ink)' }}>
                     Hi, I&apos;m Veltra. I can answer questions about Fairtab and get bills, sends and swaps ready for you to review.
                   </p>
@@ -174,6 +174,7 @@ export function VeltraChat({ address, onOpenBill, onGo }: {
 
               {messages.map((m, i) => (
                 <div key={i} className={m.role === 'user' ? 'flex justify-end' : 'flex flex-col items-start gap-2'}>
+                  {m.role === 'assistant' && <VeltraBadge size={22} />}
                   <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm"
                     style={m.role === 'user'
                       ? { background: 'var(--accent)', color: '#fff' }
@@ -192,7 +193,7 @@ export function VeltraChat({ address, onOpenBill, onGo }: {
 
               {busy && (
                 <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--muted)' }}>
-                  <Loader2 className="size-3.5 animate-spin" /> Veltra is thinking…
+                  <VeltraBadge size={22} className="animate-pulse" /> Veltra is thinking…
                 </div>
               )}
               <div ref={endRef} />

@@ -4,10 +4,11 @@
  * requiring any login (needed for Google OAuth brand verification).
  */
 
-import type { ReactNode } from 'react'
+import type { ComponentType, ReactNode } from 'react'
 import {
-  Sun, Moon, ArrowRight, Receipt, Send, QrCode, TrendingUp, ArrowDownUp, Sparkles, KeyRound, Check,
+  Sun, Moon, ArrowRight, Receipt, Send, HandCoins, TrendingUp, ArrowDownUp, KeyRound, Check,
 } from 'lucide-react'
+import { VeltraGlyph } from '@/VeltraMark'
 import {
   BillsVisual, SendVisual, ReceiveVisual, CommitVisual, SwapVisual, VeltraVisual, WalletVisual,
 } from '@/LandingVisuals'
@@ -30,7 +31,7 @@ const STEPS = [
 interface Product {
   id: string
   label: string
-  icon: typeof Receipt
+  icon: ComponentType<{ className?: string }>
   title: string
   intro: string
   points: string[]
@@ -58,18 +59,18 @@ const PRODUCTS: Product[] = [
     title: 'Send USDC to a wallet or a name.',
     intro: 'Send USDC to any wallet on Arc, or claim a FairID like @tunde so people can pay you without a long address.',
     points: [
-      'Paste a wallet address, scan a QR code, or type a FairID name.',
+      'Paste a wallet address or type a FairID name.',
       'Review the amount and recipient before you confirm.',
       'On Arc, USDC also pays the network fee, so there is no second token to buy.',
     ],
     visual: <SendVisual />,
   },
   {
-    id: 'receive', label: 'Receive', icon: QrCode,
-    title: 'Get paid with a link or a QR code.',
-    intro: 'Share your payment link or show your QR code. Money lands straight in your own wallet.',
+    id: 'receive', label: 'Receive', icon: HandCoins,
+    title: 'Share your address or a payment link.',
+    intro: 'Copy your address, or build a payment link with an amount and a note and send it to whoever owes you. Money lands straight in your own wallet.',
     points: [
-      'A personal QR code and link, ready whenever someone owes you.',
+      'Request a specific amount with a memo, like "October rent".',
       'Your FairID name works as a short address.',
       'Add USDC from another wallet in a few steps when you need to top up.',
     ],
@@ -99,7 +100,7 @@ const PRODUCTS: Product[] = [
     visual: <SwapVisual />,
   },
   {
-    id: 'veltra', label: 'Veltra', icon: Sparkles,
+    id: 'veltra', label: 'Veltra', icon: VeltraGlyph,
     title: 'Ask Veltra instead of filling forms.',
     intro: 'Veltra is the built-in assistant. Describe what you want in plain words and it prepares the screen for you.',
     points: [

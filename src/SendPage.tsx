@@ -419,7 +419,7 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
       {/* Scan address hint */}
       <p className="text-center text-xs flex items-center justify-center gap-1.5" style={{ color: 'var(--subtle)' }}>
         <ScanLine className="size-3.5" />
-        You can also scan a QR code from the Receive tab under Trade to auto-fill the address
+        Open a payment link from someone&apos;s Receive tab to auto-fill the address and amount
       </p>
 
       {/* Seed wallet tx confirmation modal */}

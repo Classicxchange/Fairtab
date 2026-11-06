@@ -2,7 +2,8 @@
  * Product illustrations for the landing page. They show the shape of each screen
  * with labels only: no balances, prices, yields or addresses are invented.
  */
-import { ArrowDownUp, AtSign, Check, KeyRound, QrCode, Send as SendIcon, Sparkles, Wallet } from 'lucide-react'
+import { ArrowDownUp, AtSign, Check, Copy, KeyRound, Link2, Send as SendIcon, Wallet } from 'lucide-react'
+import { VeltraBadge } from '@/VeltraMark'
 import type { ReactNode } from 'react'
 
 const card = { background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow)' } as const
@@ -78,14 +79,31 @@ export function SendVisual() {
 
 export function ReceiveVisual() {
   return (
-    <Frame label="A receive screen with a QR code and a share link">
-      <div className="flex flex-col items-center gap-4 py-2">
-        <div className="rounded-3xl p-6" style={inner}>
-          <QrCode className="size-28" strokeWidth={1.25} style={{ color: 'var(--ink)' }} />
+    <Frame label="A receive screen with your address and a payment request link">
+      <div className="flex flex-col gap-3">
+        <div className="rounded-2xl px-4 py-3" style={inner}>
+          <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Your address</p>
+          <div className="mt-2 flex items-center gap-3">
+            <span className="size-9 shrink-0 rounded-xl flex items-center justify-center" style={{ background: 'var(--accent)', color: '#fff' }}><Wallet className="size-4" /></span>
+            <span className="h-2.5 flex-1 rounded-full" style={{ background: 'var(--border)' }} />
+          </div>
+          <div className="mt-3 flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--ink-2)' }}>
+            <Copy className="size-4" /> Copy address
+          </div>
         </div>
-        <div className="flex w-full items-center justify-between rounded-2xl px-3 py-3" style={inner}>
-          <span className="text-sm" style={{ color: 'var(--ink-2)' }}>Your payment link</span>
-          <Chip tone="wait">Copy</Chip>
+        <div className="rounded-2xl px-4 py-3" style={inner}>
+          <p className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: 'var(--ink)' }}><Link2 className="size-4" style={{ color: 'var(--accent)' }} /> Request a specific amount</p>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <div className="rounded-xl px-3 py-2" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <p className="text-[11px]" style={{ color: 'var(--subtle)' }}>Amount (USDC)</p>
+            </div>
+            <div className="rounded-xl px-3 py-2" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+              <p className="text-[11px]" style={{ color: 'var(--subtle)' }}>Memo</p>
+            </div>
+          </div>
+          <div className="mt-2 flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold" style={{ background: 'var(--accent-light)', color: 'var(--accent)', border: '1px solid var(--border)' }}>
+            <Copy className="size-4" /> Copy payment link
+          </div>
         </div>
       </div>
     </Frame>
@@ -150,7 +168,7 @@ export function VeltraVisual() {
           Split this month&apos;s rent between these three wallets.
         </div>
         <div className="self-start max-w-[90%] rounded-2xl rounded-bl-md px-3.5 py-2.5 text-sm" style={{ ...inner, color: 'var(--ink)' }}>
-          <span className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: 'var(--accent)' }}><Sparkles className="size-3.5" /> Veltra</span>
+          <span className="flex items-center gap-2 text-xs font-semibold" style={{ color: 'var(--accent)' }}><VeltraBadge size={22} /> Veltra</span>
           <span className="mt-1 block">Draft ready. Check it, then create the bill yourself.</span>
         </div>
         <div className="self-start flex items-center gap-1.5 text-xs" style={{ color: 'var(--muted)' }}>
