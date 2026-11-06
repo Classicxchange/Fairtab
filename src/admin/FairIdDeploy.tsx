@@ -234,7 +234,7 @@ export function FairIdDeploySection({ adminAddress }: { adminAddress: string }) 
           constructor(usdc_ = {usdc || '…'}, feeRecipient_ = {recipient || '…'}, claimFee_ = {feeOk ? `${feeRaw.toString()} base units (${formatUnits(feeRaw, 6)} USDC)` : 'invalid'})
         </div>
         <button onClick={() => { void runChecks() }} disabled={checking}
-          className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-50" style={{ background: 'var(--accent)', color: '#fff' }}>
+          className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-50" style={{ background: 'var(--accent-fill)', color: '#fff' }}>
           {checking ? <><Loader2 className="size-4 animate-spin" /> Checking…</> : <><ShieldCheck className="size-4" /> Check these settings</>}
         </button>
         {checks.length > 0 && (
@@ -253,7 +253,7 @@ export function FairIdDeploySection({ adminAddress }: { adminAddress: string }) 
         </p>
         <input value={confirmText} onChange={e => setConfirmText(e.target.value)} placeholder="DEPLOY" disabled={checking || deploying || !!deployed} className="mono rounded-xl px-4 py-2.5 text-sm outline-none" style={input} />
         <button onClick={() => { void handleDeploy() }} disabled={!canDeploy}
-          className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-40" style={{ background: 'var(--accent)', color: '#fff' }}>
+          className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-40" style={{ background: 'var(--accent-fill)', color: '#fff' }}>
           {deploying ? <><Loader2 className="size-4 animate-spin" /> {stage || 'Working…'}</> : <><Rocket className="size-4" /> Deploy FairID</>}
         </button>
         {!feeOk && feeText && <p className="text-xs" style={{ color: 'var(--danger)' }}>Enter a plain number such as 1 or 2.5 (up to 6 decimals, no commas).</p>}

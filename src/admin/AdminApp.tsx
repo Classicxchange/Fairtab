@@ -129,7 +129,7 @@ function DashboardSection({ adminAddress }: { adminAddress: string }) {
         <button onClick={() => { void refetch(); void scanBills() }}
           disabled={scanning}
           className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all"
-          style={{ background: 'var(--accent)', color: '#fff' }}>
+          style={{ background: 'var(--accent-fill)', color: '#fff' }}>
           {scanning ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
           {scanning ? 'Scanning…' : 'Refresh stats'}
         </button>
@@ -149,7 +149,7 @@ function DashboardSection({ adminAddress }: { adminAddress: string }) {
         ))}
       </div>
 
-      <div className="p-4 rounded-2xl flex items-center gap-3" style={{ background: 'rgba(37,99,235,0.06)', border: '1px solid rgba(37,99,235,0.15)' }}>
+      <div className="p-4 rounded-2xl flex items-center gap-3" style={{ background: 'rgba(46,95,216,0.06)', border: '1px solid rgba(46,95,216,0.15)' }}>
         <Terminal className="size-5 shrink-0" style={{ color: 'var(--accent)' }} />
         <div>
           <p className="text-sm font-semibold" style={{ color: 'var(--ink)' }}>Contract address</p>
@@ -415,7 +415,7 @@ function DeploySection({ adminAddress }: { adminAddress: string }) {
           <button key={id} onClick={() => setStep(id)}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-xs font-semibold transition-all"
             style={{
-              background: step === id ? 'var(--accent)' : 'transparent',
+              background: step === id ? 'var(--accent-fill)' : 'transparent',
               color: step === id ? '#fff' : 'var(--subtle)',
             }}>
             <Icon className="size-3.5" />{label}
@@ -451,7 +451,7 @@ function DeploySection({ adminAddress }: { adminAddress: string }) {
             </div>
 
             <div className="rounded-xl px-4 py-3 flex flex-col gap-2"
-              style={{ background: 'rgba(37,99,235,0.06)', border: '1px solid rgba(37,99,235,0.15)' }}>
+              style={{ background: 'rgba(46,95,216,0.06)', border: '1px solid rgba(46,95,216,0.15)' }}>
               <p className="text-xs font-bold" style={{ color: 'var(--ink-2)' }}>Resolved constructor call</p>
               <p className="mono text-xs break-all" style={{ color: 'var(--muted)' }}>
                 constructor(<span style={{ color: 'var(--accent)' }}>address</span> usdc_) →{' '}
@@ -507,7 +507,7 @@ function DeploySection({ adminAddress }: { adminAddress: string }) {
 
           <button onClick={() => setStep('review')}
             className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold"
-            style={{ background: 'var(--accent)', color: '#fff' }}>
+            style={{ background: 'var(--accent-fill)', color: '#fff' }}>
             Next: Review ABI <ChevronDown className="size-4 -rotate-90" />
           </button>
         </motion.div>
@@ -537,7 +537,7 @@ function DeploySection({ adminAddress }: { adminAddress: string }) {
             {(['write', 'read', 'events'] as const).map(t => (
               <button key={t} onClick={() => setAbiTab(t)}
                 className="flex-1 rounded-xl py-2 text-xs font-semibold capitalize transition-all"
-                style={{ background: abiTab === t ? 'var(--accent)' : 'transparent', color: abiTab === t ? '#fff' : 'var(--subtle)' }}>
+                style={{ background: abiTab === t ? 'var(--accent-fill)' : 'transparent', color: abiTab === t ? '#fff' : 'var(--subtle)' }}>
                 {t === 'write' ? `Write (${writeFns.length})` : t === 'read' ? `Read (${readFns.length})` : `Events (${abiEvents.length})`}
               </button>
             ))}
@@ -552,7 +552,7 @@ function DeploySection({ adminAddress }: { adminAddress: string }) {
                     {fn.name}
                   </span>
                   <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded-full"
-                    style={{ background: abiTab === 'write' ? 'rgba(79,110,247,0.1)' : 'rgba(5,150,105,0.1)', color: abiTab === 'write' ? 'var(--accent)' : 'var(--success)' }}>
+                    style={{ background: abiTab === 'write' ? 'rgba(46,95,216,0.1)' : 'rgba(5,150,105,0.1)', color: abiTab === 'write' ? 'var(--accent)' : 'var(--success)' }}>
                     {fn.stateMutability}
                   </span>
                 </div>
@@ -610,7 +610,7 @@ function DeploySection({ adminAddress }: { adminAddress: string }) {
             </button>
             <button onClick={() => setStep('deploy')}
               className="flex-1 flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold"
-              style={{ background: 'var(--accent)', color: '#fff' }}>
+              style={{ background: 'var(--accent-fill)', color: '#fff' }}>
               Next: Deploy <Rocket className="size-4" />
             </button>
           </div>
@@ -622,7 +622,7 @@ function DeploySection({ adminAddress }: { adminAddress: string }) {
         <motion.div className="flex flex-col gap-5" {...fadeUp}>
 
           {/* Final summary before deploying */}
-          <div className="p-5 rounded-2xl flex flex-col gap-3" style={{ ...card, border: '1px solid rgba(79,110,247,0.3)' }}>
+          <div className="p-5 rounded-2xl flex flex-col gap-3" style={{ ...card, border: '1px solid rgba(46,95,216,0.3)' }}>
             <p className="text-sm font-bold" style={{ color: 'var(--ink)' }}>Deployment summary</p>
             {[
               ['Contract',   'HouseholdBillSplitter'],
@@ -641,7 +641,7 @@ function DeploySection({ adminAddress }: { adminAddress: string }) {
           {!deployedAddress && (
             <button onClick={() => void handleDeploy()} disabled={deploying}
               className="flex items-center justify-center gap-2 rounded-xl py-4 text-sm font-bold disabled:opacity-50 transition-all"
-              style={{ background: IS_MAINNET ? '#dc2626' : 'var(--accent)', color: '#fff', boxShadow: IS_MAINNET ? '0 4px 16px rgba(220,38,38,0.35)' : '0 4px 16px rgba(79,110,247,0.3)' }}>
+              style={{ background: IS_MAINNET ? '#dc2626' : 'var(--accent-fill)', color: '#fff', boxShadow: IS_MAINNET ? '0 4px 16px rgba(220,38,38,0.35)' : '0 4px 16px rgba(46,95,216,0.3)' }}>
               {deploying ? <><Loader2 className="size-4 animate-spin" /> Deploying…</> : <><Rocket className="size-4" /> {IS_MAINNET ? 'Deploy to Mainnet' : 'Deploy to Testnet'}</>}
             </button>
           )}
@@ -845,7 +845,7 @@ export default function AdminApp() {
         style={{ background: 'var(--surface-strong)', borderBottom: '1px solid var(--border)', backdropFilter: 'blur(12px)' }}>
         <div className="flex items-center gap-3">
           <div className="flex size-8 items-center justify-center rounded-xl"
-            style={{ background: 'var(--accent)' }}>
+            style={{ background: 'var(--accent-fill)' }}>
             <Shield className="size-4" style={{ color: '#fff' }} />
           </div>
           <div>
@@ -889,7 +889,7 @@ export default function AdminApp() {
           {navItems.map(({ id, label, icon: Icon }) => (
             <button key={id} onClick={() => setSection(id)}
               className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2 rounded-xl text-[10px] font-semibold"
-              style={{ background: section === id ? 'var(--accent)' : 'transparent', color: section === id ? '#fff' : 'var(--subtle)' }}>
+              style={{ background: section === id ? 'var(--accent-fill)' : 'transparent', color: section === id ? '#fff' : 'var(--subtle)' }}>
               <Icon className="size-4" />
               {label}
             </button>

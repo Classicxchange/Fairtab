@@ -202,7 +202,7 @@ export function SignInPage({
                 ].map(({ n, text }) => (
                   <div key={n} className="flex items-center gap-3">
                     <span className="size-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                      style={{ background: 'var(--accent)', color: 'white' }}>{n}</span>
+                      style={{ background: 'var(--accent-fill)', color: 'white' }}>{n}</span>
                     <span className="text-sm" style={{ color: 'var(--ink-2)' }}>{text}</span>
                   </div>
                 ))}
@@ -344,7 +344,7 @@ export function SignInPage({
                       className="size-9 rounded-full shrink-0" referrerPolicy="no-referrer"
                       style={{ outline: '2px solid var(--border)', outlineOffset: 1 }} />
                   : <div className="size-9 rounded-full flex items-center justify-center shrink-0 text-sm font-bold"
-                      style={{ background: 'var(--accent)', color: '#fff' }}>
+                      style={{ background: 'var(--accent-fill)', color: '#fff' }}>
                       {googleIdentity.username.charAt(0).toUpperCase()}
                     </div>
                 }

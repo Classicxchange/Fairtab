@@ -363,7 +363,7 @@ export function TOTPSetup({ onDone }: { onDone: () => void }) {
             {err && <p className="text-xs" style={{ color: 'var(--danger)' }}>{err}</p>}
             <button onClick={() => void handlePassword()} disabled={loading || !pw}
               className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-50"
-              style={{ background: 'var(--accent)', color: '#fff' }}>
+              style={{ background: 'var(--accent-fill)', color: '#fff' }}>
               {loading ? <Loader2 className="size-4 animate-spin" /> : <><QrCode className="size-4" /> Generate QR code</>}
             </button>
           </motion.div>
@@ -401,7 +401,7 @@ export function TOTPSetup({ onDone }: { onDone: () => void }) {
             </div>
             <button onClick={() => setStep('verify')}
               className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold"
-              style={{ background: 'var(--accent)', color: '#fff' }}>
+              style={{ background: 'var(--accent-fill)', color: '#fff' }}>
               I scanned it — verify code
             </button>
           </motion.div>
@@ -426,7 +426,7 @@ export function TOTPSetup({ onDone }: { onDone: () => void }) {
             {err && <p className="text-xs text-center" style={{ color: 'var(--danger)' }}>{err}</p>}
             <button onClick={() => void handleVerify()} disabled={loading || code.length !== 6}
               className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-50"
-              style={{ background: 'var(--accent)', color: '#fff' }}>
+              style={{ background: 'var(--accent-fill)', color: '#fff' }}>
               {loading ? <Loader2 className="size-4 animate-spin" /> : <><ShieldCheck className="size-4" /> Confirm setup</>}
             </button>
             <button onClick={() => setStep('scan')} className="text-xs text-center" style={{ color: 'var(--subtle)' }}>
@@ -503,7 +503,7 @@ export function EmailRecoverySetup({ onDone }: { onDone: () => void }) {
         </label>
         <button onClick={onDone} disabled={!acked}
           className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-40"
-          style={{ background: 'var(--accent)', color: '#fff' }}>
+          style={{ background: 'var(--accent-fill)', color: '#fff' }}>
           <CheckCircle2 className="size-4" /> Done
         </button>
       </motion.div>
@@ -533,7 +533,7 @@ export function EmailRecoverySetup({ onDone }: { onDone: () => void }) {
       {err && <p className="text-xs" style={{ color: 'var(--danger)' }}>{err}</p>}
       <button onClick={() => void handleSetup()} disabled={loading || !pw || !email}
         className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-50"
-        style={{ background: 'var(--accent)', color: '#fff' }}>
+        style={{ background: 'var(--accent-fill)', color: '#fff' }}>
         {loading ? <Loader2 className="size-4 animate-spin" /> : <><Mail className="size-4" /> Generate recovery key</>}
       </button>
     </motion.div>
@@ -580,7 +580,7 @@ export function RecoveryStatus({ onSetupTOTP, onSetupEmail }: {
           ? <span className="text-xs font-semibold px-2 py-1 rounded-full" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>Active</span>
           : <button onClick={onSetupTOTP}
               className="text-xs font-semibold px-3 py-1.5 rounded-xl transition-all hover:scale-105"
-              style={{ background: 'var(--accent)', color: '#fff' }}>
+              style={{ background: 'var(--accent-fill)', color: '#fff' }}>
               Set up
             </button>
         }
@@ -604,7 +604,7 @@ export function RecoveryStatus({ onSetupTOTP, onSetupEmail }: {
           ? <span className="text-xs font-semibold px-2 py-1 rounded-full" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>Active</span>
           : <button onClick={onSetupEmail}
               className="text-xs font-semibold px-3 py-1.5 rounded-xl transition-all hover:scale-105"
-              style={{ background: 'var(--accent)', color: '#fff' }}>
+              style={{ background: 'var(--accent-fill)', color: '#fff' }}>
               Set up
             </button>
         }
@@ -725,7 +725,7 @@ export function ForgotPhraseFlow({ onRecovered, onCancel }: ForgotPhraseProps) {
           </p>
         </div>
         <label className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold cursor-pointer transition-all hover:opacity-90"
-          style={{ background: 'var(--accent)', color: '#fff' }}>
+          style={{ background: 'var(--accent-fill)', color: '#fff' }}>
           {loading ? <Loader2 className="size-4 animate-spin" /> : <><Upload className="size-4" /> Upload recovery file</>}
           <input type="file" accept=".fairtab,application/json" className="hidden" onChange={e => void handleFileUpload(e)} disabled={loading} />
         </label>
@@ -799,7 +799,7 @@ export function ForgotPhraseFlow({ onRecovered, onCancel }: ForgotPhraseProps) {
             {err && <p className="text-xs text-center" style={{ color: 'var(--danger)' }}>{err}</p>}
             <button onClick={() => void handleTOTP()} disabled={loading || code.length !== 6}
               className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-50"
-              style={{ background: 'var(--accent)', color: '#fff' }}>
+              style={{ background: 'var(--accent-fill)', color: '#fff' }}>
               {loading ? <Loader2 className="size-4 animate-spin" /> : <><Unlock className="size-4" /> Recover wallet</>}
             </button>
             {hasEmail && (
@@ -841,7 +841,7 @@ export function ForgotPhraseFlow({ onRecovered, onCancel }: ForgotPhraseProps) {
             {err && <p className="text-xs" style={{ color: 'var(--danger)' }}>{err}</p>}
             <button onClick={() => void handleEmail()} disabled={loading || !emailKey.trim()}
               className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-50"
-              style={{ background: 'var(--accent)', color: '#fff' }}>
+              style={{ background: 'var(--accent-fill)', color: '#fff' }}>
               {loading ? <Loader2 className="size-4 animate-spin" /> : <><KeyRound className="size-4" /> Recover wallet</>}
             </button>
             {hasTOTP && (
@@ -974,7 +974,7 @@ export function PasskeySetup({ address, onDone }: { address: string; onDone: () 
       {err && <p className="text-xs" style={{ color: 'var(--danger)' }}>{err}</p>}
       <button onClick={() => void handleRegister()} disabled={loading}
         className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-50"
-        style={{ background: 'var(--accent)', color: '#fff' }}>
+        style={{ background: 'var(--accent-fill)', color: '#fff' }}>
         {loading ? <><Loader2 className="size-4 animate-spin" /> Registering…</> : <><Lock className="size-4" /> Register passkey</>}
       </button>
     </motion.div>

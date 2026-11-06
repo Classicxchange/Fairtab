@@ -69,7 +69,7 @@ export function SendVisual() {
         <span className="display text-2xl font-bold" style={{ color: 'var(--subtle)' }}>0.00</span>
         <span className="text-sm font-semibold" style={{ color: 'var(--ink-2)' }}>USDC</span>
       </div>
-      <div className="mt-4 flex items-center justify-center gap-2 rounded-2xl py-3 text-sm font-semibold" style={{ background: 'var(--accent)', color: '#fff' }}>
+      <div className="mt-4 flex items-center justify-center gap-2 rounded-2xl py-3 text-sm font-semibold" style={{ background: 'var(--accent-fill)', color: '#fff' }}>
         <SendIcon className="size-4" /> Review and send
       </div>
     </Frame>
@@ -83,7 +83,7 @@ export function ReceiveVisual() {
         <div className="rounded-2xl px-4 py-3" style={inner}>
           <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Your address</p>
           <div className="mt-2 flex items-center gap-3">
-            <span className="size-9 shrink-0 rounded-xl flex items-center justify-center" style={{ background: 'var(--accent)', color: '#fff' }}><Wallet className="size-4" /></span>
+            <span className="size-9 shrink-0 rounded-xl flex items-center justify-center" style={{ background: 'var(--accent-fill)', color: '#fff' }}><Wallet className="size-4" /></span>
             <span className="h-2.5 flex-1 rounded-full" style={{ background: 'var(--border)' }} />
           </div>
           <div className="mt-3 flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--ink-2)' }}>
@@ -120,7 +120,7 @@ export function FairIdVisual() {
       <p className="mt-2 text-xs" style={{ color: 'var(--muted)' }}>3 to 20 letters, numbers or underscores. First come, first served.</p>
       <div className="my-4 flex justify-center"><ArrowDownUp className="size-4" style={{ color: 'var(--subtle)' }} /></div>
       <div className="flex items-center gap-3 rounded-2xl px-3 py-3" style={inner}>
-        <span className="size-9 shrink-0 rounded-xl flex items-center justify-center" style={{ background: 'var(--accent)', color: '#fff' }}><Wallet className="size-4" /></span>
+        <span className="size-9 shrink-0 rounded-xl flex items-center justify-center" style={{ background: 'var(--accent-fill)', color: '#fff' }}><Wallet className="size-4" /></span>
         <div className="flex flex-1 flex-col gap-2"><Bar w="70%" /><Bar w="40%" /></div>
         <Chip tone="ok">Your wallet</Chip>
       </div>

@@ -199,7 +199,7 @@ export function CommitRouterDeploySection({ adminAddress }: { adminAddress: stri
           <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Allowed vaults (one address per line)</label>
           <textarea value={vaultsText} disabled={lock} onChange={e => { setVaultsText(e.target.value); setChecks([]) }} rows={3} className="mono rounded-xl px-4 py-2.5 text-xs outline-none" style={input} />
         </div>
-        <button onClick={() => { void runChecks() }} disabled={checking || deploying} className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-50" style={{ background: 'var(--accent)', color: '#fff' }}>
+        <button onClick={() => { void runChecks() }} disabled={checking || deploying} className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-50" style={{ background: 'var(--accent-fill)', color: '#fff' }}>
           {checking ? <><Loader2 className="size-4 animate-spin" /> Checking…</> : <><ShieldCheck className="size-4" /> Check these settings</>}
         </button>
         {checks.length > 0 && (
@@ -212,7 +212,7 @@ export function CommitRouterDeploySection({ adminAddress }: { adminAddress: stri
         <p className="text-sm font-bold" style={{ color: 'var(--ink)' }}>Deploy</p>
         <p className="text-xs" style={{ color: 'var(--muted)' }}>Type <span className="mono font-bold">DEPLOY</span> to confirm. Your wallet will then ask you to sign from {adminAddress.slice(0, 8)}…{adminAddress.slice(-6)}.</p>
         <input value={confirmText} onChange={e => setConfirmText(e.target.value)} placeholder="DEPLOY" className="mono rounded-xl px-4 py-2.5 text-sm outline-none" style={input} />
-        <button onClick={() => { void handleDeploy() }} disabled={!canDeploy} className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-40" style={{ background: 'var(--accent)', color: '#fff' }}>
+        <button onClick={() => { void handleDeploy() }} disabled={!canDeploy} className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-40" style={{ background: 'var(--accent-fill)', color: '#fff' }}>
           {deploying ? <><Loader2 className="size-4 animate-spin" /> {stage || 'Working…'}</> : <><Rocket className="size-4" /> Deploy Commit router</>}
         </button>
         {!checksPassed && <p className="text-xs" style={{ color: 'var(--subtle)' }}>Run the checks first. A failed check blocks deployment.</p>}

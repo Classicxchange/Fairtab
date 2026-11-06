@@ -252,7 +252,7 @@ export function CommitPage() {
           <div className="flex rounded-xl p-1 gap-1" style={{ background: 'var(--surface-muted)' }}>
             {(['commit', 'withdraw'] as const).map(m => (
               <button key={m} onClick={() => { setMode(m); setAmountText('') }} className="flex-1 rounded-lg py-2 text-xs font-bold"
-                style={{ background: mode === m ? 'var(--accent)' : 'transparent', color: mode === m ? '#fff' : 'var(--subtle)' }}>
+                style={{ background: mode === m ? 'var(--accent-fill)' : 'transparent', color: mode === m ? '#fff' : 'var(--subtle)' }}>
                 {m === 'commit' ? 'Commit' : 'Withdraw'}
               </button>
             ))}
@@ -280,7 +280,7 @@ export function CommitPage() {
           )}
           {problem && <p className="text-xs" style={{ color: 'var(--danger)' }}>{problem}</p>}
 
-          <button disabled={!canGo} onClick={go} className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-40" style={{ background: 'var(--accent)', color: '#fff' }}>
+          <button disabled={!canGo} onClick={go} className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-40" style={{ background: 'var(--accent-fill)', color: '#fff' }}>
             {busy ? <><Loader2 className="size-4 animate-spin" /> Confirming…</>
               : mode === 'withdraw' ? 'Withdraw'
               : needsApprove ? 'Step 1 of 2: allow this amount' : 'Commit'}

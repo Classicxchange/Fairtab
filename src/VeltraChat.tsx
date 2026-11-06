@@ -178,7 +178,7 @@ export function VeltraChat({ address, onOpenBill, onGo }: {
                   {m.role === 'assistant' && <VeltraBadge size={22} />}
                   <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm"
                     style={m.role === 'user'
-                      ? { background: 'var(--accent)', color: '#fff' }
+                      ? { background: 'var(--accent-fill)', color: '#fff' }
                       : { background: 'var(--surface-muted)', color: 'var(--ink)', border: '1px solid var(--border)' }}>
                     {m.content}
                   </div>
@@ -213,7 +213,7 @@ export function VeltraChat({ address, onOpenBill, onGo }: {
                 />
                 <button onClick={() => { void submit() }} disabled={busy || !text.trim()} aria-label="Send message"
                   className="flex size-10 shrink-0 items-center justify-center rounded-xl disabled:opacity-40"
-                  style={{ background: 'var(--accent)', color: '#fff' }}>
+                  style={{ background: 'var(--accent-fill)', color: '#fff' }}>
                   <Send className="size-4" />
                 </button>
               </div>

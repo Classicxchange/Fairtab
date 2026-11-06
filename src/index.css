@@ -22,11 +22,13 @@
   --border:        rgba(15,27,53,0.10);
   --border-strong: rgba(15,27,53,0.20);
 
-  --accent:       #2563eb;
-  --accent-hover: #1d4ed8;
+  --accent:       #1a3a9a;
+  /* PREVIEW: Veltra blue fill for solid blue buttons and badges */
+  --accent-fill:  linear-gradient(135deg, #2448b8 0%, #12296b 55%, #0a1540 100%);
+  --accent-hover: #12296b;
   --accent-dark:  #ffffff;
-  --accent-light: rgba(37,99,235,0.10);
-  --accent-border:rgba(37,99,235,0.25);
+  --accent-light: rgba(26,58,154,0.10);
+  --accent-border:rgba(26,58,154,0.25);
 
   --success:    #059669;
   --success-bg: rgba(5,150,105,0.10);
@@ -46,12 +48,13 @@
 
 /* ── Dark mode ────────────────────────────────────────────────────── */
 html.dark {
-  --bg:             #090f1c;
+  /* PREVIEW: Veltra blue page background */
+  --bg:             radial-gradient(ellipse 130% 75% at 50% 0%, #17358a 0%, #0b1a4a 45%, #060d26 100%);
   --bg-gradient:    linear-gradient(160deg, #0a1020 0%, #0d1629 50%, #0f1c2e 100%);
 
   --surface:        rgba(255,255,255,0.06);
   --surface-strong: rgba(255,255,255,0.09);
-  --surface-muted:  #111d33;
+  --surface-muted:  #0d1b49;
   --surface-hover:  rgba(255,255,255,0.08);
 
   --ink:    #f0f6ff;
@@ -62,11 +65,12 @@ html.dark {
   --border:        rgba(255,255,255,0.10);
   --border-strong: rgba(255,255,255,0.18);
 
-  --accent:       #4f8ef7;
-  --accent-hover: #3b7af5;
+  --accent:       #7db4ff;
+  --accent-fill:  linear-gradient(135deg, #2f5fd8 0%, #17358a 55%, #0b1a4a 100%);
+  --accent-hover: #a5ccff;
   --accent-dark:  #ffffff;
-  --accent-light: rgba(79,142,247,0.15);
-  --accent-border:rgba(79,142,247,0.30);
+  --accent-light: rgba(125,180,255,0.15);
+  --accent-border:rgba(125,180,255,0.32);
 
   --success:    #34d399;
   --success-bg: rgba(52,211,153,0.12);
@@ -87,13 +91,14 @@ html.dark {
 /* ── Base ───────────────────────────────────────────────────────────── */
 * { box-sizing: border-box; }
 
-html { background: var(--bg); }
+html { background: var(--bg); background-attachment: fixed; }
 
 body {
   margin: 0;
   font-family: 'DM Sans', system-ui, sans-serif;
   min-height: 100dvh;
   background: var(--bg);
+  background-attachment: fixed;
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
   font-size: 14px;

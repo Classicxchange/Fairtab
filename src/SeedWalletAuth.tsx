@@ -241,7 +241,7 @@ export function WalletUnlockModal({ uid, address, onUnlocked, onCancel }: Wallet
           </button>
           <button onClick={() => void handleUnlock()} disabled={!pw || busy}
             className="flex-1 rounded-xl py-2.5 text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2"
-            style={{ background: 'var(--accent)', color: 'white' }}>
+            style={{ background: 'var(--accent-fill)', color: 'white' }}>
             {busy ? <Loader2 className="size-4 animate-spin" /> : <><KeyRound className="size-4" /> Unlock</>}
           </button>
         </div>
@@ -510,7 +510,7 @@ export function SeedWalletAuth({ session, onSignedIn, onSignOut, uid }: Props) {
               <PasswordInput value={unlockPw} onChange={setUnlockPw} placeholder="Your password" onEnter={() => void handleRevealPk()} />
               <button onClick={() => void handleRevealPk()} disabled={loading || !unlockPw}
                 className="rounded-xl px-3 py-2 text-xs font-bold disabled:opacity-50"
-                style={{ background: 'var(--accent)', color: 'white' }}>
+                style={{ background: 'var(--accent-fill)', color: 'white' }}>
                 {loading ? <Loader2 className="size-3.5 animate-spin" /> : 'Show'}
               </button>
             </div>
@@ -561,7 +561,7 @@ export function SeedWalletAuth({ session, onSignedIn, onSignOut, uid }: Props) {
 
             <button onClick={handleCreateNew}
               className="w-full flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all hover:scale-[1.01]"
-              style={{ background: 'var(--accent)', color: 'white' }}>
+              style={{ background: 'var(--accent-fill)', color: 'white' }}>
               <Wallet className="size-4" /> Create new wallet
             </button>
 
@@ -641,7 +641,7 @@ export function SeedWalletAuth({ session, onSignedIn, onSignOut, uid }: Props) {
               disabled={!ackSeed}
               onClick={() => setStep('create-set-password')}
               className="w-full rounded-xl py-3 text-sm font-bold disabled:opacity-40 transition-all"
-              style={{ background: 'var(--accent)', color: 'white' }}>
+              style={{ background: 'var(--accent-fill)', color: 'white' }}>
               Continue
             </button>
             <button onClick={() => setStep('choose')} className="text-xs text-center" style={{ color: 'var(--subtle)' }}>← Back</button>
@@ -663,7 +663,7 @@ export function SeedWalletAuth({ session, onSignedIn, onSignOut, uid }: Props) {
               disabled={loading || !password || !confirm}
               onClick={() => void handleSaveWallet(mnemonic, privateKey as Hex, address as Hex, password, confirm)}
               className="w-full rounded-xl py-3 text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2"
-              style={{ background: 'var(--accent)', color: 'white' }}>
+              style={{ background: 'var(--accent-fill)', color: 'white' }}>
               {loading ? <Loader2 className="size-4 animate-spin" /> : <><ShieldCheck className="size-4" /> Create wallet</>}
             </button>
             <button onClick={() => setStep('create-show-seed')} className="text-xs text-center" style={{ color: 'var(--subtle)' }}>← Back</button>
@@ -705,7 +705,7 @@ export function SeedWalletAuth({ session, onSignedIn, onSignOut, uid }: Props) {
             {error && <p className="text-xs px-1" style={{ color: 'var(--danger)' }}>{error}</p>}
             <button onClick={() => handleParseImport(importInput)} disabled={!importInput.trim()}
               className="w-full rounded-xl py-3 text-sm font-bold disabled:opacity-50"
-              style={{ background: 'var(--accent)', color: 'white' }}>
+              style={{ background: 'var(--accent-fill)', color: 'white' }}>
               Continue
             </button>
             <button onClick={() => setStep('import-choose')} className="text-xs text-center" style={{ color: 'var(--subtle)' }}>← Back</button>
@@ -729,7 +729,7 @@ export function SeedWalletAuth({ session, onSignedIn, onSignOut, uid }: Props) {
             {error && <p className="text-xs px-1" style={{ color: 'var(--danger)' }}>{error}</p>}
             <button onClick={() => handleParseImport(importInput)} disabled={!importInput.trim()}
               className="w-full rounded-xl py-3 text-sm font-bold disabled:opacity-50"
-              style={{ background: 'var(--accent)', color: 'white' }}>
+              style={{ background: 'var(--accent-fill)', color: 'white' }}>
               Continue
             </button>
             <button onClick={() => setStep('import-choose')} className="text-xs text-center" style={{ color: 'var(--subtle)' }}>← Back</button>
@@ -753,7 +753,7 @@ export function SeedWalletAuth({ session, onSignedIn, onSignOut, uid }: Props) {
               disabled={loading || !password || !confirm}
               onClick={() => void handleSaveWallet(mnemonic || undefined, privateKey as Hex, address as Hex, password, confirm)}
               className="w-full rounded-xl py-3 text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2"
-              style={{ background: 'var(--accent)', color: 'white' }}>
+              style={{ background: 'var(--accent-fill)', color: 'white' }}>
               {loading ? <Loader2 className="size-4 animate-spin" /> : <><ShieldCheck className="size-4" /> Import wallet</>}
             </button>
             <button onClick={() => setStep('import-choose')} className="text-xs text-center" style={{ color: 'var(--subtle)' }}>← Back</button>
@@ -780,7 +780,7 @@ export function SeedWalletAuth({ session, onSignedIn, onSignOut, uid }: Props) {
 
             <button onClick={() => void handleUnlock()} disabled={loading || !unlockPw}
               className="w-full rounded-xl py-3 text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2"
-              style={{ background: 'var(--accent)', color: 'white' }}>
+              style={{ background: 'var(--accent-fill)', color: 'white' }}>
               {loading ? <Loader2 className="size-4 animate-spin" /> : <><KeyRound className="size-4" /> Unlock</>}
             </button>
 

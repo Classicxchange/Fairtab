@@ -176,7 +176,7 @@ function SeedPhraseRevealer({ onSignOut: _onSignOut, uid }: { onSignOut: () => v
         onClick={() => void handleReveal()}
         disabled={!pw || loading}
         className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-50"
-        style={{ background: 'var(--accent)', color: 'var(--accent-dark)' }}
+        style={{ background: 'var(--accent-fill)', color: 'var(--accent-dark)' }}
       >
         {loading ? <><RefreshCw className="size-4 animate-spin" /> Decrypting…</> : <><Eye className="size-4" /> Reveal seed phrase</>}
       </button>
@@ -264,7 +264,7 @@ function PrivateKeyRevealer({ uid }: { uid?: string }) {
       {err && <p className="text-xs" style={{ color: 'var(--danger)' }}>{err}</p>}
       <button onClick={() => void handleReveal()} disabled={!pw || loading}
         className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-50"
-        style={{ background: 'var(--accent)', color: 'var(--accent-dark)' }}>
+        style={{ background: 'var(--accent-fill)', color: 'var(--accent-dark)' }}>
         {loading ? <><RefreshCw className="size-4 animate-spin" /> Decrypting…</> : <><Key className="size-4" /> Reveal private key</>}
       </button>
     </div>
@@ -350,7 +350,7 @@ function ChangePassword({ uid }: { uid?: string }) {
       {err && <p className="text-xs" style={{ color: 'var(--danger)' }}>{err}</p>}
       <button onClick={() => void handleChange()} disabled={!current || !next || !confirm || loading}
         className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-50"
-        style={{ background: 'var(--accent)', color: 'var(--accent-dark)' }}>
+        style={{ background: 'var(--accent-fill)', color: 'var(--accent-dark)' }}>
         {loading ? <><RefreshCw className="size-4 animate-spin" /> Updating…</> : <><Lock className="size-4" /> Update password</>}
       </button>
     </div>
@@ -443,7 +443,7 @@ function SignOutTimerSetting({ onSignOut }: { onSignOut: () => void }) {
             onClick={() => handleSave(opt.value)}
             className="flex items-center justify-center rounded-xl py-2.5 text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98]"
             style={{
-              background: selected === opt.value ? 'var(--accent)' : 'var(--surface-muted)',
+              background: selected === opt.value ? 'var(--accent-fill)' : 'var(--surface-muted)',
               color: selected === opt.value ? '#fff' : 'var(--ink-2)',
               border: `1px solid ${selected === opt.value ? 'var(--accent)' : 'var(--border)'}`,
             }}
@@ -579,7 +579,7 @@ export function AccountPage({ address, seedSession, socialSession, wagmiAddress,
           <button onClick={copyAddress}
             className="flex-1 flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all"
             style={{
-              background: copied ? 'var(--success-bg)' : 'var(--accent)',
+              background: copied ? 'var(--success-bg)' : 'var(--accent-fill)',
               color: copied ? 'var(--success)' : 'var(--accent-dark)',
             }}>
             {copied ? <CheckCircle2 className="size-4" /> : <Copy className="size-4" />}

@@ -78,7 +78,7 @@ export function SignInModal({
         whileTap={{ scale: 0.96 }}
         onClick={() => setOpen(true)}
         className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-all"
-        style={{ background: 'var(--accent)', color: 'white', boxShadow: '0 2px 8px rgba(37,99,235,0.35)' }}
+        style={{ background: 'var(--accent-fill)', color: 'white', boxShadow: '0 2px 8px rgba(46,95,216,0.35)' }}
       >
         Sign In
       </motion.button>

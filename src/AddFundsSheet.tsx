@@ -49,7 +49,7 @@ export function AddFundsSheet({ address, onClose }: { address: string; onClose: 
             <div className="mt-3 flex gap-2">
               <button onClick={copy}
                 className="flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-semibold"
-                style={{ background: copied ? 'var(--success-bg)' : 'var(--accent)', color: copied ? 'var(--success)' : '#fff' }}>
+                style={{ background: copied ? 'var(--success-bg)' : 'var(--accent-fill)', color: copied ? 'var(--success)' : '#fff' }}>
                 {copied ? <CheckCircle2 className="size-3.5" /> : <Copy className="size-3.5" />}
                 {copied ? 'Copied' : 'Copy address'}
               </button>
@@ -71,7 +71,7 @@ export function AddFundsSheet({ address, onClose }: { address: string; onClose: 
             ].map((step, i) => (
               <li key={i} className="flex gap-3">
                 <span className="flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold"
-                  style={{ background: 'var(--accent)', color: '#fff' }}>{i + 1}</span>
+                  style={{ background: 'var(--accent-fill)', color: '#fff' }}>{i + 1}</span>
                 <span className="pt-0.5 leading-relaxed">{step}</span>
               </li>
             ))}

@@ -242,10 +242,10 @@ function PayPanel({ bill, onPaid }: { bill: BillSummary; onPaid: (hash?: `0x${st
   const myContribPct = myShare.amount > 0n ? Number((myShare.contributed * 10000n) / myShare.amount) / 100 : 0
 
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--accent-border)', boxShadow: '0 4px 20px rgba(37,99,235,0.08)' }}>
+    <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--accent-border)', boxShadow: '0 4px 20px rgba(46,95,216,0.08)' }}>
       {/* Header strip */}
       <div className="flex items-center gap-2.5 px-4 py-3" style={{ borderBottom: '1px solid var(--border)', background: 'var(--accent-light)' }}>
-        <div className="flex size-7 items-center justify-center rounded-lg" style={{ background: 'var(--accent)' }}>
+        <div className="flex size-7 items-center justify-center rounded-lg" style={{ background: 'var(--accent-fill)' }}>
           <Wallet className="size-3.5" style={{ color: '#fff' }} />
         </div>
         <span className="text-sm font-bold" style={{ color: 'var(--accent)' }}>Pay your share</span>
@@ -275,14 +275,14 @@ function PayPanel({ bill, onPaid }: { bill: BillSummary; onPaid: (hash?: `0x${st
             style={{ color: 'var(--ink)' }} />
           <button onClick={() => { setPayInput(fmt(myRemaining)); setApproveDone(false) }}
             className="rounded-lg px-2.5 py-1 text-xs font-bold transition-all active:scale-95"
-            style={{ background: 'var(--accent)', color: '#fff' }}>Max</button>
+            style={{ background: 'var(--accent-fill)', color: '#fff' }}>Max</button>
         </div>
 
         {needsApprove ? (
           <button onClick={() => { if (ensureChain()) writeApprove({ address: USDC_ADDRESS, abi: erc20Abi, functionName: 'approve', args: [CONTRACT_ADDRESS, payRaw] }) }}
             disabled={!payValid || approvePending || approveConfirming}
             className="w-full rounded-xl py-3 text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-40 transition-all active:scale-[0.98]"
-            style={{ background: 'var(--accent)', color: '#fff' }}>
+            style={{ background: 'var(--accent-fill)', color: '#fff' }}>
             {approvePending || approveConfirming
               ? <><Loader2 className="size-4 animate-spin" />{approvePending ? 'Confirm in wallet…' : 'Approving…'}</>
               : 'Allow USDC'}
@@ -291,7 +291,7 @@ function PayPanel({ bill, onPaid }: { bill: BillSummary; onPaid: (hash?: `0x${st
           <button onClick={() => { if (ensureChain()) writePay({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'pay', args: [bill.id, payRaw] }) }}
             disabled={!payValid || payPending || payConfirming}
             className="w-full rounded-xl py-3 text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-40 transition-all active:scale-[0.98]"
-            style={{ background: 'var(--accent)', color: '#fff', boxShadow: payValid ? '0 4px 16px rgba(37,99,235,0.3)' : 'none' }}>
+            style={{ background: 'var(--accent-fill)', color: '#fff', boxShadow: payValid ? '0 4px 16px rgba(46,95,216,0.3)' : 'none' }}>
             {payPending || payConfirming
               ? <><Loader2 className="size-4 animate-spin" />{payPending ? 'Confirm in wallet…' : 'Confirming…'}</>
               : payInput ? `Pay ${payInput} USDC` : 'Enter amount'}
@@ -456,9 +456,9 @@ export function BillDetailPage({ bill: initialBill, myParticipantStatus: initial
       ? 'linear-gradient(135deg, #064e3b 0%, #065f46 60%, #047857 100%)'
       : isLate
         ? 'linear-gradient(135deg, #78350f 0%, #92400e 60%, #b45309 100%)'
-        : 'linear-gradient(135deg, #1e3a8a 0%, #4338ca 60%, #7c3aed 100%)'
+        : 'linear-gradient(135deg, #2448b8 0%, #12296b 55%, #0a1540 100%)'
 
-  const ringStroke = bill.status === 2 ? '#f87171' : bill.status === 1 ? '#34d399' : progressPct === 100 ? '#34d399' : '#60a5fa'
+  const ringStroke = bill.status === 2 ? '#f87171' : bill.status === 1 ? '#34d399' : progressPct === 100 ? '#34d399' : 'var(--accent)'
 
   return (
     <motion.div
@@ -627,10 +627,10 @@ export function BillDetailPage({ bill: initialBill, myParticipantStatus: initial
                 <motion.div
                   initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   className="rounded-2xl overflow-hidden"
-                  style={{ border: '1px solid rgba(79,110,247,0.3)', background: 'linear-gradient(135deg,rgba(79,110,247,0.10),rgba(79,110,247,0.05))' }}>
+                  style={{ border: '1px solid rgba(46,95,216,0.3)', background: 'linear-gradient(135deg,rgba(46,95,216,0.10),rgba(46,95,216,0.05))' }}>
                   <div className="flex items-start gap-3 p-4 pb-3">
                     <div className="flex size-10 shrink-0 items-center justify-center rounded-xl"
-                      style={{ background: 'linear-gradient(135deg,var(--accent),#7c3aed)', boxShadow: '0 4px 12px rgba(79,110,247,0.35)' }}>
+                      style={{ background: 'linear-gradient(135deg, #2448b8 0%, #12296b 55%, #0a1540 100%)', boxShadow: '0 4px 12px rgba(46,95,216,0.35)' }}>
                       <Bell className="size-4.5" style={{ color: '#fff' }} />
                     </div>
                     <div>
@@ -648,7 +648,7 @@ export function BillDetailPage({ bill: initialBill, myParticipantStatus: initial
                     <button onClick={() => { if (ensureChain()) writeAccept({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'acceptInvite', args: [bill.id] }) }}
                       disabled={acceptPending || acceptConfirming}
                       className="flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-bold disabled:opacity-40 transition-all active:scale-[0.97]"
-                      style={{ background: 'var(--accent)', color: '#fff', boxShadow: '0 4px 16px rgba(37,99,235,0.35)' }}>
+                      style={{ background: 'var(--accent-fill)', color: '#fff', boxShadow: '0 4px 16px rgba(46,95,216,0.35)' }}>
                       {acceptPending || acceptConfirming ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />} Accept
                     </button>
                   </div>
@@ -680,7 +680,7 @@ export function BillDetailPage({ bill: initialBill, myParticipantStatus: initial
               <button onClick={() => { if (ensureChain()) writeClaim({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'claimPayout', args: [bill.id] }) }}
                 disabled={claimPending || claimConfirming || claimSuccess}
                 className="w-full flex items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-bold disabled:opacity-40 transition-all active:scale-[0.98]"
-                style={{ background: 'var(--accent)', color: '#fff', boxShadow: '0 4px 16px rgba(37,99,235,0.3)' }}>
+                style={{ background: 'var(--accent-fill)', color: '#fff', boxShadow: '0 4px 16px rgba(46,95,216,0.3)' }}>
                 {claimPending || claimConfirming
                   ? <><Loader2 className="size-4 animate-spin" />{claimPending ? 'Confirm in wallet…' : 'Confirming…'}</>
                   : `Claim ${fmt(payoutClaimableAmt)} USDC`}
@@ -773,7 +773,7 @@ export function BillDetailPage({ bill: initialBill, myParticipantStatus: initial
                           style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)', color: 'var(--ink)' }} />
                         <button onClick={handleAddParticipant} disabled={addPartPending || addPartConfirming}
                           className="rounded-xl px-4 py-2 text-xs font-bold disabled:opacity-40 flex items-center gap-1.5 transition-all active:scale-95"
-                          style={{ background: 'var(--accent)', color: '#fff' }}>
+                          style={{ background: 'var(--accent-fill)', color: '#fff' }}>
                           {addPartPending || addPartConfirming ? <Loader2 className="size-3 animate-spin" /> : null}
                           Invite
                         </button>

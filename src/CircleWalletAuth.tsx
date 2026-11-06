@@ -178,7 +178,7 @@ export function CircleWalletAuth({ onConnected, onDisconnected, connectedAddress
         onClick={() => { void handleRegister() }}
         disabled={loading}
         className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all disabled:opacity-50"
-        style={{ background: 'var(--accent)', color: 'white' }}
+        style={{ background: 'var(--accent-fill)', color: 'white' }}
       >
         {loading ? <Loader2 className="size-3.5 animate-spin" /> : <Fingerprint className="size-3.5" />}
         New wallet

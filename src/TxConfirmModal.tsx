@@ -158,7 +158,7 @@ export function TxConfirmModal({ open, detail, fromAddress, isPending, onConfirm
               {/* Amount hero */}
               {detail.amount && (
                 <div className="flex flex-col items-center gap-2 py-4 rounded-2xl"
-                  style={{ background: 'linear-gradient(135deg,rgba(37,99,235,0.08),rgba(37,99,235,0.02))', border: '1px solid var(--accent-border)' }}>
+                  style={{ background: 'linear-gradient(135deg,rgba(46,95,216,0.08),rgba(46,95,216,0.02))', border: '1px solid var(--accent-border)' }}>
                   <div className="flex items-center gap-2">
                     <TokenUSDC variant="branded" size={28} />
                     <span className="display text-3xl font-bold tabular-nums" style={{ color: 'var(--ink)', letterSpacing: '-0.04em' }}>
@@ -214,7 +214,7 @@ export function TxConfirmModal({ open, detail, fromAddress, isPending, onConfirm
                 </button>
                 <button onClick={onConfirm} disabled={isPending}
                   className="flex-[2] flex items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-bold transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60"
-                  style={{ background: 'var(--accent)', color: '#fff', boxShadow: '0 4px 20px rgba(37,99,235,0.3)' }}>
+                  style={{ background: 'var(--accent-fill)', color: '#fff', boxShadow: '0 4px 20px rgba(46,95,216,0.3)' }}>
                   {isPending
                     ? <><Loader2 className="size-4 animate-spin" /> Signing…</>
                     : <><ExternalLink className="size-4" /> Confirm &amp; sign</>

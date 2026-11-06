@@ -307,7 +307,7 @@ export function BridgeView() {
         {/* Bridge button */}
         <button onClick={() => void handleBridge()} disabled={!canBridge}
           className="w-full rounded-xl py-3.5 text-sm font-bold transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-40"
-          style={{ background: 'var(--accent)', color: '#080f1a', boxShadow: canBridge ? '0 0 20px rgba(59,142,248,0.25)' : 'none' }}>
+          style={{ background: 'var(--accent-fill)', color: '#080f1a', boxShadow: canBridge ? '0 0 20px rgba(59,142,248,0.25)' : 'none' }}>
           {bridging ? (
             <span className="flex items-center justify-center gap-2">
               <Loader2 className="size-4 animate-spin" /> Bridging…
@@ -487,7 +487,7 @@ export function PasskeyAuth({ onSignedIn, onSignOut, session }: PasskeyAuthProps
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <button onClick={() => setMode('register')}
               className="w-full flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all hover:scale-[1.01]"
-              style={{ background: 'var(--accent)', color: '#080f1a' }}>
+              style={{ background: 'var(--accent-fill)', color: '#080f1a' }}>
               <UserPlus className="size-4" /> Create account with passkey
             </button>
             <button onClick={() => setMode('login')}
@@ -511,7 +511,7 @@ export function PasskeyAuth({ onSignedIn, onSignOut, session }: PasskeyAuthProps
             {error && <p className="text-xs px-1" style={{ color: 'var(--danger)' }}>{error}</p>}
             <button onClick={() => void handleRegister()} disabled={loading}
               className="w-full rounded-xl py-3 text-sm font-bold disabled:opacity-50"
-              style={{ background: 'var(--accent)', color: '#080f1a' }}>
+              style={{ background: 'var(--accent-fill)', color: '#080f1a' }}>
               {loading ? <Loader2 className="size-4 animate-spin inline" /> : 'Register passkey'}
             </button>
             <button onClick={() => { setMode('idle'); setError(null) }}
@@ -528,7 +528,7 @@ export function PasskeyAuth({ onSignedIn, onSignOut, session }: PasskeyAuthProps
             {error && <p className="text-xs px-1" style={{ color: 'var(--danger)' }}>{error}</p>}
             <button onClick={() => void handleLogin()} disabled={loading}
               className="w-full rounded-xl py-3 text-sm font-bold disabled:opacity-50"
-              style={{ background: 'var(--accent)', color: '#080f1a' }}>
+              style={{ background: 'var(--accent-fill)', color: '#080f1a' }}>
               {loading ? <Loader2 className="size-4 animate-spin inline" /> : 'Sign in with passkey'}
             </button>
             <button onClick={() => { setMode('idle'); setError(null) }}

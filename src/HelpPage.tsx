@@ -113,7 +113,7 @@ export function HelpPage({ onBack }: Props) {
         <div className="mt-8 grid gap-3 sm:grid-cols-2">
           {STEPS.map(({ icon: Icon, title, text }) => (
             <section key={title} className="rounded-2xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-              <div className="mb-2.5 flex size-9 items-center justify-center rounded-xl" style={{ background: 'var(--accent)' }}>
+              <div className="mb-2.5 flex size-9 items-center justify-center rounded-xl" style={{ background: 'var(--accent-fill)' }}>
                 <Icon className="size-4 text-white" />
               </div>
               <h2 className="font-semibold" style={{ color: 'var(--ink)' }}>{title}</h2>

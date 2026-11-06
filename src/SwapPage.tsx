@@ -335,7 +335,7 @@ export function SwapPage() {
             <div className="flex rounded-lg p-0.5 gap-0.5" style={{ background: 'var(--surface-muted)' }}>
               {SLIPPAGES.map(s => (
                 <button key={s.bps} type="button" disabled={busy} onClick={() => { setSlippage(s.bps); clear() }} className="rounded-md px-2.5 py-1 text-xs font-bold"
-                  style={{ background: slippage === s.bps ? 'var(--accent)' : 'transparent', color: slippage === s.bps ? '#fff' : 'var(--subtle)' }}>{s.label}</button>
+                  style={{ background: slippage === s.bps ? 'var(--accent-fill)' : 'transparent', color: slippage === s.bps ? '#fff' : 'var(--subtle)' }}>{s.label}</button>
               ))}
             </div>
           </div>
@@ -358,7 +358,7 @@ export function SwapPage() {
           {(error || quoteFailed) && <p className="text-xs" style={{ color: 'var(--danger)' }}>{error || quoteError?.message}</p>}
 
           <button disabled={busy || !quoteFresh} onClick={() => { void swap() }}
-            className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-40" style={{ background: 'var(--accent)', color: '#fff' }}>
+            className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-40" style={{ background: 'var(--accent-fill)', color: '#fff' }}>
             {swapping ? <><Loader2 className="size-4 animate-spin" /> Swapping… confirm each step</>
               : quoting ? <><Loader2 className="size-4 animate-spin" /> Getting a quote…</>
               : quoteFresh ? `Swap ${amountText.trim()} ${from.symbol} to ${to.symbol}`

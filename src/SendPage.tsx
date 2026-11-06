@@ -187,7 +187,7 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
         )}
         <button onClick={handleReset}
           className="rounded-2xl px-8 py-3.5 text-sm font-bold transition-all hover:scale-[1.02] active:scale-[0.98]"
-          style={{ background: 'var(--accent)', color: '#fff' }}>
+          style={{ background: 'var(--accent-fill)', color: '#fff' }}>
           Send again
         </button>
       </motion.div>
@@ -210,7 +210,7 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
 
         <div className="rounded-2xl overflow-hidden" style={glass.card}>
           {/* Big amount */}
-          <div className="px-6 py-8 text-center" style={{ background: 'linear-gradient(135deg,rgba(79,110,247,0.08),rgba(79,110,247,0.02))' }}>
+          <div className="px-6 py-8 text-center" style={{ background: 'linear-gradient(135deg,rgba(46,95,216,0.08),rgba(46,95,216,0.02))' }}>
             <div className="flex items-center justify-center gap-2 mb-1">
               <TokenUSDC variant="branded" size={28} />
               <span className="display text-4xl font-bold tabular-nums" style={{ color: 'var(--ink)', letterSpacing: '-0.04em' }}>
@@ -250,7 +250,7 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
           } : handleWagmiSend}
           disabled={busy || exceedsBalance}
           className="w-full flex items-center justify-center gap-2 rounded-2xl py-4 text-base font-bold transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ background: 'var(--accent)', color: '#fff', boxShadow: '0 4px 20px rgba(79,110,247,0.3)' }}>
+          style={{ background: 'var(--accent-fill)', color: '#fff', boxShadow: '0 4px 20px rgba(46,95,216,0.3)' }}>
           {busy
             ? <><Loader2 className="size-5 animate-spin" /> {sendPending || seedSending ? 'Signing…' : 'Confirming…'}</>
             : <><Send className="size-5" /> Confirm send {amount} USDC</>
@@ -271,7 +271,7 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
           <p className="text-sm mt-0.5" style={{ color: 'var(--muted)' }}>Send to any wallet on Arc</p>
         </div>
         <div className="flex size-11 items-center justify-center rounded-2xl"
-          style={{ background: 'var(--accent)', boxShadow: '0 4px 16px rgba(79,110,247,0.3)' }}>
+          style={{ background: 'var(--accent-fill)', boxShadow: '0 4px 16px rgba(46,95,216,0.3)' }}>
           <Send className="size-5" style={{ color: '#fff' }} />
         </div>
       </div>
@@ -280,10 +280,10 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
       {address && balance !== undefined && (
         <motion.div
           className="flex items-center gap-3 rounded-2xl px-4 py-3.5"
-          style={{ background: 'linear-gradient(135deg,rgba(79,110,247,0.1),rgba(79,110,247,0.04))', border: '1px solid rgba(79,110,247,0.15)', borderRadius: '16px' }}
+          style={{ background: 'linear-gradient(135deg,rgba(46,95,216,0.1),rgba(46,95,216,0.04))', border: '1px solid rgba(46,95,216,0.15)', borderRadius: '16px' }}
           initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
           <div className="flex size-9 items-center justify-center rounded-xl"
-            style={{ background: 'var(--accent)', boxShadow: '0 2px 8px rgba(79,110,247,0.25)' }}>
+            style={{ background: 'var(--accent-fill)', boxShadow: '0 2px 8px rgba(46,95,216,0.25)' }}>
             <Wallet className="size-4" style={{ color: '#fff' }} />
           </div>
           <div className="flex-1">
@@ -374,7 +374,7 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
             <button key={q} onClick={() => { setAmount(q) }}
               className="rounded-xl px-3 py-1.5 text-xs font-semibold transition-all hover:scale-105 active:scale-95"
               style={{
-                background: amount === q ? 'var(--accent)' : 'var(--surface-muted)',
+                background: amount === q ? 'var(--accent-fill)' : 'var(--surface-muted)',
                 color: amount === q ? '#fff' : 'var(--ink-2)',
                 border: amount === q ? 'none' : '1px solid var(--border)',
               }}>
@@ -385,9 +385,9 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
             <button onClick={() => { setAmount(fmt(balance)) }}
               className="rounded-xl px-3 py-1.5 text-xs font-semibold transition-all hover:scale-105 active:scale-95"
               style={{
-                background: amount === fmt(balance) ? 'var(--accent)' : 'var(--accent-light)',
+                background: amount === fmt(balance) ? 'var(--accent-fill)' : 'var(--accent-light)',
                 color: amount === fmt(balance) ? '#fff' : 'var(--accent)',
-                border: `1px solid rgba(79,110,247,0.2)`,
+                border: `1px solid rgba(46,95,216,0.2)`,
               }}>
               Max
             </button>
@@ -411,7 +411,7 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
         onClick={() => setStep('confirm')}
         disabled={!sendValid || exceedsBalance || !address}
         className="w-full flex items-center justify-center gap-2 rounded-2xl py-4 text-base font-bold transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed"
-        style={{ background: 'var(--accent)', color: '#fff', boxShadow: sendValid ? '0 4px 20px rgba(79,110,247,0.3)' : 'none' }}>
+        style={{ background: 'var(--accent-fill)', color: '#fff', boxShadow: sendValid ? '0 4px 20px rgba(46,95,216,0.3)' : 'none' }}>
         <span>Review send</span>
         <ArrowRight className="size-5" />
       </button>

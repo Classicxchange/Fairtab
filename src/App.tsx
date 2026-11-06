@@ -189,8 +189,8 @@ function BalanceCard({ address, onSend, onReceive }: {
     <motion.div
       className="relative overflow-hidden rounded-3xl p-5"
       style={{
-        background: 'linear-gradient(135deg, #2563eb 0%, #4f46e5 60%, #7c3aed 100%)',
-        boxShadow: '0 8px 32px rgba(37,99,235,0.35)',
+        background: 'linear-gradient(135deg, #2448b8 0%, #12296b 55%, #0a1540 100%)',
+        boxShadow: '0 8px 32px rgba(46,95,216,0.35)',
       }}
       {...fadeUp}>
       {/* Decorative circles */}
@@ -297,7 +297,7 @@ function BillRow({ bill, myParticipantStatus, onClick, isLast }: {
           </span>
           {isPendingInvite && (
             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
-              style={{ background: 'var(--accent)', color: '#fff' }}>Invite</span>
+              style={{ background: 'var(--accent-fill)', color: '#fff' }}>Invite</span>
           )}
           {isLate && (
             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0"
@@ -460,10 +460,10 @@ function ReceiveView({ unifiedAddress }: { unifiedAddress?: `0x${string}` }) {
           <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>{IS_MAINNET ? 'Arc Mainnet' : 'Arc Testnet'}</span>
         </div>
         {/* Visual address block */}
-        <div className="rounded-xl p-4 flex flex-col gap-2" style={{ background: 'rgba(79,110,247,0.06)', border: '1px solid rgba(79,110,247,0.15)' }}>
+        <div className="rounded-xl p-4 flex flex-col gap-2" style={{ background: 'rgba(46,95,216,0.06)', border: '1px solid rgba(46,95,216,0.15)' }}>
           <div className="flex items-center gap-3">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-xl"
-              style={{ background: 'var(--accent)', boxShadow: '0 0 16px rgba(79,110,247,0.25)' }}>
+              style={{ background: 'var(--accent-fill)', boxShadow: '0 0 16px rgba(46,95,216,0.25)' }}>
               <Wallet className="size-5" style={{ color: '#fff' }} />
             </div>
             <p className="mono break-all text-sm leading-relaxed" style={{ color: 'var(--ink)' }}>{address}</p>
@@ -509,7 +509,7 @@ function ReceiveView({ unifiedAddress }: { unifiedAddress?: `0x${string}` }) {
         </div>
         <button onClick={copyLink} disabled={!paymentLink}
           className="flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all hover:scale-[1.01] disabled:opacity-40"
-          style={{ background: linkCopied ? 'var(--success-bg)' : 'var(--accent-light)', color: linkCopied ? 'var(--success)' : 'var(--accent)', border: `1px solid ${linkCopied ? 'var(--success-bg)' : 'rgba(79,110,247,0.2)'}` }}>
+          style={{ background: linkCopied ? 'var(--success-bg)' : 'var(--accent-light)', color: linkCopied ? 'var(--success)' : 'var(--accent)', border: `1px solid ${linkCopied ? 'var(--success-bg)' : 'rgba(46,95,216,0.2)'}` }}>
           {linkCopied ? <CheckCircle2 className="size-4" /> : <Copy className="size-4" />}
           {linkCopied ? 'Link copied!' : 'Copy payment link'}
         </button>
@@ -1041,7 +1041,7 @@ export default function App() {
             style={{ background: 'var(--bg)' }}
           >
             <div className="size-12 rounded-2xl flex items-center justify-center"
-              style={{ background: 'var(--accent)' }}>
+              style={{ background: 'var(--accent-fill)' }}>
               <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
                 <rect x="4" y="4" width="8" height="8" rx="2" fill="white"/>
                 <rect x="16" y="4" width="8" height="8" rx="2" fill="white" opacity=".7"/>
@@ -1241,7 +1241,7 @@ export default function App() {
 
                 <motion.button onClick={() => setShowCreate(true)}
                   className="flex items-center justify-center gap-2 rounded-2xl py-4 text-sm font-bold transition-all hover:scale-[1.02] active:scale-[0.98]"
-                  style={{ background: 'var(--accent)', color: 'var(--accent-dark)' }}
+                  style={{ background: 'var(--accent-fill)', color: 'var(--accent-dark)' }}
                   {...fadeUp} transition={{ delay: 0.12 }}>
                   <Plus className="size-5" /> New Bill
                 </motion.button>
@@ -1286,7 +1286,7 @@ export default function App() {
                 <button key={id} onClick={() => goNav(id)}
                   className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2.5 text-xs font-semibold transition-all rounded-xl"
                   style={{
-                    background: navActive === id ? 'var(--accent)' : 'transparent',
+                    background: navActive === id ? 'var(--accent-fill)' : 'transparent',
                     color: navActive === id ? '#fff' : 'var(--subtle)',
                   }}>
                   <Icon className="size-4" />
@@ -1306,7 +1306,7 @@ export default function App() {
                 ] as const).map(({ id, label, icon: Icon }) => (
                   <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
                     className="flex flex-1 items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-all rounded-xl"
-                    style={{ background: tab === id ? 'var(--accent)' : 'transparent', color: tab === id ? '#fff' : 'var(--subtle)' }}>
+                    style={{ background: tab === id ? 'var(--accent-fill)' : 'transparent', color: tab === id ? '#fff' : 'var(--subtle)' }}>
                     <Icon className="size-4" />
                     <span>{label}</span>
                   </button>
@@ -1360,7 +1360,7 @@ export default function App() {
                   <div className="md:hidden">
                     <button onClick={() => setShowCreate(true)}
                       className="flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-bold"
-                      style={{ background: 'var(--accent)', color: 'var(--accent-dark)' }}>
+                      style={{ background: 'var(--accent-fill)', color: 'var(--accent-dark)' }}>
                       <Plus className="size-4" /> New Bill
                     </button>
                   </div>
@@ -1373,7 +1373,7 @@ export default function App() {
                         <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>Onchain shared expenses on Arc</p>
                       </div>
                       <div className="flex size-11 items-center justify-center rounded-2xl"
-                        style={{ background: 'var(--accent)', boxShadow: '0 4px 16px rgba(79,110,247,0.3)' }}>
+                        style={{ background: 'var(--accent-fill)', boxShadow: '0 4px 16px rgba(46,95,216,0.3)' }}>
                         <Receipt className="size-5" style={{ color: '#fff' }} />
                       </div>
                     </div>
@@ -1385,7 +1385,7 @@ export default function App() {
                         </p>
                         <button onClick={() => setShowFunds(true)}
                           className="shrink-0 rounded-xl px-3 py-2 text-xs font-bold"
-                          style={{ background: 'var(--accent)', color: '#fff' }}>
+                          style={{ background: 'var(--accent-fill)', color: '#fff' }}>
                           Add USDC
                         </button>
                       </div>
@@ -1406,10 +1406,10 @@ export default function App() {
                             <button key={f} onClick={() => handleFilterChange(f)}
                               className="relative flex items-center gap-1.5 shrink-0 rounded-2xl px-3.5 py-2 text-xs font-semibold transition-all hover:scale-105 active:scale-95"
                               style={{
-                                background: active ? 'var(--accent)' : 'var(--surface)',
+                                background: active ? 'var(--accent-fill)' : 'var(--surface)',
                                 color: active ? '#fff' : 'var(--ink-2)',
                                 border: active ? 'none' : '1px solid var(--border)',
-                                boxShadow: active ? '0 2px 12px rgba(79,110,247,0.25)' : 'none',
+                                boxShadow: active ? '0 2px 12px rgba(46,95,216,0.25)' : 'none',
                               }}>
                               <FilterIcon className="size-3.5 shrink-0" />
                               <span>{fl}</span>
@@ -1434,9 +1434,9 @@ export default function App() {
                   {/* Deep-link invite banner */}
                   {deepLinkBillId !== null && (
                     <motion.div className="rounded-2xl p-4 flex items-start gap-3" {...fadeUp}
-                      style={{ background: 'linear-gradient(135deg,rgba(79,110,247,0.10),rgba(79,110,247,0.04))', border: '1px solid rgba(79,110,247,0.25)' }}>
+                      style={{ background: 'linear-gradient(135deg,rgba(46,95,216,0.10),rgba(46,95,216,0.04))', border: '1px solid rgba(46,95,216,0.25)' }}>
                       <div className="flex size-9 shrink-0 items-center justify-center rounded-xl"
-                        style={{ background: 'var(--accent)', boxShadow: '0 0 12px rgba(79,110,247,0.3)' }}>
+                        style={{ background: 'var(--accent-fill)', boxShadow: '0 0 12px rgba(46,95,216,0.3)' }}>
                         <Receipt className="size-4" style={{ color: '#fff' }} />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -1463,7 +1463,7 @@ export default function App() {
                     </motion.div>
                   ) : count === 0 ? (
                     <motion.div className="flex flex-col items-center justify-center py-20 gap-5 rounded-3xl"
-                      style={{ background: 'linear-gradient(135deg,rgba(79,110,247,0.06),rgba(79,110,247,0.01))', border: '1px dashed rgba(79,110,247,0.2)' }} {...fadeUp}>
+                      style={{ background: 'linear-gradient(135deg,rgba(46,95,216,0.06),rgba(46,95,216,0.01))', border: '1px dashed rgba(46,95,216,0.2)' }} {...fadeUp}>
                       <div className="text-6xl">🧾</div>
                       <div className="text-center px-6">
                         <p className="display font-bold text-xl mb-1" style={{ color: 'var(--ink)' }}>No bills yet</p>
@@ -1472,7 +1472,7 @@ export default function App() {
                       <div className="flex flex-col items-center gap-3 w-full px-8">
                         <button onClick={() => setShowCreate(true)}
                           className="w-full flex items-center justify-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-bold transition-all hover:scale-[1.02] active:scale-[0.98]"
-                          style={{ background: 'var(--accent)', color: '#fff', boxShadow: '0 4px 16px rgba(79,110,247,0.3)' }}>
+                          style={{ background: 'var(--accent-fill)', color: '#fff', boxShadow: '0 4px 16px rgba(46,95,216,0.3)' }}>
                           <Plus className="size-4" /> Create your first bill
                         </button>
                         <p className="text-xs" style={{ color: 'var(--subtle)' }}>Rent · Utilities · Netflix · Groceries · and more</p>
@@ -1506,7 +1506,7 @@ export default function App() {
                         {ids.map((id, i) => (
                           <div key={id.toString()}
                             ref={deepLinkBillId === id ? deepLinkRef : undefined}
-                            style={deepLinkBillId === id ? { background: 'rgba(79,110,247,0.07)' } : {}}>
+                            style={deepLinkBillId === id ? { background: 'rgba(46,95,216,0.07)' } : {}}>
                             <BillLoader
                               id={id} filter={filter} address={address}
                               onVisible={handleBillVisible} onInvite={handleInviteBill}

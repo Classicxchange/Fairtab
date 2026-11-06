@@ -421,7 +421,7 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
         className="rounded-2xl p-4 flex items-center gap-3"
         style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
         <div className="size-10 rounded-full flex items-center justify-center shrink-0 text-base font-bold"
-          style={{ background: 'var(--accent)', color: '#fff' }}>
+          style={{ background: 'var(--accent-fill)', color: '#fff' }}>
           {session.username.charAt(0).toUpperCase()}
         </div>
         <div className="flex-1 min-w-0">
@@ -467,7 +467,7 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
         </div>
         <button onClick={() => { void handleEmailSignIn() }} disabled={!email.trim()}
           className="w-full flex items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-bold transition-all hover:scale-[1.01] disabled:opacity-40"
-          style={{ background: 'var(--accent)', color: '#fff' }}>
+          style={{ background: 'var(--accent-fill)', color: '#fff' }}>
           <Mail className="size-4" />
           Send code
         </button>
@@ -522,7 +522,7 @@ export function GoogleIdentityBadge({ session, onSignOut }: { session: AccountSe
     <div className="rounded-2xl p-4 flex items-center gap-3"
       style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       <div className="size-10 rounded-full flex items-center justify-center shrink-0 text-base font-bold"
-        style={{ background: 'var(--accent)', color: '#fff' }}>
+        style={{ background: 'var(--accent-fill)', color: '#fff' }}>
         {session.username.charAt(0).toUpperCase()}
       </div>
       <div className="flex-1 min-w-0">

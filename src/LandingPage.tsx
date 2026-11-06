@@ -196,7 +196,7 @@ export function LandingPage({ onGetStarted, signedIn = false, dark, onToggleDark
           <button
             onClick={onGetStarted}
             className="rounded-xl px-4 py-2 text-sm font-semibold"
-            style={{ background: 'var(--accent)', color: '#fff' }}
+            style={{ background: 'var(--accent-fill)', color: '#fff' }}
           >
             {signedIn ? 'My account' : 'Sign in'}
           </button>
@@ -217,7 +217,7 @@ export function LandingPage({ onGetStarted, signedIn = false, dark, onToggleDark
           <button
             onClick={onGetStarted}
             className="rounded-2xl px-6 py-3.5 text-base font-semibold"
-            style={{ background: 'var(--accent)', color: '#fff' }}
+            style={{ background: 'var(--accent-fill)', color: '#fff' }}
           >
             {signedIn ? 'Open my app' : 'Get started'}
           </button>
@@ -236,7 +236,7 @@ export function LandingPage({ onGetStarted, signedIn = false, dark, onToggleDark
           <ol className="mt-5 grid gap-4 md:grid-cols-4">
             {STEPS.map(({ title, text }, i) => (
               <li key={title} className="rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                <span className="size-8 rounded-full flex items-center justify-center text-sm font-bold mb-3" style={{ background: 'var(--accent)', color: '#fff' }}>{i + 1}</span>
+                <span className="size-8 rounded-full flex items-center justify-center text-sm font-bold mb-3" style={{ background: 'var(--accent-fill)', color: '#fff' }}>{i + 1}</span>
                 <h3 className="font-semibold" style={{ color: 'var(--ink)' }}>{title}</h3>
                 <p className="mt-1 text-sm leading-relaxed" style={{ color: 'var(--muted)' }}>{text}</p>
               </li>
@@ -267,7 +267,7 @@ export function LandingPage({ onGetStarted, signedIn = false, dark, onToggleDark
           <div className="mt-5 grid gap-4 md:grid-cols-3">
             {EXTRAS.map(({ icon: Icon, title, text }) => (
               <div key={title} className="rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                <div className="size-9 rounded-xl flex items-center justify-center mb-3" style={{ background: 'var(--accent)' }}>
+                <div className="size-9 rounded-xl flex items-center justify-center mb-3" style={{ background: 'var(--accent-fill)' }}>
                   <Icon className="size-4 text-white" />
                 </div>
                 <h3 className="font-semibold" style={{ color: 'var(--ink)' }}>{title}</h3>
@@ -309,7 +309,7 @@ export function LandingPage({ onGetStarted, signedIn = false, dark, onToggleDark
         <section className="mt-12 rounded-2xl p-6 md:p-8 flex flex-col items-start gap-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <h2 className="display text-2xl font-bold tracking-tight" style={{ color: 'var(--ink)' }}>Ready to split your first bill?</h2>
           <p className="text-sm" style={{ color: 'var(--muted)' }}>It takes a minute to sign in and send your first invite.</p>
-          <button onClick={onGetStarted} className="rounded-xl px-5 py-3 text-sm font-semibold" style={{ background: 'var(--accent)', color: '#fff' }}>
+          <button onClick={onGetStarted} className="rounded-xl px-5 py-3 text-sm font-semibold" style={{ background: 'var(--accent-fill)', color: '#fff' }}>
             {signedIn ? 'Open my app' : 'Get started'}
           </button>
         </section>

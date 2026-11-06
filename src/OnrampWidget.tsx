@@ -146,7 +146,7 @@ export function OnrampWidget({
               <button
                 onClick={onClose}
                 className="rounded-xl px-4 py-2 text-sm font-semibold text-white"
-                style={{ background: 'var(--accent)' }}
+                style={{ background: 'var(--accent-fill)' }}
               >
                 Close
               </button>

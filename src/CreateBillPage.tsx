@@ -341,7 +341,7 @@ export function CreateBillPage({ onClose, onCreated, onSuccess, seedSession, onU
           )}
           <button onClick={() => { reset(); onCreated(); onClose() }}
             className="rounded-2xl px-10 py-3.5 text-base font-bold transition-all hover:scale-[1.02] active:scale-[0.98]"
-            style={{ background: 'var(--accent)', color: '#fff', boxShadow: '0 4px 20px rgba(79,110,247,0.3)' }}>
+            style={{ background: 'var(--accent-fill)', color: '#fff', boxShadow: '0 4px 20px rgba(46,95,216,0.3)' }}>
             View bills
           </button>
         </motion.div>
@@ -381,7 +381,7 @@ export function CreateBillPage({ onClose, onCreated, onSuccess, seedSession, onU
                 style={{
                   width: step === s ? 20 : 6,
                   height: 6,
-                  background: step >= s ? 'var(--accent)' : 'var(--border-strong)',
+                  background: step >= s ? 'var(--accent-fill)' : 'var(--border-strong)',
                 }} />
             ))}
           </div>
@@ -450,7 +450,7 @@ export function CreateBillPage({ onClose, onCreated, onSuccess, seedSession, onU
                       }}
                         className="flex flex-col items-center gap-1.5 rounded-2xl py-3 px-1 text-xs font-medium transition-all hover:scale-105 active:scale-95"
                         style={{
-                          background: isSelected ? 'var(--accent)' : 'var(--surface)',
+                          background: isSelected ? 'var(--accent-fill)' : 'var(--surface)',
                           border: isSelected ? 'none' : '1px solid var(--border)',
                           color: isSelected ? '#fff' : 'var(--ink-2)',
                         }}>
@@ -509,7 +509,7 @@ export function CreateBillPage({ onClose, onCreated, onSuccess, seedSession, onU
                     <button key={q} onClick={() => setTotalAmount(q)}
                       className="rounded-xl px-3 py-1.5 text-xs font-semibold transition-all hover:scale-105"
                       style={{
-                        background: totalAmount === q ? 'var(--accent)' : 'var(--surface-muted)',
+                        background: totalAmount === q ? 'var(--accent-fill)' : 'var(--surface-muted)',
                         color: totalAmount === q ? '#fff' : 'var(--ink-2)',
                         border: totalAmount === q ? 'none' : '1px solid var(--border)',
                       }}>
@@ -563,7 +563,7 @@ export function CreateBillPage({ onClose, onCreated, onSuccess, seedSession, onU
                   <div className="flex items-center gap-3 rounded-2xl p-4" style={glass.inner}>
                     <button onClick={() => setRecurring(r => !r)}
                       className="flex size-5 shrink-0 items-center justify-center rounded-md transition-all"
-                      style={{ background: recurring ? 'var(--accent)' : 'transparent', border: `2px solid ${recurring ? 'var(--accent)' : 'var(--border-strong)'}` }}>
+                      style={{ background: recurring ? 'var(--accent-fill)' : 'transparent', border: `2px solid ${recurring ? 'var(--accent)' : 'var(--border-strong)'}` }}>
                       {recurring && <CheckCircle2 className="size-3" style={{ color: '#fff' }} />}
                     </button>
                     <div className="flex items-center gap-2 flex-wrap">
@@ -596,9 +596,9 @@ export function CreateBillPage({ onClose, onCreated, onSuccess, seedSession, onU
                     <button key={opt.label} onClick={() => setUsePercentages(opt.value)}
                       className="flex flex-col items-start gap-0.5 rounded-2xl p-4 transition-all text-left"
                       style={{
-                        background: usePercentages === opt.value ? 'var(--accent)' : 'var(--surface)',
+                        background: usePercentages === opt.value ? 'var(--accent-fill)' : 'var(--surface)',
                         border: usePercentages === opt.value ? 'none' : '1px solid var(--border)',
-                        boxShadow: usePercentages === opt.value ? '0 4px 16px rgba(79,110,247,0.25)' : 'none',
+                        boxShadow: usePercentages === opt.value ? '0 4px 16px rgba(46,95,216,0.25)' : 'none',
                       }}>
                       <span className="text-sm font-bold" style={{ color: usePercentages === opt.value ? '#fff' : 'var(--ink)' }}>{opt.label}</span>
                       <span className="text-xs" style={{ color: usePercentages === opt.value ? 'rgba(255,255,255,0.7)' : 'var(--muted)' }}>{opt.sub}</span>
@@ -635,7 +635,7 @@ export function CreateBillPage({ onClose, onCreated, onSuccess, seedSession, onU
                   </div>
                   <button onClick={addRow} disabled={rows.length >= 20}
                     className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all hover:scale-105 disabled:opacity-40"
-                    style={{ background: 'var(--accent-light)', color: 'var(--accent)', border: '1px solid rgba(79,110,247,0.2)' }}>
+                    style={{ background: 'var(--accent-light)', color: 'var(--accent)', border: '1px solid rgba(46,95,216,0.2)' }}>
                     <Plus className="size-3.5" /> Add participant
                   </button>
                 </div>
@@ -646,7 +646,7 @@ export function CreateBillPage({ onClose, onCreated, onSuccess, seedSession, onU
                     return (
                     <div key={i} className="flex items-center gap-2 rounded-2xl overflow-hidden" style={glass.inner}>
                       <div className="flex size-8 shrink-0 ml-3 items-center justify-center rounded-full text-xs font-bold"
-                        style={{ background: isCreatorRow ? 'var(--accent)' : 'var(--surface)', color: isCreatorRow ? '#fff' : 'var(--accent)', border: '1px solid var(--border)' }}>
+                        style={{ background: isCreatorRow ? 'var(--accent-fill)' : 'var(--surface)', color: isCreatorRow ? '#fff' : 'var(--accent)', border: '1px solid var(--border)' }}>
                         {isCreatorRow ? 'You' : i + 1}
                       </div>
                       <div className="flex-1 min-w-0 py-3 pr-1">
@@ -726,7 +726,7 @@ export function CreateBillPage({ onClose, onCreated, onSuccess, seedSession, onU
               <div className="rounded-2xl overflow-hidden" style={glass.card}>
                 {/* Hero */}
                 <div className="px-5 py-6 text-center"
-                  style={{ background: 'linear-gradient(135deg,rgba(79,110,247,0.1),rgba(79,110,247,0.03))' }}>
+                  style={{ background: 'linear-gradient(135deg,rgba(46,95,216,0.1),rgba(46,95,216,0.03))' }}>
                   {selectedCategory && (() => {
                     const cat = BILL_CATEGORIES.find(c => c.label === selectedCategory)
                     const ReviewIcon = cat?.icon
@@ -820,7 +820,7 @@ export function CreateBillPage({ onClose, onCreated, onSuccess, seedSession, onU
                 onClick={handleCreate}
                 disabled={isPending || isConfirming || !address}
                 className="w-full flex items-center justify-center gap-2 rounded-2xl py-4 text-base font-bold transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ background: 'var(--accent)', color: '#fff', boxShadow: '0 4px 20px rgba(79,110,247,0.3)' }}>
+                style={{ background: 'var(--accent-fill)', color: '#fff', boxShadow: '0 4px 20px rgba(46,95,216,0.3)' }}>
                 {isPending || isConfirming
                   ? <><Loader2 className="size-5 animate-spin" /> {isPending ? 'Confirm in wallet…' : 'Creating…'}</>
                   : wrongChain
@@ -847,7 +847,7 @@ export function CreateBillPage({ onClose, onCreated, onSuccess, seedSession, onU
             onClick={() => setStep(s => (s + 1) as 1|2|3)}
             disabled={(step === 1 && !step1Valid) || (step === 2 && !step2Valid)}
             className="w-full flex items-center justify-center gap-2 rounded-2xl py-4 text-base font-bold transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ background: 'var(--accent)', color: '#fff' }}>
+            style={{ background: 'var(--accent-fill)', color: '#fff' }}>
             {step === 1 ? 'Add participants' : 'Review bill'}
             <ArrowRight className="size-5" />
           </button>

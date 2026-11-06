@@ -128,7 +128,7 @@ export function FairIDCard({ address }: { address: string }) {
           <button disabled={busy || !nameValid || !available || lacksFunds}
             onClick={() => (needsApprove ? approveFee() : run(`@${name} is yours`, 'claim', [name]))}
             className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-40"
-            style={{ background: 'var(--accent)', color: '#fff' }}>
+            style={{ background: 'var(--accent-fill)', color: '#fff' }}>
             {busy ? <><Loader2 className="size-4 animate-spin" /> Confirming…</>
               : needsApprove ? `Step 1 of 2: allow ${feeLabel} USDC fee`
               : fee > 0n ? `Claim FairID for ${feeLabel} USDC` : 'Claim FairID'}
@@ -151,7 +151,7 @@ export function FairIDCard({ address }: { address: string }) {
               <input value={moveTo} onChange={e => setMoveTo(e.target.value.trim())} placeholder="0x… new wallet"
                 className="mono flex-1 min-w-0 rounded-xl px-3 py-2.5 text-xs outline-none" style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)', color: 'var(--ink)' }} />
               <button disabled={busy || !isAddress(moveTo)} onClick={() => run('Transfer offered. The other wallet must accept it.', 'proposeTransfer', [moveTo])}
-                className="shrink-0 rounded-xl px-3.5 text-xs font-bold disabled:opacity-40" style={{ background: 'var(--accent)', color: '#fff' }}>Offer</button>
+                className="shrink-0 rounded-xl px-3.5 text-xs font-bold disabled:opacity-40" style={{ background: 'var(--accent-fill)', color: '#fff' }}>Offer</button>
             </div>
             {hasPendingMove && (
               <div className="flex items-center justify-between gap-2 text-xs" style={{ color: 'var(--muted)' }}>
@@ -176,7 +176,7 @@ export function FairIDCard({ address }: { address: string }) {
           <input value={acceptFrom} onChange={e => setAcceptFrom(e.target.value.trim())} placeholder="0x… wallet that sent it"
             className="mono flex-1 min-w-0 rounded-xl px-3 py-2.5 text-xs outline-none" style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)', color: 'var(--ink)' }} />
           <button disabled={busy || !isAddress(acceptFrom) || !!myName} onClick={() => run('FairID accepted', 'acceptTransfer', [acceptFrom])}
-            className="shrink-0 flex items-center gap-1 rounded-xl px-3.5 text-xs font-bold disabled:opacity-40" style={{ background: 'var(--accent)', color: '#fff' }}>
+            className="shrink-0 flex items-center gap-1 rounded-xl px-3.5 text-xs font-bold disabled:opacity-40" style={{ background: 'var(--accent-fill)', color: '#fff' }}>
             <CheckCircle2 className="size-3.5" /> Accept
           </button>
         </div>
