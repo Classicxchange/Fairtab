@@ -1,5 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" fill="none">
-  <rect width="1080" height="1080" rx="200" fill="#2563EB"/>
+  <defs>
+    <linearGradient id="fairtab-tile" x1="0" y1="0" x2="1080" y2="1080" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2448B8"/>
+      <stop offset="0.55" stop-color="#12296B"/>
+      <stop offset="1" stop-color="#0A1540"/>
+    </linearGradient>
+    <radialGradient id="fairtab-glow" cx="540" cy="150" r="640" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7DB4FF" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#7DB4FF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1080" height="1080" rx="200" fill="url(#fairtab-tile)"/>
+  <rect width="1080" height="1080" rx="200" fill="url(#fairtab-glow)"/>
+  <rect x="6" y="6" width="1068" height="1068" rx="194" stroke="#7DB4FF" stroke-opacity="0.4" stroke-width="12"/>
   <path d="M280 340 L740 340 Q760 340 750 370 L710 480 Q700 510 680 510 L220 510 Q200 510 210 480 L250 370 Q260 340 280 340Z" fill="white"/>
   <path d="M330 570 L790 570 Q810 570 800 600 L760 710 Q750 740 730 740 L270 740 Q250 740 260 710 L300 600 Q310 570 330 570Z" fill="white"/>
 </svg>
