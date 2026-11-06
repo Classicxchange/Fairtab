@@ -145,13 +145,12 @@ export function CreateBillPage({ onClose, onCreated, onSuccess, seedSession, onU
   const [recurDays, setRecurDays] = useState(draft?.recurDays ?? '30')
   const [rows, setRows] = useState<ParticipantRow[]>(draft?.rows ?? [{ address: '', value: '' }, { address: '', value: '' }])
 
-  // Derive effective rows: always inject creator address into row 0 if still blank
-  // This avoids setState-in-effect; address is stable once connected
-  const effectiveRows = useMemo(() => {
-    const clean = rows.map(r => ({ ...r, address: r.address.trim() }))
-    if (!address || clean[0]?.address) return clean
-    return clean.map((r, i) => i === 0 ? { ...r, address } : r)
-  }, [rows, address])
+  // Participants are exactly the wallets the user enters. The connected wallet is
+  // never added automatically; the creator joins only if they type their own address.
+  const effectiveRows = useMemo(
+    () => rows.map(r => ({ ...r, address: r.address.trim() })),
+    [rows],
+  )
   // Mirror contract: cancelThreshold >= ceil(participants * 51/100), minimum 1
   const minCancelThreshold = Math.max(1, Math.ceil(rows.length * 51 / 100))
   const [cancelThreshold, setCancelThreshold] = useState(() => {
@@ -643,7 +642,7 @@ export function CreateBillPage({ onClose, onCreated, onSuccess, seedSession, onU
 
                 <div className="flex flex-col gap-2">
                   {effectiveRows.map((row, i) => {
-                    const isCreatorRow = i === 0 && address && row.address.toLowerCase() === address.toLowerCase()
+                    const isCreatorRow = false
                     return (
                     <div key={i} className="flex items-center gap-2 rounded-2xl overflow-hidden" style={glass.inner}>
                       <div className="flex size-8 shrink-0 ml-3 items-center justify-center rounded-full text-xs font-bold"
@@ -788,7 +787,7 @@ export function CreateBillPage({ onClose, onCreated, onSuccess, seedSession, onU
                       <div key={i} className="flex items-center justify-between">
                         <span className="mono text-xs" style={{ color: 'var(--ink-2)' }}>
                           {r.address.slice(0,6)}…{r.address.slice(-4)}
-                          {i === 0 && address && r.address.toLowerCase() === address.toLowerCase() && (
+                          {address && r.address.toLowerCase() === address.toLowerCase() && (
                             <span className="ml-1 text-[10px]" style={{ color: 'var(--accent)' }}>(you)</span>
                           )}
                         </span>
