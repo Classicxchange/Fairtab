@@ -224,7 +224,16 @@ const NAV_TABS = ['bills', 'send', 'receive', 'swap', 'commit', 'account', 'help
 const MAX_CHAT_TURNS = 10
 const MAX_REPLY_CHARS = 700
 
-const FAIRTAB_FACTS = [
+// Keep in sync with MAINNET_CONTRACT in src/App.tsx, src/BillDetailPage.tsx and src/CreateBillPage.tsx
+// (update all four places when the bill contract is redeployed).
+const BILL_CONTRACT_MAINNET = '0xcd1dcf79d9bbf3246a21da10aecabde66fb47d08'
+const FAIRID_MAINNET_DEFAULT = '0x7B8574866272b19aA4cBF95033f1399f636bef3F'
+
+function fairtabFacts(): string {
+  const fairId = (process.env.VITE_FAIRID_MAINNET_ADDRESS ?? '').trim()
+  const router = (process.env.VITE_COMMIT_ROUTER_ADDRESS ?? '').trim()
+  const isAddr = (v: string) => /^0x[a-fA-F0-9]{40}$/.test(v)
+  return [
   'Fairtab splits shared bills in USDC on Arc Mainnet. A person creates a bill with who owes what, who gets paid (the payee) and an optional deadline.',
   'Invited people accept the bill before paying; an invite not accepted within 24 hours can be expired. Shares can be paid in parts. When the bill is fully paid the payee is paid.',
   'If the deadline passes unpaid, people can claim their money back. A group vote can cancel a bill. Bills can repeat on a schedule. Up to 20 people per bill.',
@@ -233,7 +242,17 @@ const FAIRTAB_FACTS = [
   'Swap works between USDC, EURC and cirBTC only, priced by Circle\'s swap service with a small provider fee. Gas on Arc is paid in USDC.',
   'This is real money on mainnet and transactions cannot be reversed. Recommend small amounts first. Contracts have had internal reviews, not an independent audit.',
   'Screens: Bills (create and manage bills), Trade (Send, Receive, Swap, Commit), Account (profile, FairID, sign out), Help.',
+  'Contract addresses on Arc Mainnet (chain ID 5042, explorer https://explorer.arc.io). Copy them exactly when asked:',
+  `Bill contract (HouseholdBillSplitter, the active one): ${BILL_CONTRACT_MAINNET}. Older versions are retired; never point people to them.`,
+  'USDC token: 0x3600000000000000000000000000000000000000. EURC token: 0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1. cirBTC token: 0x171A4217b86A807A64eB94757Db6849fb4bDbAA0.',
+  `FairID name registry: ${isAddr(fairId) ? fairId : FAIRID_MAINNET_DEFAULT}.`,
+  isAddr(router)
+    ? `Commit router: ${router}.`
+    : 'Commit router: not deployed yet, so Commit deposits go straight to the vault with no Fairtab fee.',
+  'Commit vaults (Morpho, run by others): Steakhouse Prime USDC 0xbeef0016cb2Fd5C352ea7CA08a9f54739DFa7298, Galaxy USDC 0x8E357432CC12ff425c36432F312968aEb16112AF.',
+  'Never tell people to send money straight to a contract address. All payments go through the app.',
 ].join('\n')
+}
 
 function chatSystemPrompt(today: string): string {
   return [
@@ -244,10 +263,10 @@ function chatSystemPrompt(today: string): string {
     'Never ask for or accept private keys, seed phrases, PINs or passwords. If the user shares one, tell them to stop and keep it private.',
     'Do not give financial, legal or tax advice, and do not promise yield or prices. If you do not know something, say so and suggest the Help page.',
     'If the request is not about Fairtab, money movement in Fairtab, or USDC/EURC basics, politely decline in one sentence.',
-    'Never invent or change wallet addresses. Only use addresses or @names exactly as the user typed them.',
+    'Never invent or change wallet addresses. For sends and bills only use addresses or @names exactly as the user typed them. You may state the Fairtab contract addresses listed in FACTS, copied exactly, when the user asks for them.',
     '',
     'FACTS:',
-    FAIRTAB_FACTS,
+    fairtabFacts(),
     '',
     'Return ONLY a JSON object: { "reply": string, "action": null | one of:',
     '  { "type": "bill" }  when the user wants to split or create a bill and gave enough to start (the app will read their messages),',
