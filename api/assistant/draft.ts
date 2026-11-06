@@ -110,7 +110,8 @@ export function buildDraft(raw: LlmOutput, userText: string, myAddress: string, 
     warnings.push('I ignored a payee address that was not in your message.')
   }
 
-  // Participants (you are always participant 1, as in the form)
+  // Participants: exactly the people the user named. The connected wallet is only
+  // included when the user says "me" (or types their own address) as a participant.
   const list = Array.isArray(raw.participants) ? (raw.participants as LlmParticipant[]).slice(0, MAX_PARTICIPANTS + 1) : []
   const people: { address: string; amount: bigint | null }[] = []
   const seen = new Set<string>()
@@ -124,15 +125,8 @@ export function buildDraft(raw: LlmOutput, userText: string, myAddress: string, 
     seen.add(address.toLowerCase())
     people.push({ address, amount: toMicro(p?.amount) })
   }
-  if (!seen.has(me)) {
-    people.unshift({ address: myAddress, amount: null })
-    if (people.length > 1) warnings.push('I added you as participant 1.')
-  } else {
-    // Put the user first
-    people.sort((a, b) => (a.address.toLowerCase() === me ? -1 : b.address.toLowerCase() === me ? 1 : 0))
-  }
   if (people.length > MAX_PARTICIPANTS) people.length = MAX_PARTICIPANTS
-  if (people.length < 2) missing.push('at least one other participant wallet')
+  if (people.length < 1) missing.push('the participant wallets')
 
   // Amounts: calculated by code
   const equal = raw.split !== 'custom' || people.every(p => p.amount === null)
@@ -209,7 +203,7 @@ function systemPrompt(today: string): string {
     `  category: one of ${CATEGORIES.map(c => `"${c}"`).join(', ')}, or null`,
     '  total: the bill total in USDC as a number, or null if not stated',
     '  payee: "me" if the user gets paid, a 0x wallet address copied exactly from the text, or null',
-    '  participants: array of { who, amount } where who is "me" or a 0x address copied exactly from the text; amount only when the text gives a specific amount for that person',
+    '  participants: array of { who, amount } listing ONLY the people the text names as participants, where who is a 0x address copied exactly from the text, or "me" only if the text clearly says the user is one of the participants (never add the user on your own); amount only when the text gives a specific amount for that person',
     '  split: "equal" unless the text gives specific amounts per person, then "custom"',
     '  deadline: YYYY-MM-DD or null',
     '  recurring: true only if the text says it repeats; recurDays: days between repeats or null',
