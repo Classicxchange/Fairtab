@@ -1,26 +1,29 @@
 /**
- * Veltra's mark: the three-sparkle glyph people associate with AI assistants,
- * on a blue-to-cyan gradient tile. Pure SVG so it also renders in the static
- * landing page copy.
+ * Veltra's mark: the head of the Veltra robot on a dark navy tile.
+ * The tile keeps the head readable on both light and dark pages.
+ * Images live in /public (veltra-head.webp, veltra.webp). Plain <img> so it also
+ * renders in the static landing page copy.
  */
-import type { CSSProperties } from 'react'
 
-const STAR = 'M12 2C12.6 7.5 16.5 11.4 22 12C16.5 12.6 12.6 16.5 12 22C11.4 16.5 7.5 12.6 2 12C7.5 11.4 11.4 7.5 12 2Z'
+export const VELTRA_TILE = 'radial-gradient(circle at 50% 38%, #1b3a8f 0%, #0b1a4a 62%, #070f2b 100%)'
 
-export const VELTRA_GRADIENT = 'linear-gradient(135deg, #2563EB 0%, #4F6BF5 50%, #22B8E8 100%)'
-
-/** The sparkle glyph alone. Takes its colour from the surrounding text colour. */
-export function VeltraGlyph({ className, style }: { className?: string; style?: CSSProperties }) {
+/** The robot head alone, sized by width. */
+export function VeltraHead({ width = 40, className }: { width?: number; className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className} style={style}>
-      <path d={STAR} transform="translate(9.5 14.5) scale(0.64) translate(-12 -12)" />
-      <path className="veltra-twinkle" d={STAR} transform="translate(19 6) scale(0.3) translate(-12 -12)" />
-      <path className="veltra-twinkle veltra-twinkle-late" d={STAR} transform="translate(19.5 18.5) scale(0.18) translate(-12 -12)" />
-    </svg>
+    <img
+      src="/veltra-head.webp"
+      alt=""
+      aria-hidden="true"
+      width={width}
+      height={Math.round(width * 0.656)}
+      decoding="async"
+      className={className}
+      style={{ display: 'block', width, height: 'auto' }}
+    />
   )
 }
 
-/** The glyph in white on the Veltra gradient tile. */
+/** The robot head on a rounded dark tile. */
 export function VeltraBadge({ size = 36, className }: { size?: number; className?: string }) {
   return (
     <span
@@ -29,13 +32,18 @@ export function VeltraBadge({ size = 36, className }: { size?: number; className
       style={{
         width: size,
         height: size,
-        borderRadius: Math.round(size * 0.32),
-        background: VELTRA_GRADIENT,
-        boxShadow: '0 4px 14px rgba(59,94,245,0.38), inset 0 1px 0 rgba(255,255,255,0.28)',
-        color: '#fff',
+        borderRadius: Math.round(size * 0.3),
+        background: VELTRA_TILE,
+        border: '1px solid rgba(96,165,250,0.35)',
+        boxShadow: '0 4px 14px rgba(37,99,235,0.35), inset 0 1px 0 rgba(255,255,255,0.12)',
       }}
     >
-      <VeltraGlyph style={{ width: size * 0.64, height: size * 0.64 }} />
+      <VeltraHead width={Math.round(size * 0.84)} />
     </span>
   )
+}
+
+/** Small tile used where an icon component is expected (menus, labels). */
+export function VeltraIcon({ className }: { className?: string }) {
+  return <VeltraBadge size={22} className={className} />
 }

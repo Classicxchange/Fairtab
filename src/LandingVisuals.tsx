@@ -2,8 +2,7 @@
  * Product illustrations for the landing page. They show the shape of each screen
  * with labels only: no balances, prices, yields or addresses are invented.
  */
-import { ArrowDownUp, AtSign, Check, Copy, KeyRound, Link2, Send as SendIcon, Wallet } from 'lucide-react'
-import { VeltraBadge } from '@/VeltraMark'
+import { ArrowDownUp, AtSign, Copy, KeyRound, Link2, Send as SendIcon, Wallet } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 const card = { background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow)' } as const
@@ -180,22 +179,30 @@ export function SwapVisual() {
   )
 }
 
-export function VeltraVisual() {
+export function VeltraHero() {
   return (
-    <Frame label="A chat where Veltra turns a request into a bill draft for review">
-      <div className="flex flex-col gap-3">
-        <div className="self-end max-w-[85%] rounded-2xl rounded-br-md px-3.5 py-2.5 text-sm" style={{ background: 'var(--accent)', color: '#fff' }}>
-          Split this month&apos;s rent between these three wallets.
-        </div>
-        <div className="self-start max-w-[90%] rounded-2xl rounded-bl-md px-3.5 py-2.5 text-sm" style={{ ...inner, color: 'var(--ink)' }}>
-          <span className="flex items-center gap-2 text-xs font-semibold" style={{ color: 'var(--accent)' }}><VeltraBadge size={22} /> Veltra</span>
-          <span className="mt-1 block">Draft ready. Check it, then create the bill yourself.</span>
-        </div>
-        <div className="self-start flex items-center gap-1.5 text-xs" style={{ color: 'var(--muted)' }}>
-          <Check className="size-3.5" style={{ color: 'var(--success)' }} /> Nothing is sent until you confirm.
-        </div>
-      </div>
-    </Frame>
+    <div
+      className="relative mx-auto w-full max-w-md overflow-hidden rounded-[2rem] px-6 pt-8 pb-6"
+      style={{
+        background: 'radial-gradient(ellipse at 50% 32%, #17358a 0%, #0b1a4a 58%, #060d26 100%)',
+        border: '1px solid rgba(96,165,250,0.28)',
+        boxShadow: '0 24px 60px rgba(37,99,235,0.28)',
+      }}
+    >
+      <img
+        src="/veltra.webp"
+        alt="Veltra, the Fairtab assistant: a friendly blue and white robot holding a glowing V orb"
+        width={1000}
+        height={800}
+        loading="lazy"
+        decoding="async"
+        className="mx-auto h-auto w-full"
+      />
+      <p className="display mt-2 text-center text-xl font-bold tracking-tight" style={{ color: '#fff' }}>Meet Veltra</p>
+      <p className="mt-1 text-center text-sm" style={{ color: 'rgba(219,234,254,0.8)' }}>
+        Ask anything. Veltra never signs or sends: you confirm every move.
+      </p>
+    </div>
   )
 }
 

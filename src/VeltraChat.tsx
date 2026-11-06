@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { X, Send, ArrowRight, ShieldCheck } from 'lucide-react'
-import { VeltraBadge, VeltraGlyph, VELTRA_GRADIENT } from '@/VeltraMark'
+import { VeltraBadge, VELTRA_TILE } from '@/VeltraMark'
 import { toast } from 'sonner'
 import { DRAFT_KEY } from '@/CreateBillPage'
 
@@ -130,9 +130,9 @@ export function VeltraChat({ address, onOpenBill, onGo }: {
         <button
           onClick={() => setOpen(true)}
           aria-label="Open Veltra, the Fairtab assistant"
-          className="fixed right-4 z-40 flex h-12 items-center gap-2 rounded-full px-4 text-sm font-semibold shadow-lg transition-transform hover:scale-105 active:scale-95 bottom-[calc(1rem+env(safe-area-inset-bottom))] lg:bottom-6 lg:right-6"
-          style={{ background: VELTRA_GRADIENT, color: '#fff', boxShadow: '0 8px 24px rgba(59,94,245,0.45), inset 0 1px 0 rgba(255,255,255,0.28)' }}>
-          <VeltraGlyph className="size-5" />
+          className="fixed right-4 z-40 flex h-12 items-center gap-2 rounded-full pl-3 pr-4 text-sm font-semibold shadow-lg transition-transform hover:scale-105 active:scale-95 bottom-[calc(1rem+env(safe-area-inset-bottom))] lg:bottom-6 lg:right-6"
+          style={{ background: VELTRA_TILE, color: '#fff', border: '1px solid rgba(96,165,250,0.45)', boxShadow: '0 8px 24px rgba(37,99,235,0.5), inset 0 1px 0 rgba(255,255,255,0.14)' }}>
+          <VeltraBadge size={30} className="-ml-2" />
           Veltra
         </button>
       )}

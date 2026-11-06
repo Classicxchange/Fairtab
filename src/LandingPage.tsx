@@ -8,9 +8,9 @@ import type { ComponentType, ReactNode } from 'react'
 import {
   Sun, Moon, ArrowRight, Receipt, Send, HandCoins, AtSign, TrendingUp, ArrowDownUp, KeyRound, Check, Bell, Wallet, Mail,
 } from 'lucide-react'
-import { VeltraGlyph } from '@/VeltraMark'
+import { VeltraIcon } from '@/VeltraMark'
 import {
-  BillsVisual, SendVisual, ReceiveVisual, FairIdVisual, CommitVisual, SwapVisual, VeltraVisual, WalletVisual,
+  BillsVisual, SendVisual, ReceiveVisual, FairIdVisual, CommitVisual, SwapVisual, VeltraHero, WalletVisual,
 } from '@/LandingVisuals'
 
 interface Props {
@@ -112,7 +112,7 @@ const PRODUCTS: Product[] = [
     visual: <SwapVisual />,
   },
   {
-    id: 'veltra', label: 'Veltra', icon: VeltraGlyph,
+    id: 'veltra', label: 'Veltra', icon: VeltraIcon,
     title: 'Ask Veltra instead of filling forms.',
     intro: 'Veltra is the built-in assistant. Describe what you want in plain words and it prepares the screen for you.',
     points: [
@@ -121,7 +121,7 @@ const PRODUCTS: Product[] = [
       'Uses only the wallet addresses you type. It never adds your wallet on its own.',
       'Veltra never signs or sends anything. You review and confirm every transaction.',
     ],
-    visual: <VeltraVisual />,
+    visual: <VeltraHero />,
   },
   {
     id: 'wallet', label: 'Circle wallet', icon: KeyRound,

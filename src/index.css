@@ -119,10 +119,3 @@ html.dark input[type="date"] { color-scheme: dark; }
   }
 }
 
-/* Veltra sparkle twinkle (turned off by the reduced-motion rule above) */
-@keyframes veltra-twinkle {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
-}
-.veltra-twinkle { animation: veltra-twinkle 2.8s ease-in-out infinite; }
-.veltra-twinkle-late { animation-delay: 1.2s; }
