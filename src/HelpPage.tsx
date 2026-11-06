@@ -47,7 +47,7 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: 'What is a FairID?',
-    a: 'A FairID is a short name, like @tunde, that you claim for your wallet so people can pay you without a long wallet address. It is free and first come, first served. Claim yours on the Account page. To pay someone, type their @name under Trade, on the Send tab. A FairID is only a label for your wallet: it never holds money, and you can release it or move it to another wallet at any time.',
+    a: 'A FairID is a short name, like @tunde, that you claim for your wallet so people can pay you without a long wallet address. It is first come, first served and costs a one-time 1 USDC. Claim yours on the Account page. To pay someone, type their @name under Trade, on the Send tab. A FairID is only a label for your wallet: it never holds money, and you can release it or move it to another wallet at any time.',
   },
   {
     q: 'What can I swap?',

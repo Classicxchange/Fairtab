@@ -115,7 +115,7 @@ export function FairIDCard({ address }: { address: string }) {
             {checking && <Loader2 className="size-4 animate-spin" style={{ color: 'var(--subtle)' }} />}
           </div>
           <p className="text-xs" style={{ color: input && (!nameValid || available === false) ? 'var(--danger)' : available ? 'var(--success)' : 'var(--subtle)' }}>
-            {!input ? '3 to 20 letters, numbers or underscores. Free. First come, first served.'
+            {!input ? '3 to 20 letters, numbers or underscores. First come, first served.'
               : !nameValid ? 'Use 3 to 20 lowercase letters, numbers or underscores.'
               : checking ? 'Checking…'
               : available ? `@${name} is available` : `@${name} is taken or on hold`}
