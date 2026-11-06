@@ -226,9 +226,6 @@ export function CommitPage() {
               <span className="text-xs" style={{ color: 'var(--ink-2)' }}>
                 Yield <strong>{l?.apy != null ? `${(l.apy * 100).toFixed(2)}%` : '…'}</strong> a year
               </span>
-              <span className="text-xs" style={{ color: 'var(--ink-2)' }}>
-                Available to withdraw now <strong>{l?.liquidity ? `${fmt(BigInt(l.liquidity))} USDC` : '…'}</strong>
-              </span>
             </button>
           )
         })}
