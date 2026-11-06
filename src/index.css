@@ -6,21 +6,22 @@
 
 /* ── Light mode (default) ─────────────────────────────────────────── */
 :root {
-  --bg:             #ffffff;
-  --bg-gradient:    #ffffff;
+  /* PREVIEW: milky blue-white that blends with the Veltra blue */
+  --bg:             radial-gradient(ellipse 130% 70% at 50% 0%, #dbe5fa 0%, #e7eefb 42%, #f2f5fc 100%);
+  --bg-gradient:    #eef2fb;
 
-  --surface:        #ffffff;
+  --surface:        #fafbff;
   --surface-strong: #ffffff;
-  --surface-muted:  #f4f6fa;
-  --surface-hover:  #eef1f8;
+  --surface-muted:  #edf1fb;
+  --surface-hover:  #e4eafa;
 
   --ink:    #0f1b35;
   --ink-2:  #2d3e5f;
   --muted:  #5a6a8a;
   --subtle: #8a96b0;
 
-  --border:        rgba(15,27,53,0.10);
-  --border-strong: rgba(15,27,53,0.20);
+  --border:        rgba(26,58,154,0.13);
+  --border-strong: rgba(26,58,154,0.24);
 
   --accent:       #1a3a9a;
   /* PREVIEW: Veltra blue fill for solid blue buttons and badges */
@@ -38,12 +39,12 @@
   --warning-bg:     rgba(217,119,6,0.10);
   --warning-border: rgba(217,119,6,0.25);
 
-  --popover: #ffffff;
+  --popover: #fafbff;
 
-  --shadow-sm: 0 1px 4px rgba(15,27,53,0.08), 0 0 0 1px rgba(15,27,53,0.06);
-  --shadow:    0 4px 16px rgba(15,27,53,0.10), 0 1px 4px rgba(15,27,53,0.06), 0 0 0 1px rgba(15,27,53,0.05);
-  --shadow-md: 0 8px 28px rgba(15,27,53,0.13), 0 2px 8px rgba(15,27,53,0.07), 0 0 0 1px rgba(15,27,53,0.05);
-  --shadow-lg: 0 16px 48px rgba(15,27,53,0.16), 0 4px 16px rgba(15,27,53,0.09);
+  --shadow-sm: 0 1px 4px rgba(18,41,107,0.08), 0 0 0 1px rgba(18,41,107,0.06);
+  --shadow:    0 4px 16px rgba(18,41,107,0.10), 0 1px 4px rgba(18,41,107,0.06), 0 0 0 1px rgba(18,41,107,0.05);
+  --shadow-md: 0 8px 28px rgba(18,41,107,0.13), 0 2px 8px rgba(18,41,107,0.07), 0 0 0 1px rgba(18,41,107,0.05);
+  --shadow-lg: 0 16px 48px rgba(18,41,107,0.16), 0 4px 16px rgba(18,41,107,0.09);
 }
 
 /* ── Dark mode ────────────────────────────────────────────────────── */
