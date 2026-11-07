@@ -35,7 +35,7 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: 'Can I pay many people at once (bulk send)?',
-    a: 'Yes. Open Trade, then Bulk. Paste one wallet or @name per line with an amount, or choose "Same amount for all", or upload a CSV file. Fairtab shows a table with the total, your balance and any lines with a problem. Step 1 checks which recipients can receive USDC. Step 2 sends them in batches of 50, with one confirmation per batch. Every transfer comes from your own wallet, and Fairtab adds no fee. Transfers cannot be reversed, so check every address. You can also ask Veltra to prepare a bulk send for you to review.',
+    a: 'Yes. Open Trade, then Bulk. Paste one wallet or @name per line with an amount, or choose "Same amount for all", or upload a CSV file. Fairtab shows a table with the total, your balance and any lines with a problem. Fairtab checks automatically which recipients can receive USDC, then you press Send. Wallets go out in batches of 50, with one confirmation per batch. After sending, just change an amount (or a wallet) and send again. The list stays, so you never retype the addresses. Every transfer comes from your own wallet, and Fairtab adds no fee. Transfers cannot be reversed, so check every address. You can also ask Veltra to prepare a bulk send for you to review.',
   },
   {
     q: 'What is Veltra?',

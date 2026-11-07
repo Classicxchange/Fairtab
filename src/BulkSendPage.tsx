@@ -102,12 +102,28 @@ export function BulkSendPage() {
   good.forEach(r => dupeCounts.set(r.address!.toLowerCase(), (dupeCounts.get(r.address!.toLowerCase()) ?? 0) + 1))
   const dupes = Array.from(dupeCounts.values()).filter(n => n > 1).length
 
-  // Simulation: which recipients can receive USDC right now
+  // Automatic check: which recipients can receive USDC right now. It re-runs by itself
+  // whenever the wallets or amounts change, so there is nothing to press.
   const [simFailed, setSimFailed] = useState<Set<number>>(new Set())
   const [checkedKey, setCheckedKey] = useState('')
-  const [checking, setChecking] = useState(false)
+  const [checkErrKey, setCheckErrKey] = useState('')
+  const [retryTick, setRetryTick] = useState(0)
   const inputKey = JSON.stringify(good.map(r => [r.address, r.amount?.toString()]))
   const checked = checkedKey === inputKey
+  // Results belong to the list that was sent. Change a wallet or an amount and they clear,
+  // so the same list can be edited and sent again straight away.
+  const [batchState, setBatchState] = useState<{ key: string; items: Batch[] }>({ key: '', items: [] })
+  const batches = batchState.key === inputKey ? batchState.items : []
+
+  // If some batches already went through and one failed, only the unsent rows are sent next
+  const sentBatches = batches.filter(b => b.status === 'done')
+  const unsentRows = batches.filter(b => b.status !== 'done').flatMap(b => b.rows)
+  const partial = sentBatches.length > 0 && unsentRows.length > 0
+
+  const [sending, setSending] = useState(false)
+  const canCheckInputs = !!address && good.length > 0 && bad.length === 0 && !tooMany && (partial || !short_)
+  const checking = canCheckInputs && !sending && checkedKey !== inputKey && checkErrKey !== inputKey
+  const checkFailed = canCheckInputs && checkErrKey === inputKey && !checked
 
   const callsFor = (rs: Row[], allowFailure: boolean) => rs.map(r => ({
     target: usdc as `0x${string}`,
@@ -115,45 +131,51 @@ export function BulkSendPage() {
     callData: encodeFunctionData({ abi: erc20Abi, functionName: 'transfer', args: [r.address!, r.amount!] }),
   }))
 
-  const runCheck = async () => {
-    if (!publicClient || !address || !usdc || good.length === 0) return
-    setChecking(true)
-    try {
-      const failed = new Set<number>()
-      for (let i = 0; i < good.length; i += BATCH_SIZE) {
-        const chunk = good.slice(i, i + BATCH_SIZE)
-        const res = await publicClient.call({
-          account: address, to: MULTICALL3FROM,
-          data: encodeFunctionData({ abi: MC_ABI, functionName: 'aggregate3', args: [callsFor(chunk, true)] }),
-        })
-        const out = decodeFunctionResult({ abi: MC_ABI, functionName: 'aggregate3', data: res.data! })
-        out.forEach((o, k) => { if (!o.success) failed.add(good[i + k].line) })
-      }
-      setSimFailed(failed)
-      setCheckedKey(inputKey)
-      if (failed.size) toast.message(`${failed.size} recipient${failed.size === 1 ? '' : 's'} cannot receive right now and will be skipped.`)
-      else toast.success('All recipients can receive. Review the totals, then send.')
-    } catch {
-      toast.error('Could not check the recipients. Make sure you hold enough USDC and try again.')
-    } finally {
-      setChecking(false)
-    }
-  }
+  useEffect(() => {
+    if (!canCheckInputs || sending || !publicClient || !address || !usdc) return
+    let cancelled = false
+    const key = inputKey
+    const timer = setTimeout(() => {
+      void (async () => {
+        try {
+          const failed = new Set<number>()
+          for (let i = 0; i < good.length; i += BATCH_SIZE) {
+            const chunk = good.slice(i, i + BATCH_SIZE)
+            const calls = chunk.map(r => ({
+              target: usdc, allowFailure: true,
+              callData: encodeFunctionData({ abi: erc20Abi, functionName: 'transfer', args: [r.address!, r.amount!] }),
+            }))
+            const res = await publicClient.call({
+              account: address, to: MULTICALL3FROM,
+              data: encodeFunctionData({ abi: MC_ABI, functionName: 'aggregate3', args: [calls] }),
+            })
+            const out = decodeFunctionResult({ abi: MC_ABI, functionName: 'aggregate3', data: res.data! })
+            out.forEach((o, k) => { if (!o.success) failed.add(chunk[k].line) })
+          }
+          if (!cancelled) { setSimFailed(failed); setCheckedKey(key) }
+        } catch {
+          if (!cancelled) setCheckErrKey(key)
+        }
+      })()
+    }, 350)
+    return () => { cancelled = true; clearTimeout(timer) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inputKey, canCheckInputs, sending, retryTick, address, usdc, publicClient])
 
   const sendable = checked ? good.filter(r => !simFailed.has(r.line)) : []
   const sendTotal = sendable.reduce((s, r) => s + (r.amount ?? 0n), 0n)
 
-  const [batches, setBatches] = useState<Batch[]>([])
-  const [sending, setSending] = useState(false)
-
   const send = async () => {
-    if (!publicClient || !usdc || sendable.length === 0 || sending) return
-    const chunks: Batch[] = []
-    for (let i = 0; i < sendable.length; i += BATCH_SIZE) chunks.push({ rows: sendable.slice(i, i + BATCH_SIZE), status: 'waiting' })
-    setBatches(chunks)
+    const source = partial ? unsentRows : sendable
+    if (!publicClient || !usdc || source.length === 0 || sending) return
+    const fresh: Batch[] = []
+    for (let i = 0; i < source.length; i += BATCH_SIZE) fresh.push({ rows: source.slice(i, i + BATCH_SIZE), status: 'waiting' })
+    const chunks: Batch[] = [...sentBatches, ...fresh]
+    const sentKey = inputKey
+    setBatchState({ key: sentKey, items: chunks })
     setSending(true)
-    for (let i = 0; i < chunks.length; i++) {
-      const update = (p: Partial<Batch>) => setBatches(bs => bs.map((b, k) => (k === i ? { ...b, ...p } : b)))
+    for (let i = sentBatches.length; i < chunks.length; i++) {
+      const update = (p: Partial<Batch>) => setBatchState(st => (st.key === sentKey ? { key: st.key, items: st.items.map((b, k) => (k === i ? { ...b, ...p } : b)) } : st))
       update({ status: 'sending' })
       try {
         const hash = await writeContractAsync({
@@ -177,20 +199,32 @@ export function BulkSendPage() {
     void refetchBalance()
   }
 
+  const switchMode = (next: Mode) => {
+    if (next === mode) return
+    if (next === 'same') {
+      // keep only the wallet on each line; remember the first amount as the shared one
+      const lines = text.split(/\r?\n/)
+      const firstAmount = lines.map(l => l.trim().split(/[\s,;\t]+/)[1]).find(a => a && /^\d+(\.\d{1,6})?$/.test(a))
+      setText(lines.map(l => l.trim().split(/[\s,;\t]+/)[0] ?? '').filter(Boolean).join('\n'))
+      if (!sameAmount && firstAmount) setSameAmount(firstAmount)
+    } else {
+      setText(text.split(/\r?\n/).map(l => l.trim()).filter(Boolean).map(l => `${l.split(/[\s,;\t]+/)[0]} ${sameAmount}`.trim()).join('\n'))
+    }
+    setMode(next)
+  }
+
   const onFile = async (f: File | undefined) => {
     if (!f) return
     if (f.size > 200_000) { toast.error('That file is too large. Keep it under 200 KB.'); return }
     setText(await f.text())
     setMode('lines')
-    setBatches([])
     if (fileRef.current) fileRef.current.value = ''
   }
 
   const explorer = arcChain.blockExplorers?.default.url ?? 'https://explorer.arc.io'
   const wrongNetwork = chainId !== undefined && chainId !== CHAIN_ID
   const done = batches.length > 0 && batches.every(b => b.status === 'done')
-  const canCheck = !!address && good.length > 0 && bad.length === 0 && !tooMany && !short_ && !checking && !sending
-  const canSend = canCheck && checked && sendable.length > 0 && !sending && !done
+  const canSend = canCheckInputs && checked && (partial || sendable.length > 0) && !sending && !done
 
   if (!address) {
     return <div className="rounded-2xl p-5 text-sm" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--muted)' }}>Sign in to send to many wallets at once.</div>
@@ -212,7 +246,7 @@ export function BulkSendPage() {
 
         <div className="grid grid-cols-2 gap-1 rounded-xl p-1" style={{ background: 'var(--surface-strong)' }}>
           {([['lines', 'Amount per line'], ['same', 'Same amount for all']] as const).map(([id, label]) => (
-            <button key={id} onClick={() => { setMode(id); setBatches([]) }}
+            <button key={id} onClick={() => switchMode(id)} disabled={sending}
               className="rounded-lg py-2 text-xs font-semibold"
               style={{ background: mode === id ? 'var(--accent-fill)' : 'transparent', color: mode === id ? '#fff' : 'var(--subtle)' }}>
               {label}
@@ -223,13 +257,13 @@ export function BulkSendPage() {
         {mode === 'same' && (
           <div className="flex items-center gap-2 rounded-xl px-3 py-2.5" style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)' }}>
             <input value={sameAmount} inputMode="decimal" placeholder="Amount for each wallet"
-              onChange={e => setSameAmount(e.target.value.replace(/[^0-9.]/g, ''))}
+              onChange={e => setSameAmount(e.target.value.replace(/[^0-9.]/g, ''))} disabled={sending}
               className="min-w-0 flex-1 bg-transparent text-sm outline-none" style={{ color: 'var(--ink)' }} />
             <span className="text-xs font-semibold" style={{ color: 'var(--muted)' }}>USDC</span>
           </div>
         )}
 
-        <textarea value={text} onChange={e => { setText(e.target.value); setBatches([]) }} rows={7} spellCheck={false}
+        <textarea value={text} onChange={e => setText(e.target.value)} disabled={sending} rows={7} spellCheck={false}
           placeholder={mode === 'lines' ? '0x1234… 5\n@tunde 12.50\n0xabcd…, 3' : '0x1234…\n@tunde\n0xabcd…'}
           className="w-full rounded-xl px-3 py-2.5 font-mono text-xs outline-none resize-y"
           style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)', color: 'var(--ink)' }} />
@@ -287,18 +321,26 @@ export function BulkSendPage() {
           {bad.length > 0 && <p className="text-xs" style={{ color: 'var(--danger, #dc2626)' }}>Fix the {bad.length} line{bad.length === 1 ? '' : 's'} marked in red before you continue.</p>}
 
           <div className="flex flex-col gap-2">
-            <button onClick={() => { void runCheck() }} disabled={!canCheck}
-              className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold disabled:opacity-40"
-              style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)', color: 'var(--ink)' }}>
-              {checking ? <Loader2 className="size-4 animate-spin" /> : <ShieldCheck className="size-4" />}
-              {checked ? 'Checked. Check again' : 'Step 1: Check recipients'}
-            </button>
+            <p className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--muted)' }}>
+              {checking ? <><Loader2 className="size-3.5 animate-spin" /> Checking who can receive…</>
+                : checked ? <><ShieldCheck className="size-3.5" /> {simFailed.size ? `${simFailed.size} cannot receive right now and will be skipped.` : 'Everyone can receive.'}</>
+                : checkFailed ? <>Could not check the recipients. <button onClick={() => { setCheckErrKey(''); setRetryTick(t => t + 1) }} className="font-semibold underline" style={{ color: 'var(--accent)' }}>Try again</button></>
+                : 'Fix the issues above to continue.'}
+            </p>
             <button onClick={() => { void send() }} disabled={!canSend}
               className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-40"
               style={{ background: 'var(--accent-fill)', color: '#fff' }}>
               {sending ? <Loader2 className="size-4 animate-spin" /> : null}
-              {sending ? 'Confirm in your wallet…' : checked ? `Step 2: Send ${fmt(sendTotal)} USDC to ${sendable.length}` : 'Step 2: Send'}
+              {sending ? 'Confirm in your wallet…'
+                : done ? 'Sent. Change an amount or wallet to send again'
+                : partial ? `Send the remaining ${unsentRows.length} transfer${unsentRows.length === 1 ? '' : 's'}`
+                : checked ? `Send ${fmt(sendTotal)} USDC to ${sendable.length}` : 'Send'}
             </button>
+            {done && (
+              <button onClick={() => setBatchState({ key: '', items: [] })} className="text-xs font-semibold underline" style={{ color: 'var(--accent)' }}>
+                Send the same list again
+              </button>
+            )}
             <p className="text-[11px]" style={{ color: 'var(--subtle)' }}>
               Transfers cannot be reversed. Check every wallet. {BATCH_SIZE} transfers go in each confirmation.
             </p>
