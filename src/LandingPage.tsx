@@ -56,11 +56,13 @@ const PRODUCTS: Product[] = [
   },
   {
     id: 'send', label: 'Send', icon: Send,
-    title: 'Send USDC to a wallet or a name.',
-    intro: 'Send USDC to any wallet on Arc, or claim a FairID like @tunde so people can pay you without a long address.',
+    title: 'Send USDC to one wallet, or to many at once.',
+    intro: 'Send USDC to any wallet on Arc, or switch to Bulk and pay a whole list in one go. Claim a FairID like @tunde so people can pay you without a long address.',
     points: [
-      'Paste a wallet address or type a FairID name.',
-      'Review the amount and recipient before you confirm.',
+      'Individual: paste a wallet address or type a FairID name, review it and confirm.',
+      'Bulk: paste a list or upload a CSV of wallets and amounts, up to 200 people, for payroll, rewards or airdrops.',
+      'Fairtab checks who can receive first. You confirm once for every 50 transfers, and every payment comes from your own wallet.',
+      'Paid everyone and need another round? Change just the amount and send the same list again.',
       'On Arc, USDC also pays the network fee, so there is no second token to buy.',
     ],
     visual: <SendVisual />,
@@ -117,7 +119,7 @@ const PRODUCTS: Product[] = [
     intro: 'Veltra is the built-in assistant. Describe what you want in plain words and it prepares the screen for you.',
     points: [
       'Answers questions about bills, sends, swaps, how Fairtab works and the Arc blockchain it runs on.',
-      'Prepares a bill draft, a send or a swap, then opens the normal screen.',
+      'Prepares a bill draft, a send, a bulk send or a swap, then opens the normal screen.',
       'Uses only the wallet addresses you type. It never adds your wallet on its own.',
       'Veltra never signs or sends anything. You review and confirm every transaction.',
     ],
@@ -209,7 +211,7 @@ export function LandingPage({ onGetStarted, signedIn = false, dark, onToggleDark
         </h1>
         <p className="mt-4 max-w-2xl text-base md:text-lg leading-relaxed" style={{ color: 'var(--muted)' }}>
           Fairtab is a bill splitter for friends, flatmates and teams, built on Arc, Circle&apos;s blockchain for stablecoins.
-          Split bills, send and receive USDC, swap, earn and ask an assistant, all from one wallet. Create a shared bill for rent, utilities, a subscription or a dinner, let everyone pay their share in USDC,
+          Split bills, send USDC to one wallet or many, receive, swap, earn and ask an assistant, all from one wallet. Create a shared bill for rent, utilities, a subscription or a dinner, let everyone pay their share in USDC,
           and the payee is paid automatically once the bill is fully funded. No chasing, no awkward reminders, no one
           holding the money for you.
         </p>

@@ -2,7 +2,7 @@
  * Product illustrations for the landing page. They show the shape of each screen
  * with labels only: no balances, prices, yields or addresses are invented.
  */
-import { ArrowDownUp, AtSign, Copy, KeyRound, Link2, Send as SendIcon, Wallet } from 'lucide-react'
+import { ArrowDownUp, AtSign, Copy, KeyRound, Link2, Send as SendIcon, Users, Wallet } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 const card = { background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow)' } as const
@@ -57,9 +57,18 @@ export function BillsVisual() {
 }
 
 export function SendVisual() {
+  const rows: [string, string][] = [['0x4f2a…91c3', '5.00'], ['@tunde', '5.00'], ['0xb81e…07d2', '5.00']]
   return (
-    <Frame label="A send form with a recipient and an amount">
-      <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>To</p>
+    <Frame label="A send form with an Individual and Bulk switch, a recipient list and an amount">
+      <div className="grid grid-cols-2 gap-1 rounded-xl p-1" style={{ background: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
+        <div className="flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold" style={{ background: 'var(--accent-fill)', color: '#fff' }}>
+          <SendIcon className="size-3.5" /> Individual
+        </div>
+        <div className="flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold" style={{ color: 'var(--subtle)' }}>
+          <Users className="size-3.5" /> Bulk
+        </div>
+      </div>
+      <p className="mt-4 text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>To</p>
       <div className="mt-2 flex items-center gap-2 rounded-2xl px-3 py-3" style={inner}>
         <AtSign className="size-4" style={{ color: 'var(--accent)' }} />
         <span className="text-sm" style={{ color: 'var(--ink-2)' }}>@name or 0x wallet address</span>
@@ -69,8 +78,17 @@ export function SendVisual() {
         <span className="display text-2xl font-bold" style={{ color: 'var(--subtle)' }}>0.00</span>
         <span className="text-sm font-semibold" style={{ color: 'var(--ink-2)' }}>USDC</span>
       </div>
+      <p className="mt-4 text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Or in Bulk: pay a list</p>
+      <div className="mt-2 overflow-hidden rounded-2xl" style={inner}>
+        {rows.map(([who, amt]) => (
+          <div key={who} className="flex items-center justify-between px-3 py-2 text-xs" style={{ borderBottom: '1px solid var(--border)' }}>
+            <span className="font-mono" style={{ color: 'var(--ink-2)' }}>{who}</span>
+            <span className="font-semibold" style={{ color: 'var(--ink-2)' }}>{amt}</span>
+          </div>
+        ))}
+      </div>
       <div className="mt-4 flex items-center justify-center gap-2 rounded-2xl py-3 text-sm font-semibold" style={{ background: 'var(--accent-fill)', color: '#fff' }}>
-        <SendIcon className="size-4" /> Review and send
+        <SendIcon className="size-4" /> Send 15.00 USDC to 3
       </div>
     </Frame>
   )
