@@ -825,6 +825,20 @@ export default function App() {
   const navActive: 'bills' | 'trade' | 'account' = isTradeTab ? 'trade' : tab === 'account' ? 'account' : 'bills'
   const goNav = (id: 'bills' | 'trade' | 'account') => setTab(id === 'trade' ? (isTradeTab ? tab : lastTradeTab.current) : id)
 
+  // Send has two modes: one recipient, or many at once
+  const sendModeToggle = (
+    <div className="grid grid-cols-2 gap-1 rounded-xl p-1" role="tablist" aria-label="Send mode"
+      style={{ background: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
+      {([['send', 'Individual', Send], ['bulk', 'Bulk', Users]] as const).map(([id, label, Icon]) => (
+        <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
+          className="flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all"
+          style={{ background: tab === id ? 'var(--accent-fill)' : 'transparent', color: tab === id ? '#fff' : 'var(--subtle)' }}>
+          <Icon className="size-3.5" /> {label}
+        </button>
+      ))}
+    </div>
+  )
+
   // Deep-link: /bill/<id> or legacy ?bill=N
   const deepLinkBillId = useMemo(() => {
     const pathMatch = location.pathname.match(/^\/bill\/(\d+)$/)
@@ -1302,14 +1316,13 @@ export default function App() {
                 style={{ background: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
                 {([
                   { id: 'send',    label: 'Send',    icon: Send           },
-                  { id: 'bulk',    label: 'Bulk',    icon: Users          },
                   { id: 'receive', label: 'Receive', icon: QrCode         },
                   { id: 'swap',    label: 'Swap',    icon: ArrowLeftRight },
                   { id: 'commit',  label: 'Commit',  icon: TrendingUp     },
                 ] as const).map(({ id, label, icon: Icon }) => (
-                  <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
+                  <button key={id} role="tab" aria-selected={tab === id || (id === 'send' && tab === 'bulk')} onClick={() => setTab(id)}
                     className="flex flex-1 items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-all rounded-xl"
-                    style={{ background: tab === id ? 'var(--accent-fill)' : 'transparent', color: tab === id ? '#fff' : 'var(--subtle)' }}>
+                    style={{ background: (tab === id || (id === 'send' && tab === 'bulk')) ? 'var(--accent-fill)' : 'transparent', color: (tab === id || (id === 'send' && tab === 'bulk')) ? '#fff' : 'var(--subtle)' }}>
                     <Icon className="size-4" />
                     <span>{label}</span>
                   </button>
@@ -1322,6 +1335,7 @@ export default function App() {
                 <motion.div key="send"
                   initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}
                   transition={{ duration: 0.18 }}>
+                  <div className="mb-4">{sendModeToggle}</div>
                   <SendPage
                     key={location.search}
                     unifiedAddress={address}
@@ -1335,6 +1349,7 @@ export default function App() {
                 <motion.div key="bulk"
                   initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}
                   transition={{ duration: 0.18 }}>
+                  <div className="mb-4">{sendModeToggle}</div>
                   <BulkSendPage key={location.search} />
                 </motion.div>
               )}
