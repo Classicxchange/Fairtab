@@ -15,7 +15,7 @@
 </head>
 <body>
   <h1>Privacy Policy</h1>
-  <small>Last updated: October 30, 2026</small>
+  <small>Last updated: November 8, 2026</small>
 
   <p>Fairtab ("we", "us", or "our") operates the website <a href="https://fairtab.online">fairtab.online</a>. This page describes what information we collect and how we use it.</p>
 
@@ -23,25 +23,41 @@
   <p>When you sign in with Google, we receive your name, email address, and profile picture from Google solely to identify your account. We do not store your Google password.</p>
   <p>When you create or participate in a bill, we store the on-chain wallet address associated with your account, bill details, and payment records on the Arc blockchain. This data is public by nature of the blockchain.</p>
 
+  <p>Fairtab has no user database of its own. The details below are kept in your own browser (local storage and cookies) so the app works: your sign-in session (wallet address, and the name, email and picture shown in the app), your theme, unfinished bill and bulk-send drafts, which payments you have already seen, and a short-lived Circle sign-in token (kept for up to about 55 minutes). Clearing your browser data removes them.</p>
+  <p>If you use <strong>Veltra</strong>, the AI assistant, the text of the messages you type is sent through our server to a third-party AI provider so it can reply. Please do not type private keys, PINs, recovery phrases or other secrets into Veltra.</p>
+  <p>If you use <strong>Commit</strong>, <strong>Swap</strong> or <strong>Bulk send</strong>, your wallet address and the amounts and tokens involved are sent to the services that quote or carry out the action (for example Circle's swap service and Morpho's public data service), and are recorded on the blockchain when you confirm. Addresses you enter, and FairID names, are looked up on the blockchain.</p>
+
   <h2>How We Use Your Information</h2>
   <ul>
     <li>To create and manage your Fairtab account and wallet</li>
     <li>To display your name and picture within the app</li>
     <li>To associate you with bills you create or join</li>
+    <li>To show your balance, your committed amount and your earnings, and to prepare swaps, sends and bulk sends you ask for</li>
+    <li>To answer your questions and prepare drafts through Veltra</li>
+    <li>To keep the app secure and working, for example by limiting how often a request can be made</li>
   </ul>
 
   <h2>We Do Not</h2>
   <ul>
     <li>Sell your personal information to third parties</li>
     <li>Use your data for advertising</li>
-    <li>Store your private keys — your wallet is self-custodial via Circle</li>
+    <li>Store your private keys or PINs. Your wallet is a Circle user-controlled wallet, and you approve every transaction yourself</li>
+    <li>Let Veltra sign, approve or send anything. It only prepares a screen for you to review</li>
   </ul>
 
   <h2>Third-Party Services</h2>
-  <p>We use <a href="https://www.circle.com/legal/privacy-policy" target="_blank">Circle</a> for wallet infrastructure and Google OAuth for authentication. Please review their privacy policies for details on how they handle your data.</p>
+  <p>We rely on other companies to run Fairtab. They handle your data under their own policies, so please review them:</p>
+  <ul>
+    <li><a href="https://www.circle.com/legal/privacy-policy" target="_blank" rel="noopener">Circle</a>: wallets, sign-in security and the swap service</li>
+    <li>Google: sign-in (OAuth)</li>
+    <li>Morpho and the vault curators (Steakhouse Financial and Galaxy): the lending vaults used by Commit, and the public data about them</li>
+    <li>An AI provider (currently OpenAI): the language model behind Veltra</li>
+    <li>Wallet and network providers (for example WalletConnect and Arc RPC nodes) when you connect an outside wallet or read the blockchain</li>
+    <li>Vercel: hosting, which keeps standard server logs such as IP address and time of request</li>
+  </ul>
 
   <h2>Data Retention</h2>
-  <p>On-chain data is permanent by nature of the blockchain and cannot be deleted. Off-chain account data (name, email, profile picture) is retained as long as your account is active. You may request deletion by contacting us.</p>
+  <p>On-chain data is permanent by nature of the blockchain and cannot be deleted. Information kept in your browser stays there until you clear it. Messages you send to Veltra are not stored by Fairtab; the AI provider handles them under its own policy. You may ask us about deleting anything we hold by contacting us.</p>
 
   <h2>Contact</h2>
   <p>For privacy questions, contact us at <a href="mailto:contact@fairtab.online">contact@fairtab.online</a>.</p>

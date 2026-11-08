@@ -16,7 +16,7 @@
 </head>
 <body>
   <h1>Terms of Service</h1>
-  <p class="meta">Fairtab &mdash; Last updated: October 2026</p>
+  <p class="meta">Fairtab &mdash; Last updated: November 8, 2026</p>
 
   <p>By accessing or using Fairtab ("the App"), you agree to be bound by these Terms of Service. Please read them carefully.</p>
 
@@ -24,7 +24,7 @@
   <p>By using Fairtab, you confirm that you are at least 18 years old and agree to these terms. If you do not agree, please do not use the App.</p>
 
   <h2>2. Description of Service</h2>
-  <p>Fairtab is a decentralized bill-splitting application that allows users to create, manage, and settle shared expenses using USDC on the Arc blockchain. Transactions are processed on-chain and are irreversible once confirmed.</p>
+  <p>Fairtab is a decentralized application on the Arc blockchain. It lets users split and settle shared bills in USDC, send USDC to one wallet or many at once (Bulk send), receive payments, swap between USDC, EURC and cirBTC, claim a FairID name, commit USDC to third-party lending vaults (Commit), and use Veltra, an AI assistant. Transactions are processed on-chain and are irreversible once confirmed.</p>
 
   <h2>3. User Responsibilities</h2>
   <ul>
@@ -44,15 +44,42 @@
   <p>Fairtab is provided "as is" without warranties of any kind. To the maximum extent permitted by law, Fairtab and its operators shall not be liable for any loss of funds, data, or other damages arising from your use of the App.</p>
 
   <h2>7. Smart Contract Risk</h2>
-  <p>Smart contracts may contain bugs or vulnerabilities. While Fairtab's contracts have been reviewed for security, you use them at your own risk. Do not deposit funds you cannot afford to lose.</p>
+  <p>Smart contracts may contain bugs or vulnerabilities. Fairtab's contracts have had internal security reviews but have not been independently audited, and you use them at your own risk. Do not deposit funds you cannot afford to lose.</p>
 
-  <h2>8. Third-Party Services</h2>
-  <p>Fairtab integrates with third-party services including Circle and Google. Your use of those services is subject to their respective terms and privacy policies.</p>
+  <h2>8. Fees</h2>
+  <ul>
+    <li>Splitting a bill, sending, receiving and Bulk send carry no Fairtab fee.</li>
+    <li>Claiming a FairID name costs a one-time 1 USDC. It is paid to the Fairtab operator through the FairID contract at the moment you claim, is non-refundable, and is shown before you confirm.</li>
+    <li>When Commit is enabled it may charge a one-time fee (currently 0.23% of the amount you commit), taken in the same transaction and shown before you confirm. Withdrawing is free.</li>
+    <li>Swaps are priced by Circle's swap service and may include a provider fee, shown in the quote. Fairtab adds no fee of its own to swaps.</li>
+    <li>On Arc, network fees are paid in USDC from your own wallet. Fees set in a contract cannot be changed after it is deployed.</li>
+  </ul>
 
-  <h2>9. Changes to Terms</h2>
+  <h2>9. Swap</h2>
+  <p>Swaps are priced and routed by Circle's swap service, which may use third-party aggregators. Quotes are estimates and can change. If the price moves beyond your limit the swap fails. You are responsible for checking the quote, the minimum you will receive and the fees before you confirm.</p>
+
+  <h2>10. Commit and Third-Party Vaults</h2>
+  <p>Commit lets you deposit USDC into lending vaults run by third parties through Morpho. Fairtab does not run, control or guarantee these vaults. Yield is variable and not guaranteed, you can lose some or all of the money you commit, and withdrawals can be delayed or limited when the vault's funds are lent out. Figures shown in the app, such as yield, earnings and available liquidity, are estimates that come from third-party data and can be wrong or out of date. Fairtab limits the size of a single commit in the app, but this is not a safeguard against loss.</p>
+
+  <h2>11. Bulk Send</h2>
+  <p>Bulk send moves USDC to every wallet on your list. Transfers cannot be undone, and money sent to a wrong or mistyped address cannot be recovered. You are responsible for every address and amount, and for having the right to send to each recipient.</p>
+
+  <h2>12. FairID Names</h2>
+  <p>A FairID is a short name that points to a wallet. Names are given on a first come, first served basis and are not a trademark or ownership right. Fairtab cannot recover, transfer or reassign a name for you. Always check the wallet address a name resolves to before you send money. You must not use names to impersonate others or mislead people.</p>
+
+  <h2>13. Veltra (AI Assistant)</h2>
+  <p>Veltra is an AI assistant that answers questions and prepares drafts of bills, sends, bulk sends and swaps. It can be wrong or out of date. It never signs or sends transactions: you review and confirm everything yourself, and you are responsible for what you confirm. Veltra's messages go to a third-party AI provider, so do not share private keys, PINs, recovery phrases or other secrets with it. Its answers are general information and are not financial, legal or tax advice.</p>
+
+  <h2>14. No Financial, Legal or Tax Advice</h2>
+  <p>Nothing in the App is investment, financial, legal or tax advice. Digital assets are volatile and risky. You are responsible for your own decisions and for any taxes or legal duties that apply to you.</p>
+
+  <h2>15. Third-Party Services</h2>
+  <p>Fairtab integrates with third-party services including Circle, Google, Morpho and its vault curators, wallet providers and an AI provider. Your use of those services is subject to their respective terms and privacy policies, and Fairtab is not responsible for them.</p>
+
+  <h2>16. Changes to Terms</h2>
   <p>We may update these Terms from time to time. Continued use of the App after changes constitutes acceptance of the updated Terms.</p>
 
-  <h2>10. Contact</h2>
+  <h2>17. Contact</h2>
   <p>For questions about these Terms, contact us at <a href="mailto:contact@fairtab.online">contact@fairtab.online</a>.</p>
 
   <hr />
