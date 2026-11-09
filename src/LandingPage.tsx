@@ -4,13 +4,13 @@
  * requiring any login (needed for Google OAuth brand verification).
  */
 
-import type { ComponentType, ReactNode } from 'react'
+import { useState, type ComponentType, type ReactNode } from 'react'
 import {
-  Sun, Moon, ArrowRight, Receipt, Send, HandCoins, AtSign, TrendingUp, ArrowDownUp, KeyRound, Check, Bell, Wallet, Mail,
+  Sun, Moon, ArrowRight, Receipt, Send, HandCoins, AtSign, TrendingUp, ArrowDownUp, KeyRound, Check, Bell, Wallet, Mail, Menu, X as CloseIcon,
 } from 'lucide-react'
 import { VeltraIcon } from '@/VeltraMark'
 import {
-  BillsVisual, SendVisual, ReceiveVisual, FairIdVisual, CommitVisual, SwapVisual, VeltraHero, WalletVisual,
+  BillsVisual, SendVisual, ReceiveVisual, FairIdVisual, CommitVisual, SwapVisual, VeltraHero, WalletVisual, HeroApp,
 } from '@/LandingVisuals'
 
 interface Props {
@@ -148,7 +148,7 @@ function ProductSection({ p, index }: { p: Product; index: number }) {
   const Icon = p.icon
   const flip = index % 2 === 1
   return (
-    <section id={p.id} className="scroll-mt-28 py-12 md:py-16" style={{ borderTop: '1px solid var(--border)' }}>
+    <section id={p.id} className="scroll-mt-24 py-14 md:py-20" style={{ borderTop: '1px solid var(--border)' }}>
       <div className="grid items-center gap-8 md:grid-cols-2 md:gap-14">
         <div className={flip ? 'md:order-2' : ''}>
           <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--accent)' }}>
@@ -175,92 +175,137 @@ function jumpTo(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
+const NAV = [
+  { id: 'bills', label: 'Bills' },
+  { id: 'send', label: 'Send' },
+  { id: 'swap', label: 'Swap' },
+  { id: 'commit', label: 'Commit' },
+  { id: 'fairid', label: 'FairID' },
+  { id: 'veltra', label: 'Veltra' },
+  { id: 'wallet', label: 'Security' },
+]
+
+const TRUST = ['Non-custodial', 'Settles in under a second', 'No seed phrase to start']
+
+function XLogo({ size = 18 }: { size?: number }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+  )
+}
+
 export function LandingPage({ onGetStarted, signedIn = false, dark, onToggleDark }: Props) {
+  const [menu, setMenu] = useState(false)
+  const cta = signedIn ? 'My account' : 'Open Fairtab'
   return (
     <div className="min-h-dvh flex flex-col" style={{ background: 'var(--bg)' }}>
-      <header className="mx-auto w-full max-w-5xl flex items-center justify-between px-5 py-4">
-        <button type="button" onClick={e => e.currentTarget.closest<HTMLElement>('.fixed')?.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="Fairtab home"
-          className="flex items-center gap-3 text-left">
-          <img src="/logo.svg" alt="Fairtab" className="size-10 rounded-xl shadow" />
-          <span className="display text-xl font-bold tracking-tight" style={{ color: 'var(--ink)' }}>Fairtab</span>
-        </button>
-        <div className="flex items-center gap-2">
-          {onToggleDark && (
-            <button
-              onClick={onToggleDark}
-              aria-label="Toggle dark mode"
-              className="flex items-center justify-center rounded-xl"
-              style={{ width: 38, height: 38, background: 'var(--surface-strong)', border: '1px solid var(--border)', color: 'var(--ink-2)' }}
-            >
-              {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
-            </button>
-          )}
-          <button
-            onClick={onGetStarted}
-            className="rounded-xl px-4 py-2 text-sm font-semibold"
-            style={{ background: 'var(--accent-fill)', color: '#fff' }}
-          >
-            {signedIn ? 'My account' : 'Sign in'}
+      <header className="sticky top-0 z-30" style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)', backdropFilter: 'blur(14px)' }}>
+        <div className="mx-auto flex w-full max-w-6xl items-center gap-4 px-5 py-3">
+          <button type="button" onClick={e => e.currentTarget.closest<HTMLElement>('.fixed')?.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="Fairtab home"
+            className="flex items-center gap-2.5 text-left">
+            <img src="/logo.svg" alt="" className="size-9 rounded-xl" />
+            <span className="display text-xl font-bold tracking-tight" style={{ color: 'var(--ink)' }}>Fairtab</span>
           </button>
+
+          <nav aria-label="Fairtab features" className="mx-auto hidden items-center gap-1 lg:flex">
+            {NAV.map(({ id, label }) => (
+              <a key={id} href={`#${id}`} onClick={e => { e.preventDefault(); jumpTo(id) }}
+                className="rounded-lg px-3.5 py-2 text-[15px] font-medium transition-colors hover:opacity-70" style={{ color: 'var(--ink-2)' }}>
+                {label}
+              </a>
+            ))}
+            <a href="/help" className="rounded-lg px-3.5 py-2 text-[15px] font-medium transition-colors hover:opacity-70" style={{ color: 'var(--ink-2)' }}>FAQ</a>
+          </nav>
+
+          <div className="ml-auto flex items-center gap-2 lg:ml-0">
+            <a href="https://x.com/fairtab_xyz" target="_blank" rel="noopener noreferrer" aria-label="Fairtab on X" title="Fairtab on X"
+              className="hidden size-10 items-center justify-center rounded-xl transition-opacity hover:opacity-70 sm:flex" style={{ color: 'var(--ink)' }}>
+              <XLogo />
+            </a>
+            {onToggleDark && (
+              <button onClick={onToggleDark} aria-label="Toggle dark mode" className="flex size-10 items-center justify-center rounded-xl"
+                style={{ background: 'var(--surface-strong)', border: '1px solid var(--border)', color: 'var(--ink-2)' }}>
+                {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
+              </button>
+            )}
+            <button onClick={onGetStarted} className="hidden items-center gap-2 rounded-full px-5 py-2.5 text-[15px] font-semibold sm:inline-flex"
+              style={{ background: 'var(--accent-fill)', color: '#fff' }}>
+              {cta} <ArrowRight className="size-4" />
+            </button>
+            <button onClick={() => setMenu(m => !m)} aria-label={menu ? 'Close menu' : 'Open menu'} aria-expanded={menu}
+              className="flex size-10 items-center justify-center rounded-xl lg:hidden"
+              style={{ background: 'var(--surface-strong)', border: '1px solid var(--border)', color: 'var(--ink-2)' }}>
+              {menu ? <CloseIcon className="size-5" /> : <Menu className="size-5" />}
+            </button>
+          </div>
         </div>
+
+        {menu && (
+          <div className="border-t px-5 pb-5 pt-3 lg:hidden" style={{ borderColor: 'var(--border)' }}>
+            <div className="mx-auto grid max-w-6xl grid-cols-2 gap-2">
+              {NAV.map(({ id, label }) => (
+                <a key={id} href={`#${id}`} onClick={e => { e.preventDefault(); setMenu(false); jumpTo(id) }}
+                  className="rounded-xl px-4 py-3 text-[15px] font-semibold" style={{ background: 'var(--surface-strong)', border: '1px solid var(--border)', color: 'var(--ink)' }}>
+                  {label}
+                </a>
+              ))}
+              <a href="/help" className="rounded-xl px-4 py-3 text-[15px] font-semibold" style={{ background: 'var(--surface-strong)', border: '1px solid var(--border)', color: 'var(--ink)' }}>FAQ</a>
+              <a href="https://x.com/fairtab_xyz" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-xl px-4 py-3 text-[15px] font-semibold"
+                style={{ background: 'var(--surface-strong)', border: '1px solid var(--border)', color: 'var(--ink)' }}><XLogo size={15} /> Follow on X</a>
+            </div>
+            <button onClick={() => { setMenu(false); onGetStarted() }} className="mt-3 flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-base font-semibold"
+              style={{ background: 'var(--accent-fill)', color: '#fff' }}>
+              {cta} <ArrowRight className="size-4" />
+            </button>
+          </div>
+        )}
       </header>
 
-      <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-10 md:py-16">
-        <h1 className="display text-4xl md:text-5xl font-bold tracking-tight leading-[1.15]" style={{ color: 'var(--ink)' }}>
-          Split bills fairly.<br />Settle in USDC.
-        </h1>
-        <p className="mt-4 max-w-2xl text-base md:text-lg leading-relaxed" style={{ color: 'var(--muted)' }}>
-          Fairtab is a bill splitter for friends, flatmates and teams, built on Arc, Circle&apos;s blockchain for stablecoins.
-          Split bills, send USDC to one wallet or many, receive, swap, earn and ask an assistant, all from one wallet. Create a shared bill for rent, utilities, a subscription or a dinner, let everyone pay their share in USDC,
-          and the payee is paid automatically once the bill is fully funded. No chasing, no awkward reminders, no one
-          holding the money for you.
-        </p>
-        <div className="mt-8 flex flex-wrap items-center gap-3">
-          <button
-            onClick={onGetStarted}
-            className="rounded-2xl px-6 py-3.5 text-base font-semibold"
-            style={{ background: 'var(--accent-fill)', color: '#fff' }}
-          >
-            {signedIn ? 'Open my app' : 'Get started'}
-          </button>
-          <a href="/help" className="inline-flex items-center gap-1.5 text-sm font-semibold" style={{ color: 'var(--accent)' }}>
-            How it works <ArrowRight className="size-4" />
-          </a>
-        </div>
-        <ul className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-sm" style={{ color: 'var(--muted)' }}>
-          <li>Funds held by a smart contract, not by Fairtab</li>
-          <li>Sign in with Google, no seed phrase</li>
-          <li>USDC is also the network fee</li>
-        </ul>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-5">
+        <section className="grid items-center gap-12 py-12 md:py-16 lg:grid-cols-[1.05fr_1fr] lg:gap-10 lg:py-20">
+          <div>
+            <span className="inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-medium" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--ink-2)' }}>
+              <span className="size-2 rounded-full" style={{ background: 'var(--success)' }} /> Live on Arc &middot; Wallets secured by Circle
+            </span>
+            <h1 className="display mt-6 text-[2.9rem] font-bold leading-[1.02] tracking-[-0.035em] sm:text-6xl lg:text-[4.6rem]" style={{ color: 'var(--ink)' }}>
+              One wallet.<br />Every bill.<br />
+              <span style={{ background: 'linear-gradient(90deg, #2f6bff 0%, #5b8cff 100%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>Settled in USDC.</span>
+            </h1>
+            <p className="mt-6 max-w-xl text-pretty text-lg leading-relaxed" style={{ color: 'var(--muted)' }}>
+              Fairtab is the bill splitter for friends, flatmates and teams, built on Arc. Split rent and subscriptions, send USDC to one wallet or many,
+              swap, earn on idle balances and ask Veltra to do the typing, all settled in under a second, without anyone holding your money.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <button onClick={onGetStarted} className="inline-flex items-center gap-2 rounded-full px-7 py-4 text-base font-semibold" style={{ background: 'var(--accent-fill)', color: '#fff', boxShadow: 'var(--shadow-md)' }}>
+                {signedIn ? 'Open my app' : 'Open Fairtab'} <ArrowRight className="size-4" />
+              </button>
+              <a href="#bills" onClick={e => { e.preventDefault(); jumpTo('bills') }} className="inline-flex items-center rounded-full px-7 py-4 text-base font-semibold"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--ink)' }}>
+                Explore the platform
+              </a>
+            </div>
+            <ul className="mt-8 flex flex-wrap gap-x-7 gap-y-3 text-[15px]" style={{ color: 'var(--ink-2)' }}>
+              {TRUST.map(t => (
+                <li key={t} className="inline-flex items-center gap-2"><Check className="size-4" style={{ color: 'var(--success)' }} /> {t}</li>
+              ))}
+            </ul>
+          </div>
+          <HeroApp />
+        </section>
 
-        <section className="mt-16">
-          <h2 className="display text-2xl font-bold tracking-tight" style={{ color: 'var(--ink)' }}>How it works</h2>
-          <ol className="mt-5 grid gap-4 md:grid-cols-4">
+        <section className="py-12 md:py-16" style={{ borderTop: '1px solid var(--border)' }}>
+          <h2 className="display text-3xl font-bold tracking-tight md:text-4xl" style={{ color: 'var(--ink)' }}>How a bill works</h2>
+          <ol className="mt-8 grid gap-4 md:grid-cols-4">
             {STEPS.map(({ title, text }, i) => (
               <li key={title} className="rounded-2xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                <span className="size-8 rounded-full flex items-center justify-center text-sm font-bold mb-3" style={{ background: 'var(--accent-fill)', color: '#fff' }}>{i + 1}</span>
-                <h3 className="font-semibold" style={{ color: 'var(--ink)' }}>{title}</h3>
+                <span className="display text-3xl font-bold" style={{ color: 'var(--accent)' }}>{String(i + 1).padStart(2, '0')}</span>
+                <h3 className="mt-3 font-semibold" style={{ color: 'var(--ink)' }}>{title}</h3>
                 <p className="mt-1 text-sm leading-relaxed" style={{ color: 'var(--muted)' }}>{text}</p>
               </li>
             ))}
           </ol>
         </section>
-
-        <section className="mt-16">
-          <h2 className="display text-2xl font-bold tracking-tight" style={{ color: 'var(--ink)' }}>Everything in one place</h2>
-          <p className="mt-2 text-sm max-w-xl" style={{ color: 'var(--muted)' }}>Eight tools, one wallet. Scroll to see each one, or jump straight to it.</p>
-        </section>
-
-        <nav aria-label="Fairtab features" className="sticky top-0 z-20 -mx-5 mt-5 px-5 py-3 flex gap-2 overflow-x-auto"
-          style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
-          {PRODUCTS.map(({ id, label, icon: Icon }) => (
-            <a key={id} href={`#${id}`} onClick={e => { e.preventDefault(); jumpTo(id) }}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-semibold"
-              style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--ink-2)', minHeight: 44 }}>
-              <Icon className="size-4" /> {label}
-            </a>
-          ))}
-        </nav>
 
         {PRODUCTS.map((p, i) => <ProductSection key={p.id} p={p} index={i} />)}
 
@@ -317,7 +362,7 @@ export function LandingPage({ onGetStarted, signedIn = false, dark, onToggleDark
         </section>
       </main>
 
-      <footer className="mx-auto w-full max-w-5xl px-5 py-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm"
+      <footer className="mx-auto w-full max-w-6xl px-5 py-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm"
         style={{ borderTop: '1px solid var(--border)', color: 'var(--muted)' }}>
         <span>&copy; 2026 Fairtab</span>
         <a href="/privacy" className="underline">Privacy Policy</a>

@@ -2,8 +2,10 @@
  * Product illustrations for the landing page. They show the shape of each screen
  * with labels only: no balances, prices, yields or addresses are invented.
  */
-import { ArrowDownUp, AtSign, Copy, KeyRound, Link2, Send as SendIcon, Users, Wallet } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { ArrowDownUp, AtSign, Copy, HandCoins, KeyRound, Link2, Receipt, Send as SendIcon, TrendingUp, Users, Wallet } from 'lucide-react'
+import { TokenEURC, TokenUSDC } from '@web3icons/react'
+import type { ComponentType, ReactNode } from 'react'
+import { VeltraIcon } from '@/VeltraMark'
 
 const card = { background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--shadow)' } as const
 const inner = { background: 'var(--surface-strong)', border: '1px solid var(--border)' } as const
@@ -240,5 +242,75 @@ export function WalletVisual() {
       </div>
       <p className="mt-4 text-xs" style={{ color: 'var(--muted)' }}>No seed phrase to write down. Every payment asks for your own PIN.</p>
     </Frame>
+  )
+}
+
+/**
+ * Hero: a desktop-style app window that lists every feature in its sidebar and shows
+ * the Swap screen, with two token cards floating above it. Example numbers only.
+ */
+export function HeroApp() {
+  const side: [string, ComponentType<{ className?: string }>, boolean?][] = [
+    ['Bills', Receipt], ['Send', SendIcon], ['Bulk', Users], ['Receive', HandCoins],
+    ['Swap', ArrowDownUp, true], ['Commit', TrendingUp], ['FairID', AtSign], ['Veltra', VeltraIcon],
+  ]
+  return (
+    <div role="img" aria-label="The Fairtab app: a sidebar with Bills, Send, Bulk, Receive, Swap, Commit, FairID and Veltra, showing the Swap screen" className="relative w-full">
+      <div className="pointer-events-none absolute inset-0 -z-10" style={{ background: 'radial-gradient(60% 60% at 70% 30%, var(--accent-light), transparent 70%)', opacity: 0.8 }} />
+
+      <div className="mb-3 flex gap-3 sm:absolute sm:-top-12 sm:left-4 sm:z-10 sm:mb-0">
+        {([['USDC', '248.50', 'USD Coin', <TokenUSDC key="u" variant="branded" size={34} />], ['EURC', '82.40', 'Euro Coin', <TokenEURC key="e" variant="branded" size={34} />]] as const).map(([sym, amt, name, icon]) => (
+          <div key={sym} className="flex flex-1 items-center gap-3 rounded-2xl px-3.5 py-3 sm:flex-none sm:min-w-[170px]" style={card}>
+            {icon}
+            <div className="leading-tight">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em]" style={{ color: 'var(--muted)' }}>{sym}</p>
+              <p className="display text-lg font-bold" style={{ color: 'var(--ink)' }}>{amt}</p>
+              <p className="text-[11px]" style={{ color: 'var(--subtle)' }}>{name}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="overflow-hidden rounded-3xl sm:mt-0" style={{ ...card, boxShadow: 'var(--shadow-lg)' }}>
+        <div className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
+          <img src="/logo.svg" alt="" className="size-8 rounded-lg" />
+          <span className="display text-base font-bold" style={{ color: 'var(--ink)' }}>Fairtab</span>
+          <span className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold" style={{ background: 'var(--surface-strong)', border: '1px solid var(--border)', color: 'var(--muted)' }}>Arc</span>
+          <span className="ml-auto rounded-full px-3 py-1 font-mono text-[11px]" style={{ background: 'var(--accent-light)', color: 'var(--accent)' }}>0xe460…ccbb</span>
+        </div>
+        <div className="flex">
+          <aside className="hidden w-44 shrink-0 flex-col gap-1 p-3 md:flex" style={{ borderRight: '1px solid var(--border)' }}>
+            {side.map(([label, Icon, active]) => (
+              <div key={label} className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium"
+                style={active ? { background: 'var(--accent-light)', color: 'var(--accent)' } : { color: 'var(--ink-2)' }}>
+                <Icon className="size-4" /> {label}
+              </div>
+            ))}
+          </aside>
+          <div className="min-w-0 flex-1 p-4 md:p-6">
+            <h3 className="display text-2xl font-bold" style={{ color: 'var(--ink)' }}>Swap</h3>
+            <p className="mt-1 text-sm" style={{ color: 'var(--muted)' }}>Exchange USDC, EURC and cirBTC on Arc.</p>
+            <div className="mt-4 rounded-2xl p-3" style={inner}>
+              <div className="rounded-xl px-3.5 py-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em]" style={{ color: 'var(--muted)' }}>You pay</p>
+                <div className="mt-1 flex items-center justify-between">
+                  <span className="display text-3xl font-bold" style={{ color: 'var(--ink)' }}>1.00</span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-sm font-semibold" style={inner}><TokenUSDC variant="branded" size={20} /> USDC</span>
+                </div>
+              </div>
+              <div className="-my-2 flex justify-center"><span className="relative z-10 flex size-8 items-center justify-center rounded-full" style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--ink-2)' }}><ArrowDownUp className="size-4" /></span></div>
+              <div className="rounded-xl px-3.5 py-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em]" style={{ color: 'var(--muted)' }}>You receive (estimate)</p>
+                <div className="mt-1 flex items-center justify-between">
+                  <span className="display text-3xl font-bold" style={{ color: 'var(--ink)' }}>0.8906</span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-sm font-semibold" style={inner}><TokenEURC variant="branded" size={20} /> EURC</span>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 flex items-center justify-center rounded-2xl py-3.5 text-sm font-semibold" style={{ background: 'var(--accent-fill)', color: '#fff' }}>Swap 1.00 USDC to EURC</div>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
