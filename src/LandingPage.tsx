@@ -92,10 +92,10 @@ const PRODUCTS: Product[] = [
   },
   {
     id: 'commit', label: 'Commit', icon: TrendingUp,
-    title: 'Put idle USDC to work.',
+    title: 'Put idle USDC and EURC to work.',
     intro: 'Commit spare USDC or EURC to Morpho lending vaults on Arc and watch your earnings grow live, block by block.',
     points: [
-      'Choose from nine vaults for USDC or EURC, run by curators like Steakhouse, Galaxy, Gauntlet, Keyrock and Bitwise.',
+      'Choose from nine vaults for USDC or EURC: Steakhouse Prime, Galaxy, Gauntlet Prime and Balanced, Keyrock Prime, and Bitwise Premium RWA.',
       'Withdraw whenever the vault has funds free.',
       'Commit may carry a small one-time fee, shown before you confirm.',
     ],

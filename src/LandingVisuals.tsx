@@ -2,6 +2,7 @@
  * Product illustrations for the landing page. They show the shape of each screen
  * with labels only: no balances, prices, yields or addresses are invented.
  */
+import { COMMIT_VAULTS } from '@/commitVaults'
 import { ArrowDownUp, AtSign, Copy, HandCoins, KeyRound, Link2, Receipt, Send as SendIcon, TrendingUp, Users, Wallet } from 'lucide-react'
 import { TokenEURC, TokenUSDC } from '@web3icons/react'
 import type { ComponentType, ReactNode } from 'react'
@@ -150,23 +151,25 @@ export function FairIdVisual() {
 }
 
 export function CommitVisual() {
-  const vaults = [
-    { name: 'Steakhouse Prime USDC', by: 'Curated by Steakhouse Financial' },
-    { name: 'Galaxy USDC', by: 'Curated by Galaxy Curation' },
-  ]
   return (
-    <Frame label="Two lending vaults where idle USDC can be committed">
-      <div className="flex flex-col gap-3">
-        {vaults.map(v => (
-          <div key={v.name} className="rounded-2xl px-4 py-4" style={inner}>
-            <p className="font-semibold text-sm" style={{ color: 'var(--ink)' }}>{v.name}</p>
-            <p className="mt-0.5 text-xs" style={{ color: 'var(--muted)' }}>{v.by}</p>
-            <div className="mt-3 flex items-center justify-between">
-              <span className="text-xs" style={{ color: 'var(--muted)' }}>Earnings update every block</span>
-              <Chip tone="wait">Commit</Chip>
+    <Frame label="Nine lending vaults where idle USDC or EURC can be committed">
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Vaults on Arc</p>
+        <Chip tone="wait">9 · USDC and EURC</Chip>
+      </div>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {COMMIT_VAULTS.map(v => {
+          const Icon = v.asset === 'USDC' ? TokenUSDC : TokenEURC
+          return (
+            <div key={v.id} className="flex items-center gap-2.5 rounded-xl px-3 py-2.5" style={inner}>
+              <Icon variant="branded" size={22} />
+              <div className="min-w-0">
+                <p className="truncate text-[13px] font-semibold leading-tight" style={{ color: 'var(--ink)' }}>{v.name}</p>
+                <p className="truncate text-[11px]" style={{ color: 'var(--muted)' }}>{v.curator}</p>
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </Frame>
   )
