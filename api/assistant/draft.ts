@@ -234,7 +234,7 @@ function fairtabFacts(): string {
   const router = (process.env.VITE_COMMIT_ROUTER_ADDRESS ?? '').trim()
   const isAddr = (v: string) => /^0x[a-fA-F0-9]{40}$/.test(v)
   const commitFee = isAddr(router)
-    ? "Committing carries a one-time Fairtab fee of 0.23%, shown before you confirm. Withdrawing is free."
+    ? "Committing to some vaults carries a one-time Fairtab fee (0.23%), always shown before you confirm; other vaults have no Fairtab fee. Withdrawing is free."
     : "Committing currently carries no Fairtab fee. Withdrawing is free."
   return [
   "ABOUT FAIRTAB:",
@@ -260,7 +260,7 @@ function fairtabFacts(): string {
   "Never share private keys, PINs, security answers or recovery phrases with anyone, including Veltra.",
   "",
   "MONEY IN FAIRTAB (USDC, EURC, cirBTC):",
-  "USDC is Circle's dollar stablecoin and the only currency for bills, Send, Receive and Commit. It is also Arc's gas token, so one USDC balance covers payments and fees. The app shows a single USDC balance (6 decimals).",
+  "USDC is Circle's dollar stablecoin and the currency for bills, Send, Receive and Commit (Commit also supports EURC, Circle's euro stablecoin). It is also Arc's gas token, so one USDC balance covers payments and fees. The app shows a single USDC balance (6 decimals).",
   "EURC is Circle's euro stablecoin (6 decimals). In Fairtab it can be swapped with USDC. It is not used for bills or Send. Its value in dollars moves with the euro price.",
   "cirBTC is Circle's tokenized Bitcoin on Arc (8 decimals). In Fairtab it can be swapped with USDC or EURC. Its price moves like Bitcoin and can fall, so recommend small amounts.",
   "Add USDC: copy your wallet address from the Add USDC screen and send USDC on the Arc network to it from an exchange or another wallet. Choose the Arc network when sending. USDC on another network (Ethereum, Base and so on) must be moved to Arc first (see docs.arc.io). Funds sent on the wrong network or other tokens may be lost, so try a small amount first. The balance updates within seconds.",
@@ -279,7 +279,7 @@ function fairtabFacts(): string {
   "Swaps are priced by Circle's swap service, which routes through a third-party aggregator and can change by route. Fairtab adds no fee of its own. If the price moves too much the swap fails and you review a fresh quote.",
   "",
   "COMMIT:",
-  "Commit (under Trade) puts idle USDC into a Morpho lending vault on Arc: Steakhouse Prime USDC or Galaxy USDC. Money goes straight from your wallet into the vault and Fairtab never holds it. Your earnings are shown live and update every block. " + commitFee,
+  "Commit (under Trade) puts idle USDC or EURC into a Morpho lending vault on Arc. There are nine vaults: Gauntlet USDC Balanced, Bitwise Premium RWA USDC, Steakhouse Prime USDC, Galaxy USDC, Gauntlet USDC Prime, Keyrock Prime USDC, Steakhouse Prime EURC, Gauntlet EURC Prime and Galaxy EURC. Each card shows its current APY and how much is supplied; 'Low liquidity' means little can be withdrawn right now. Money goes straight from your wallet into the vault and Fairtab never holds it. Your earnings are shown live and update every block. " + commitFee,
   "Each deposit must be between 0.10 and 1,000 USDC. Yield changes and is not guaranteed. You can lose money if a borrower or the vault fails. Most of a vault's USDC is lent out, so if many people withdraw you may have to wait until borrowers repay.",
   "",
   "VELTRA (you):",
@@ -292,7 +292,7 @@ function fairtabFacts(): string {
   isAddr(router)
     ? `Commit router: ${router}.`
     : 'Commit router: not deployed yet, so Commit deposits go straight to the vault with no Fairtab fee.',
-  'Commit vaults (Morpho, run by others): Steakhouse Prime USDC 0xbeef0016cb2Fd5C352ea7CA08a9f54739DFa7298, Galaxy USDC 0x8E357432CC12ff425c36432F312968aEb16112AF.',
+  'Commit vaults (Morpho, run by others): Gauntlet USDC Balanced 0x10AF7238C6355Aa8dDB5eD60E2e9b55a72827B51, Bitwise Premium RWA USDC 0x7610094B846657dCF166D59e42973db52c7015F9, Steakhouse Prime USDC 0xbeef0016cb2Fd5C352ea7CA08a9f54739DFa7298, Galaxy USDC 0x8E357432CC12ff425c36432F312968aEb16112AF, Gauntlet USDC Prime 0xdECcd53BE5453215821184824B519E04C7e00bC7, Keyrock Prime USDC 0x5bEfAb92a5A3D60F578Cb51EEb4e4FD50a1e3123, Steakhouse Prime EURC 0xbeef00be37BdE921BAE06fad223125BAB16c41D1, Gauntlet EURC Prime 0x05863F54B05e96092069eF30c9Ca6060336e50B9, Galaxy EURC 0x389abDf4355e0cF4f19298179991705a98f21c18.',
   'Never tell people to send money straight to a contract address. All payments go through the app.',
 ].join('\n')
 }

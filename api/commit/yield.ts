@@ -8,8 +8,15 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { createPublicClient, http, isAddress, parseAbi } from 'viem'
 
 const VAULTS = [
+  '0x10af7238c6355aa8ddb5ed60e2e9b55a72827b51',
+  '0x7610094b846657dcf166d59e42973db52c7015f9',
   '0xbeef0016cb2fd5c352ea7ca08a9f54739dfa7298',
   '0x8e357432cc12ff425c36432f312968aeb16112af',
+  '0xdeccd53be5453215821184824b519e04c7e00bc7',
+  '0x5befab92a5a3d60f578cb51eeb4e4fd50a1e3123',
+  '0xbeef00be37bde921bae06fad223125bab16c41d1',
+  '0x05863f54b05e96092069ef30c9ca6060336e50b9',
+  '0x389abdf4355e0cf4f19298179991705a98f21c18',
 ]
 const RPC = 'https://rpc.mainnet.arc.io'
 const RECENT_BLOCKS = 100_000n

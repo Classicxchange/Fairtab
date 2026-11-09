@@ -57,6 +57,11 @@ export function VeltraChat({ address, onOpenBill, onGo }: {
 }) {
   const [enabled, setEnabled] = useState(false)
   const [open, setOpen] = useState(false)
+  useEffect(() => {
+    const onOpen = () => setOpen(true)
+    window.addEventListener('veltra:open', onOpen)
+    return () => window.removeEventListener('veltra:open', onOpen)
+  }, [])
   const [messages, setMessages] = useState<Msg[]>([])
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)

@@ -10,6 +10,14 @@ const configured = (import.meta.env.VITE_COMMIT_ROUTER_ADDRESS as string | undef
 export const COMMIT_ROUTER_ADDRESS: `0x${string}` | undefined =
   configured && isAddress(configured) ? configured : undefined
 
+const configuredEurc = (import.meta.env.VITE_COMMIT_ROUTER_EURC_ADDRESS as string | undefined)?.trim()
+
+/** One router per token. A router only accepts the vaults it was deployed with; any other vault is deposited into directly. */
+export const COMMIT_ROUTER_BY_ASSET: Record<'USDC' | 'EURC', `0x${string}` | undefined> = {
+  USDC: COMMIT_ROUTER_ADDRESS,
+  EURC: configuredEurc && isAddress(configuredEurc) ? configuredEurc : undefined,
+}
+
 export const COMMIT_ROUTER_ABI = parseAbi([
   'function commit(address vault, uint256 assets, uint256 minShares) returns (uint256 shares)',
   'function previewCommit(uint256 assets) view returns (uint256 fee, uint256 net)',

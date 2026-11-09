@@ -38,8 +38,9 @@ import {
   Sun, Moon, CircleUserRound, TrendingUp, ArrowLeftRight,
   List, PenLine, ArrowDownCircle, CircleCheckBig,
   Bell, ChevronLeft, ChevronRight,
-  ChevronRight as ChevronRightIcon,
+  ChevronRight as ChevronRightIcon, AtSign, LifeBuoy,
 } from 'lucide-react'
+import { VeltraIcon } from '@/VeltraMark'
 import { TokenUSDC } from '@web3icons/react'
 import { toast } from 'sonner'
 import { getUsdc } from '@/onchain-facts'
@@ -171,6 +172,23 @@ function ArcBg() {
 }
 
 // ─── Balance Card ─────────────────────────────────────────────────────────────
+/** Compact USDC balance shown in the top bar on desktop */
+function HeaderBalance({ address }: { address?: `0x${string}` }) {
+  const { data: balance } = useReadContract({
+    address: USDC_ADDRESS, abi: erc20Abi, functionName: 'balanceOf',
+    args: address ? [address] : undefined, query: { enabled: !!address, refetchInterval: 15_000 }, chainId: CHAIN_ID,
+  })
+  if (!address) return null
+  return (
+    <div className="hidden md:flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold"
+      style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)', color: 'var(--ink)' }}>
+      <TokenUSDC variant="branded" size={16} />
+      <span className="tabular-nums">{balance !== undefined ? fmt(balance) : '—'}</span>
+      <span style={{ color: 'var(--subtle)' }}>USDC</span>
+    </div>
+  )
+}
+
 function BalanceCard({ address, onSend, onReceive }: {
   address?: `0x${string}`
   onSend: () => void
@@ -1186,6 +1204,7 @@ export default function App() {
               {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
             </motion.button>
 
+            {address && <HeaderBalance address={address} />}
             {address && (
               <RemindersBell
                 notices={notices}
@@ -1221,60 +1240,51 @@ export default function App() {
         {/* ── Two-column layout ──────────────────────────────────── */}
         <div className="flex gap-5 items-start">
 
-          {/* ── Left rail (sticky) ──────────────────────────────── */}
-          <aside className="hidden md:flex flex-col gap-4 w-56 shrink-0 sticky top-24">
-            {/* Brand hero */}
-            <motion.div className="p-4 overflow-hidden" {...fadeUp}>
-              <h1 className="text-base font-bold mb-0.5" style={{ color: 'var(--ink)', letterSpacing: '-0.02em' }}>
-                Fairtab
-              </h1>
-              <p className="text-xs" style={{ color: 'var(--muted)' }}>
-                Split bills · Send USDC
-              </p>
-            </motion.div>
+          {/* ── Sidebar: every feature, grouped ─────────────────── */}
+          <aside className="hidden md:flex flex-col gap-3 w-64 shrink-0 sticky top-24 rounded-3xl p-3"
+            style={{ background: 'var(--surface-strong)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-sm)' }}>
+            <button onClick={() => setShowCreate(true)}
+              className="flex items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-bold transition-transform hover:scale-[1.01] active:scale-[0.99]"
+              style={{ background: 'var(--accent-fill)', color: '#fff', boxShadow: '0 10px 24px rgba(36,72,184,0.28)' }}>
+              <Plus className="size-4" /> New bill
+            </button>
 
-            {/* Nav */}
-            <motion.div className="flex flex-col gap-1" {...fadeUp} transition={{ delay: 0.05 }}>
-              {([
-                { id: 'bills',   label: 'Bills',   icon: ReceiptText },
-                { id: 'trade',   label: 'Trade',   icon: ChartCandlestick },
-                { id: 'account', label: 'Account', icon: CircleUserRound },
-              ] as const).map(({ id, label, icon: Icon }) => (
-                <button key={id} onClick={() => goNav(id)}
-                  className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition-all hover:scale-[1.01] text-left"
-                  style={{
-                    background: navActive === id ? 'var(--accent-light)' : 'transparent',
-                    color: navActive === id ? 'var(--accent)' : 'var(--ink-2)',
-                    border: `1px solid ${navActive === id ? 'var(--accent-light)' : 'transparent'}`,
-                  }}>
-                  <Icon className="size-4 shrink-0" /> {label}
-                </button>
-              ))}
-            </motion.div>
+            {([
+              { title: null, items: [
+                { key: 'bills', label: 'Bills', icon: ReceiptText, active: tab === 'bills', go: () => setTab('bills') },
+              ] },
+              { title: 'Money', items: [
+                { key: 'send', label: 'Send', icon: Send, active: tab === 'send', go: () => setTab('send') },
+                { key: 'bulk', label: 'Bulk send', icon: Users, active: tab === 'bulk', go: () => setTab('bulk') },
+                { key: 'receive', label: 'Receive', icon: QrCode, active: tab === 'receive', go: () => setTab('receive') },
+                { key: 'swap', label: 'Swap', icon: ArrowLeftRight, active: tab === 'swap', go: () => setTab('swap') },
+                { key: 'commit', label: 'Commit', icon: TrendingUp, active: tab === 'commit', go: () => setTab('commit') },
+              ] },
+              { title: 'Tools', items: [
+                { key: 'fairid', label: 'FairID', icon: AtSign, active: false, go: () => setTab('account') },
+                { key: 'veltra', label: 'Veltra', icon: VeltraIcon, active: false, go: () => window.dispatchEvent(new Event('veltra:open')) },
+              ] },
+              { title: 'Account', items: [
+                { key: 'account', label: 'Account', icon: CircleUserRound, active: tab === 'account', go: () => setTab('account') },
+                { key: 'help', label: 'Help', icon: LifeBuoy, active: false, go: () => { void navigate('/help') } },
+              ] },
+            ]).map((group, gi) => (
+              <div key={gi} className="flex flex-col gap-0.5">
+                {group.title && <p className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: 'var(--subtle)' }}>{group.title}</p>}
+                {group.items.map(({ key, label, icon: Icon, active, go }) => (
+                  <button key={key} onClick={go} aria-current={active ? 'page' : undefined}
+                    className="relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-left transition-colors"
+                    style={{ background: active ? 'var(--accent-light)' : 'transparent', color: active ? 'var(--accent)' : 'var(--ink-2)' }}>
+                    {active && <span aria-hidden className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full" style={{ background: 'var(--accent)' }} />}
+                    <Icon className="size-[18px] shrink-0" /> {label}
+                  </button>
+                ))}
+              </div>
+            ))}
 
-            {tab === 'bills' && (
-              <>
-
-                <motion.button onClick={() => setShowCreate(true)}
-                  className="flex items-center justify-center gap-2 rounded-2xl py-4 text-sm font-bold transition-all hover:scale-[1.02] active:scale-[0.98]"
-                  style={{ background: 'var(--accent-fill)', color: 'var(--accent-dark)' }}
-                  {...fadeUp} transition={{ delay: 0.12 }}>
-                  <Plus className="size-5" /> New Bill
-                </motion.button>
-              </>
-            )}
-
-            {/* Desktop balance card */}
-            {address && (
-              <BalanceCard
-                address={address}
-                onSend={() => setTab('send')}
-                onReceive={() => setTab('receive')}
-              />
-            )}
-
-            <p className="text-center text-xs" style={{ color: 'var(--subtle)' }}>
-              Settled onchain · {IS_MAINNET ? 'Arc Mainnet' : 'Arc Testnet'}
+            <p className="mt-1 flex items-center gap-2 px-3 pt-3 text-xs font-semibold" style={{ color: 'var(--muted)', borderTop: '1px solid var(--border)' }}>
+              <span className="size-2 rounded-full" style={{ background: 'var(--success)' }} />
+              {IS_MAINNET ? 'Arc Mainnet' : 'Arc Testnet'}
             </p>
           </aside>
 
@@ -1312,7 +1322,7 @@ export default function App() {
             </div>
 
             {isTradeTab && (
-              <div className="flex rounded-2xl overflow-hidden p-1 gap-1" role="tablist" aria-label="Trade"
+              <div className="md:hidden flex rounded-2xl overflow-hidden p-1 gap-1" role="tablist" aria-label="Trade"
                 style={{ background: 'var(--surface-strong)', border: '1px solid var(--border)' }}>
                 {([
                   { id: 'send',    label: 'Send',    icon: Send           },

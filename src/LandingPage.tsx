@@ -93,9 +93,9 @@ const PRODUCTS: Product[] = [
   {
     id: 'commit', label: 'Commit', icon: TrendingUp,
     title: 'Put idle USDC to work.',
-    intro: 'Commit spare USDC to Morpho lending vaults on Arc and watch your earnings grow live, block by block.',
+    intro: 'Commit spare USDC or EURC to Morpho lending vaults on Arc and watch your earnings grow live, block by block.',
     points: [
-      'Choose between the Steakhouse Prime USDC and Galaxy USDC vaults.',
+      'Choose from nine vaults for USDC or EURC, run by curators like Steakhouse, Galaxy, Gauntlet, Keyrock and Bitwise.',
       'Withdraw whenever the vault has funds free.',
       'Commit may carry a small one-time fee, shown before you confirm.',
     ],

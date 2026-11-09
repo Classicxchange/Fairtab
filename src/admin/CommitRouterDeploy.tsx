@@ -12,13 +12,12 @@ import { AlertTriangle, CheckCircle2, Copy, ExternalLink, Loader2, Rocket, Shiel
 import { arcMainnetChain, arcTestnetChain, IS_MAINNET } from '@/config'
 import { buildAddressExplorerUrl, getUsdc } from '@/onchain-facts'
 import { COMMIT_ROUTER_ADDRESS } from '@/commitRouter'
+import { COMMIT_VAULTS, EURC_ADDRESS, type VaultAsset } from '@/commitVaults'
 import artifact from '../../contracts/out/CommitRouter.sol/CommitRouter.json'
 
 const chain = IS_MAINNET ? arcMainnetChain : arcTestnetChain
-const CANONICAL_USDC = getUsdc(chain.id)?.address ?? ''
-const DEFAULT_VAULTS = IS_MAINNET
-  ? ['0xbeef0016cb2Fd5C352ea7CA08a9f54739DFa7298', '0x8E357432CC12ff425c36432F312968aEb16112AF']
-  : []
+const CANONICAL: Record<VaultAsset, string> = { USDC: getUsdc(chain.id)?.address ?? '', EURC: IS_MAINNET ? EURC_ADDRESS : '' }
+const defaultVaults = (a: VaultAsset): string[] => (IS_MAINNET ? COMMIT_VAULTS.filter(v => v.asset === a).map(v => v.address) : [])
 
 const card: React.CSSProperties = { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, boxShadow: 'var(--shadow)' }
 const input: React.CSSProperties = { background: 'var(--surface-muted)', border: '1px solid var(--border)', borderRadius: 12, color: 'var(--ink)' }
@@ -41,10 +40,11 @@ function withTimeout<T>(p: Promise<T>, ms: number, message: string): Promise<T> 
 }
 
 export function CommitRouterDeploySection({ adminAddress }: { adminAddress: string }) {
-  const [usdc, setUsdc] = useState(CANONICAL_USDC)
+  const [asset, setAsset] = useState<VaultAsset>('USDC')
+  const [usdc, setUsdc] = useState(CANONICAL.USDC)
   const [recipient, setRecipient] = useState('')
   const [bpsText, setBpsText] = useState('23')
-  const [vaultsText, setVaultsText] = useState(DEFAULT_VAULTS.join('\n'))
+  const [vaultsText, setVaultsText] = useState(defaultVaults('USDC').join('\n'))
   const [checks, setChecks] = useState<Check[]>([])
   const [checkedKey, setCheckedKey] = useState('')
   const [checking, setChecking] = useState(false)
@@ -82,16 +82,16 @@ export function CommitRouterDeploySection({ adminAddress }: { adminAddress: stri
       if (new Set(vaults.map(v => v.toLowerCase())).size !== vaults.length) out.push({ level: 'fail', text: 'A vault address is listed twice.' })
       if (out.some(c => c.level === 'fail')) { setChecks([...out]); return }
 
-      if (!CANONICAL_USDC) out.push({ level: 'fail', text: `Fairtab has no verified USDC address for ${chain.name}, so this deployment is blocked.` })
-      else if (usdc.toLowerCase() !== CANONICAL_USDC.toLowerCase()) out.push({ level: 'fail', text: `This is not the USDC address Fairtab expects on ${chain.name} (${CANONICAL_USDC}). Deployment is blocked.` })
-      else out.push({ level: 'ok', text: `USDC address matches the one Fairtab expects on ${chain.name}.` })
+      if (!CANONICAL[asset]) out.push({ level: 'fail', text: `Fairtab has no verified ${asset} address for ${chain.name}, so this deployment is blocked.` })
+      else if (usdc.toLowerCase() !== CANONICAL[asset].toLowerCase()) out.push({ level: 'fail', text: `This is not the ${asset} address Fairtab expects on ${chain.name} (${CANONICAL[asset]}). Deployment is blocked.` })
+      else out.push({ level: 'ok', text: `${asset} address matches the one Fairtab expects on ${chain.name}.` })
 
       try {
         const [sym, dec] = await Promise.all([
           client.readContract({ address: usdc as `0x${string}`, abi: tokenAbi, functionName: 'symbol' }),
           client.readContract({ address: usdc as `0x${string}`, abi: tokenAbi, functionName: 'decimals' }),
         ])
-        out.push({ level: sym === 'USDC' && dec === 6 ? 'ok' : 'fail', text: `Token reports symbol ${sym} and ${dec} decimals${sym === 'USDC' && dec === 6 ? '.' : ' (expected USDC with 6).'}` })
+        out.push({ level: sym === asset && dec === 6 ? 'ok' : 'fail', text: `Token reports symbol ${sym} and ${dec} decimals${sym === asset && dec === 6 ? '.' : ` (expected ${asset} with 6).`}` })
       } catch { out.push({ level: 'fail', text: 'The USDC address did not answer symbol() and decimals().' }) }
 
       for (const v of vaults) {
@@ -100,18 +100,18 @@ export function CommitRouterDeploySection({ adminAddress }: { adminAddress: stri
             client.readContract({ address: v as `0x${string}`, abi: vaultAbi, functionName: 'asset' }),
             client.readContract({ address: v as `0x${string}`, abi: vaultAbi, functionName: 'name' }),
           ])
-          out.push({ level: asset.toLowerCase() === usdc.toLowerCase() ? 'ok' : 'fail', text: `Vault ${v.slice(0, 8)}…${v.slice(-4)} is "${name}" and ${asset.toLowerCase() === usdc.toLowerCase() ? 'holds USDC.' : 'does NOT hold this USDC.'}` })
+          out.push({ level: asset.toLowerCase() === usdc.toLowerCase() ? 'ok' : 'fail', text: `Vault ${v.slice(0, 8)}…${v.slice(-4)} is "${name}" and ${asset.toLowerCase() === usdc.toLowerCase() ? `holds ${asset}.` : `does NOT hold this ${asset}.`}` })
         } catch { out.push({ level: 'fail', text: `Vault ${v} did not answer asset() and name(). It is not a supported vault.` }) }
         if (v.toLowerCase() === recipient.toLowerCase()) out.push({ level: 'fail', text: 'The fee recipient cannot be one of the vaults.' })
       }
 
       const rec = recipient.toLowerCase()
-      if (rec === usdc.toLowerCase()) out.push({ level: 'fail', text: 'The fee recipient cannot be the USDC token itself.' })
+      if (rec === usdc.toLowerCase()) out.push({ level: 'fail', text: `The fee recipient cannot be the ${asset} token itself.` })
       if (BigInt(recipient) < 0x10000n) out.push({ level: 'fail', text: 'The fee recipient looks like a system or precompile address. Use a normal wallet.' })
       try {
         const bl = await client.readContract({ address: usdc as `0x${string}`, abi: tokenAbi, functionName: 'isBlacklisted', args: [recipient as `0x${string}`] })
-        out.push({ level: bl ? 'fail' : 'ok', text: bl ? 'The fee recipient is blocklisted by the USDC issuer. Commits would fail forever.' : 'The fee recipient is not blocklisted right now.' })
-      } catch { out.push({ level: 'warn', text: 'Could not check the USDC blocklist. If the recipient is ever blocklisted, every commit fails and cannot be fixed.' }) }
+        out.push({ level: bl ? 'fail' : 'ok', text: bl ? `The fee recipient is blocklisted by the ${asset} issuer. Commits would fail forever.` : 'The fee recipient is not blocklisted right now.' })
+      } catch { out.push({ level: 'warn', text: `Could not check the ${asset} blocklist. If the recipient is ever blocklisted, every commit fails and cannot be fixed.` }) }
       out.push({ level: 'warn', text: 'The fee, recipient and vault list are fixed forever once deployed. Deployed vaults can still change how they behave, so only list vaults you have reviewed.' })
     } catch (e) {
       out.push({ level: 'fail', text: `Checks failed: ${e instanceof Error ? e.message.slice(0, 160) : String(e)}` })
@@ -184,7 +184,17 @@ export function CommitRouterDeploySection({ adminAddress }: { adminAddress: stri
       )}
       <div className="p-5 rounded-2xl flex flex-col gap-4" style={card}>
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>USDC token address</label>
+          <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Token this router handles</label>
+          <div className="flex gap-2">
+            {(['USDC', 'EURC'] as const).map(a => (
+              <button key={a} type="button" disabled={lock} onClick={() => { setAsset(a); setUsdc(CANONICAL[a]); setVaultsText(defaultVaults(a).join('\n')); setChecks([]) }}
+                className="rounded-full px-4 py-1.5 text-xs font-bold"
+                style={{ background: asset === a ? 'var(--accent-fill)' : 'var(--surface-muted)', color: asset === a ? '#fff' : 'var(--ink-2)', border: '1px solid var(--border)' }}>{a} router</button>
+            ))}
+          </div>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>{asset} token address</label>
           <input value={usdc} disabled={lock} onChange={e => { setUsdc(e.target.value.trim()); setChecks([]) }} className="mono rounded-xl px-4 py-2.5 text-sm outline-none" style={input} />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -228,7 +238,7 @@ export function CommitRouterDeploySection({ adminAddress }: { adminAddress: stri
           <a href={buildAddressExplorerUrl(chain.id, deployed)} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs" style={{ color: 'var(--accent)', textDecoration: 'none' }}><ExternalLink className="size-3" /> View on the explorer</a>
           <div className="flex flex-col gap-2">{verify.map(c => (<div key={c.text} className="flex items-start gap-2 text-xs mono break-all" style={{ color: 'var(--ink-2)' }}>{icon(c.level)}<span>{c.text}</span></div>))}</div>
           {!verifyFailed && verify.length > 0 && !verify.some(c => c.level === 'fail') && (
-            <p className="text-xs" style={{ color: 'var(--muted)' }}>Next: in Vercel, set <span className="mono">VITE_COMMIT_ROUTER_ADDRESS</span> to this address (Production) and redeploy. The Commit tab then charges the fee. Test with a small amount first.</p>
+            <p className="text-xs" style={{ color: 'var(--muted)' }}>Next: in Vercel, set <span className="mono">{asset === 'USDC' ? 'VITE_COMMIT_ROUTER_ADDRESS' : 'VITE_COMMIT_ROUTER_EURC_ADDRESS'}</span> to this address (Production) and redeploy. The Commit tab then charges the fee. Test with a small amount first.</p>
           )}
         </div>
       )}
