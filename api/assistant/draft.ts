@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { createPublicClient, http, parseAbi } from 'viem'
 
 /**
  * Bill assistant: turns a plain-English description into a DRAFT bill.
@@ -229,13 +230,58 @@ const MAX_REPLY_CHARS = 1000
 const BILL_CONTRACT_MAINNET = '0xcd1dcf79d9bbf3246a21da10aecabde66fb47d08'
 const FAIRID_MAINNET_DEFAULT = '0x7B8574866272b19aA4cBF95033f1399f636bef3F'
 
+
+// ── Which Commit vaults carry a Fairtab fee right now (read from the deployed routers, cached) ──
+const COMMIT_VAULT_LIST: Array<{ name: string; address: `0x${string}`; asset: 'USDC' | 'EURC' }> = [
+  { name: 'Gauntlet USDC Balanced', address: '0x10AF7238C6355Aa8dDB5eD60E2e9b55a72827B51', asset: 'USDC' },
+  { name: 'Bitwise Premium RWA USDC', address: '0x7610094B846657dCF166D59e42973db52c7015F9', asset: 'USDC' },
+  { name: 'Steakhouse Prime USDC', address: '0xbeef0016cb2Fd5C352ea7CA08a9f54739DFa7298', asset: 'USDC' },
+  { name: 'Galaxy USDC', address: '0x8E357432CC12ff425c36432F312968aEb16112AF', asset: 'USDC' },
+  { name: 'Gauntlet USDC Prime', address: '0xdECcd53BE5453215821184824B519E04C7e00bC7', asset: 'USDC' },
+  { name: 'Keyrock Prime USDC', address: '0x5bEfAb92a5A3D60F578Cb51EEb4e4FD50a1e3123', asset: 'USDC' },
+  { name: 'Steakhouse Prime EURC', address: '0xbeef00be37BdE921BAE06fad223125BAB16c41D1', asset: 'EURC' },
+  { name: 'Gauntlet EURC Prime', address: '0x05863F54B05e96092069eF30c9Ca6060336e50B9', asset: 'EURC' },
+  { name: 'Galaxy EURC', address: '0x389abDf4355e0cF4f19298179991705a98f21c18', asset: 'EURC' },
+]
+let feeVaults: { at: number; names: string[]; bps: number | null } | null = null
+async function refreshFeeVaults(): Promise<void> {
+  if (feeVaults && Date.now() - feeVaults.at < 5 * 60_000) return
+  const env = (k: string) => (process.env[k] ?? '').trim()
+  const routers: Record<'USDC' | 'EURC', string> = { USDC: env('VITE_COMMIT_ROUTER_ADDRESS'), EURC: env('VITE_COMMIT_ROUTER_EURC_ADDRESS') }
+  const ok = (v: string) => /^0x[a-fA-F0-9]{40}$/.test(v)
+  const abi = parseAbi(['function isAllowedVault(address) view returns (bool)', 'function feeBps() view returns (uint16)'])
+  const client = createPublicClient({ transport: http('https://rpc.mainnet.arc.io') })
+  const names: string[] = []
+  let bps: number | null = null
+  try {
+    for (const asset of ['USDC', 'EURC'] as const) {
+      const router = routers[asset]
+      if (!ok(router)) continue
+      const addr = router as `0x${string}`
+      if (bps === null) bps = Number(await client.readContract({ address: addr, abi, functionName: 'feeBps' }))
+      const flags = await Promise.all(COMMIT_VAULT_LIST.filter(v => v.asset === asset).map(async v => ({
+        v, allowed: await client.readContract({ address: addr, abi, functionName: 'isAllowedVault', args: [v.address] }).catch(() => false),
+      })))
+      for (const f of flags) if (f.allowed) names.push(f.v.name)
+    }
+    feeVaults = { at: Date.now(), names, bps }
+  } catch {
+    // keep any earlier answer; otherwise stay generic
+  }
+}
+
 function fairtabFacts(): string {
   const fairId = (process.env.VITE_FAIRID_MAINNET_ADDRESS ?? '').trim()
   const router = (process.env.VITE_COMMIT_ROUTER_ADDRESS ?? '').trim()
   const isAddr = (v: string) => /^0x[a-fA-F0-9]{40}$/.test(v)
-  const commitFee = isAddr(router)
-    ? "Committing to some vaults carries a one-time Fairtab fee (0.23%), always shown before you confirm; other vaults have no Fairtab fee. Withdrawing is free."
-    : "Committing currently carries no Fairtab fee. Withdrawing is free."
+  const feePct = feeVaults?.bps != null ? `${(feeVaults.bps / 100).toFixed(2)}%` : '0.23%'
+  const commitFee = feeVaults
+    ? (feeVaults.names.length > 0
+      ? `Fairtab charges a one-time ${feePct} fee when you commit to these vaults: ${feeVaults.names.join(', ')}. Every other vault has no Fairtab fee. The fee is always shown before you confirm and withdrawing is free.`
+      : "Committing currently carries no Fairtab fee on any vault. Withdrawing is free.")
+    : (isAddr(router)
+      ? "Committing to some vaults carries a one-time Fairtab fee (0.23%), always shown before you confirm; other vaults have no Fairtab fee. Withdrawing is free."
+      : "Committing currently carries no Fairtab fee. Withdrawing is free.")
   return [
   "ABOUT FAIRTAB:",
   "Fairtab splits shared bills in USDC on Arc Mainnet and also lets people send, receive, swap and commit USDC. It is real money and transactions cannot be reversed. Recommend small amounts first. The contracts have had internal reviews, not an independent audit.",
@@ -280,7 +326,7 @@ function fairtabFacts(): string {
   "",
   "COMMIT:",
   "Commit (under Trade) puts idle USDC or EURC into a Morpho lending vault on Arc. There are nine vaults: Gauntlet USDC Balanced, Bitwise Premium RWA USDC, Steakhouse Prime USDC, Galaxy USDC, Gauntlet USDC Prime, Keyrock Prime USDC, Steakhouse Prime EURC, Gauntlet EURC Prime and Galaxy EURC. Each card shows its current APY and how much is supplied; 'Low liquidity' means little can be withdrawn right now. Money goes straight from your wallet into the vault and Fairtab never holds it. Your earnings are shown live and update every block. " + commitFee,
-  "Each deposit must be between 0.10 and 1,000 USDC. Yield changes and is not guaranteed. You can lose money if a borrower or the vault fails. Most of a vault's USDC is lent out, so if many people withdraw you may have to wait until borrowers repay.",
+  "Each deposit must be between 0.10 and 1,000 of the vault's token (USDC or EURC). Click a vault card to open a side panel with Commit and Withdraw tabs, your live earnings, and how much can be withdrawn right now. The banner at the top shows the best current rate among vaults with funds available to withdraw. Yield changes and is not guaranteed. You can lose money if a borrower or the vault fails. Most of a vault's USDC is lent out, so if many people withdraw you may have to wait until borrowers repay.",
   "",
   "VELTRA (you):",
   "Veltra is the Fairtab assistant. It answers questions and prepares a bill draft, a send or a swap, or opens a screen. It never signs or sends anything; the user reviews and confirms on the normal screen. It only uses wallet addresses and names the user typed, and amounts are calculated by code. It runs on a third-party AI service, so its answers are not financial advice.",
@@ -457,6 +503,7 @@ async function handleChat(req: VercelRequest, res: VercelResponse, apiKey: strin
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 25_000)
   try {
+    await refreshFeeVaults()
     const content = await callLlm(apiKey, [{ role: 'system', content: chatSystemPrompt(today) }, ...history], controller.signal)
     if (!content) return res.status(502).json({ error: 'Veltra is unavailable right now. Please try again.' })
     let parsed: { reply?: unknown; action?: unknown }
