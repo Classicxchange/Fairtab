@@ -62,12 +62,14 @@ export function CommitVaultSheet({ vault, live, liveFailed, onClose }: { vault: 
 
   // Deposits go through the Fairtab router only if it was deployed with this vault; otherwise straight to the vault
   const routerCandidate = COMMIT_ROUTER_BY_ASSET[symbol]
-  const { data: routerAllows } = useReadContract({
+  const { data: routerAllows, isError: routerCheckFailed } = useReadContract({
     address: routerCandidate, abi: COMMIT_ROUTER_ABI, functionName: 'isAllowedVault', args: [vault.address], chainId: CHAIN_ID,
     query: { enabled: !!routerCandidate },
   })
   const router = routerCandidate && routerAllows === true ? routerCandidate : undefined
   const spender = router ?? vault.address
+  // Wait until we know whether this vault goes through the fee router, so an approval is never given to the wrong address
+  const routerReady = !routerCandidate || routerAllows !== undefined || routerCheckFailed
 
   const { data: history } = useQuery({
     queryKey: ['commit-history', address, vault.address],
@@ -144,7 +146,7 @@ export function CommitVaultSheet({ vault, live, liveFailed, onClose }: { vault: 
     else if (amount > myCommitted) problem = 'That is more than you have committed.'
     else if (liquidity !== null && amount > liquidity) problem = `Only ${fmt(liquidity)} ${symbol} can be withdrawn from this vault right now.`
   }
-  const canGo = !!address && amount !== null && !problem && !busy && amount > 0n
+  const canGo = !!address && amount !== null && !problem && !busy && amount > 0n && routerReady
 
   const go = () => {
     if (!address || !token || amount === null) return
@@ -246,6 +248,7 @@ export function CommitVaultSheet({ vault, live, liveFailed, onClose }: { vault: 
 
             <button disabled={!canGo} onClick={go} className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-40" style={{ background: 'var(--accent-fill)', color: '#fff' }}>
               {busy ? <><Loader2 className="size-4 animate-spin" /> Confirming…</>
+                : !routerReady ? 'Checking fee…'
                 : mode === 'withdraw' ? 'Withdraw'
                 : needsApprove ? 'Step 1 of 2: allow this amount' : 'Commit'}
             </button>
