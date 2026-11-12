@@ -866,20 +866,22 @@ export default function App() {
   }, [location.pathname, urlParams])
 
   // Open a bill: navigate to /bill/<id>
+  // The /bill/<id> link only opens a bill once, when the page loads. After you open or close any bill yourself,
+  // the address bar must never reopen an older one (wallet browsers like OKX apply history changes late).
+  const [deepLinkHandled, setDeepLinkHandled] = useState(false)
   const openBill = useCallback((bill: BillSummary, myStatus: ParticipantStatus | undefined) => {
+    setDeepLinkHandled(true)
     void navigate(`/bill/${bill.id.toString()}?contract=${CONTRACT_ADDRESS}`)
     setSelectedBill({ bill, myStatus })
   }, [navigate])
 
   // Close the detail page: go back, or fall back to /app
   const closeBill = useCallback(() => {
+    setDeepLinkHandled(true)
     setSelectedBill(null)
-    const histState = window.history.state as { idx?: number } | null
-    if ((histState?.idx ?? 0) > 0) {
-      void navigate(-1)
-    } else {
-      void navigate('/app', { replace: true })
-    }
+    // Always go straight to the bills list. Stepping back through history is asynchronous in wallet browsers and
+    // could land on the bill you just handled while you are already opening the next one.
+    void navigate('/app', { replace: true })
   }, [navigate])
 
   // Sync selectedBill when navigating back past a bill URL (e.g. browser back)
@@ -1516,7 +1518,7 @@ export default function App() {
                   ) : (
                     <>
                       {/* Hidden auto-opener for deep-linked bills not on current page */}
-                      {deepLinkBillId !== null && !ids.includes(deepLinkBillId) && (
+                      {deepLinkBillId !== null && !deepLinkHandled && !ids.includes(deepLinkBillId) && (
                         <div style={{ display: 'none' }}>
                           <BillLoader
                             id={deepLinkBillId} filter="all" address={address}
@@ -1547,7 +1549,7 @@ export default function App() {
                               onVisible={handleBillVisible} onInvite={handleInviteBill}
                               onOpen={openBill}
                               isLast={i === ids.length - 1}
-                              autoOpen={deepLinkBillId === id}
+                              autoOpen={!deepLinkHandled && deepLinkBillId === id}
                             />
                           </div>
                         ))}
