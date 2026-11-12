@@ -83,6 +83,15 @@ function decodeBill(
   return { id, creator, payee, totalAmount, amountPaid, status, deadline, recurring, recurInterval, cancelThreshold, cancelVotes, shares, label: bytes32ToLabel(labelHex), payoutRedirectVoteCount }
 }
 
+/** Runs `fn` once each time `success` turns true (never again on later renders), so toasts and refreshes fire a single time */
+function useOnSuccess(success: boolean, fn: () => void) {
+  const fired = useRef(false)
+  useEffect(() => {
+    if (success && !fired.current) { fired.current = true; fn() }
+    if (!success) fired.current = false
+  })
+}
+
 function useNow(intervalMs = 30_000) {
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000))
   useEffect(() => {
@@ -234,8 +243,8 @@ function PayPanel({ bill, onPaid }: { bill: BillSummary; onPaid: (hash?: `0x${st
 
   const ensureChain = useCallback(() => { if (wrongChain) switchChain({ chainId: CHAIN_ID }); return !wrongChain }, [wrongChain, switchChain])
 
-  if (approveSuccess && !approveDone) { setApproveDone(true); void refetchAllowance() }
-  if (paySuccess) { onPaid(payHash); toast.success('Payment confirmed'); setPayInput(''); setApproveDone(false); resetPay() }
+  useOnSuccess(approveSuccess, () => { setApproveDone(true); void refetchAllowance() })
+  useOnSuccess(paySuccess, () => { onPaid(payHash); toast.success('Payment confirmed'); setPayInput(''); setApproveDone(false); resetPay() })
 
   if (!myShare || myRemaining <= 0n) return null
 
@@ -397,8 +406,8 @@ export function BillDetailPage({ bill: initialBill, myParticipantStatus: initial
   const { writeContract: writeDecline, data: declineHash, isPending: declinePending } = useWriteContract()
   const { isLoading: declineConfirming, isSuccess: declineSuccess } = useWaitForTransactionReceipt({ hash: declineHash })
 
-  if (acceptSuccess && !acceptedLocally) { setAcceptedLocally(true); refetchAll(); toast.success('Bill accepted!') }
-  if (declineSuccess && !declinedLocally) { setDeclinedLocally(true); refetchAll(); onBack(); toast.success('Bill declined') }
+  useOnSuccess(acceptSuccess, () => { setAcceptedLocally(true); refetchAll(); toast.success('Bill accepted!') })
+  useOnSuccess(declineSuccess, () => { setDeclinedLocally(true); refetchAll(); onBack(); toast.success('Bill declined') })
 
   // Expire invite
   const { writeContract: writeExpire, data: expireHash, isPending: expirePending } = useWriteContract()
@@ -409,22 +418,22 @@ export function BillDetailPage({ bill: initialBill, myParticipantStatus: initial
     setExpiringParticipant(participant)
     writeExpire({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'expireInvite', args: [bill.id, participant] })
   }, [ensureChain, bill.id, writeExpire])
-  if (expireSuccess) { refetchAll(); setExpiringParticipant(null); toast.success('Expired invite removed') }
+  useOnSuccess(expireSuccess, () => { refetchAll(); setExpiringParticipant(null); toast.success('Expired invite removed') })
 
   // Vote cancel
   const { writeContract: writeVote, data: voteHash, isPending: votePending } = useWriteContract()
   const { isLoading: voteConfirming, isSuccess: voteSuccess } = useWaitForTransactionReceipt({ hash: voteHash })
-  if (voteSuccess) { refetchAll(); toast.success('Cancel vote submitted') }
+  useOnSuccess(voteSuccess, () => { refetchAll(); toast.success('Cancel vote submitted') })
 
   // Claim payout
   const { writeContract: writeClaim, data: claimHash, isPending: claimPending } = useWriteContract()
   const { isLoading: claimConfirming, isSuccess: claimSuccess } = useWaitForTransactionReceipt({ hash: claimHash })
-  if (claimSuccess) { refetchAll(); toast.success('Payout claimed!') }
+  useOnSuccess(claimSuccess, () => { refetchAll(); toast.success('Payout claimed!') })
 
   // Expired refund
   const { writeContract: writeExpiredRefund, data: expiredHash, isPending: expiredPending } = useWriteContract()
   const { isLoading: expiredConfirming, isSuccess: expiredSuccess } = useWaitForTransactionReceipt({ hash: expiredHash })
-  if (expiredSuccess) { refetchAll(); toast.success('Refund claimed!') }
+  useOnSuccess(expiredSuccess, () => { refetchAll(); toast.success('Refund claimed!') })
 
   // Add participant
   const [showAddParticipant, setShowAddParticipant] = useState(false)
@@ -439,7 +448,7 @@ export function BillDetailPage({ bill: initialBill, myParticipantStatus: initial
     const amtRaw = parseUnits(amt.toFixed(usdcDecimalsFor(CHAIN_ID)), usdcDecimalsFor(CHAIN_ID))
     writeAddParticipant({ address: CONTRACT_ADDRESS, abi: CONTRACT_ABI, functionName: 'addParticipant', args: [bill.id, newParticipantAddr as `0x${string}`, amtRaw] })
   }, [ensureChain, bill.id, newParticipantAddr, newParticipantAmt, writeAddParticipant])
-  if (addPartSuccess) { refetchAll(); setShowAddParticipant(false); setNewParticipantAddr(''); setNewParticipantAmt(''); toast.success('Participant invited') }
+  useOnSuccess(addPartSuccess, () => { refetchAll(); setShowAddParticipant(false); setNewParticipantAddr(''); setNewParticipantAmt(''); toast.success('Participant invited') })
 
   // Share / copy link — canonical URL is /bill/<id>?contract=<contractAddress>
   const [copied, setCopied] = useState(false)
