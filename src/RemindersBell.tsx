@@ -41,7 +41,7 @@ export function RemindersBell({ notices, onOpenBill, onOpened }: {
       </button>
 
       {open && (
-        <div className="absolute right-0 z-50 mt-2 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-2xl"
+        <div className="fixed inset-x-3 top-[4.5rem] z-50 mx-auto max-w-sm overflow-hidden rounded-2xl md:absolute md:inset-auto md:right-0 md:top-auto md:mx-0 md:mt-2 md:w-80 md:max-w-none"
           style={{ background: 'var(--popover)', border: '1px solid var(--border-strong)', boxShadow: 'var(--shadow-lg)' }}>
           <p className="px-4 py-3 text-sm font-bold" style={{ color: 'var(--ink)', borderBottom: '1px solid var(--border)' }}>Reminders</p>
           <div className="max-h-[60dvh] overflow-y-auto">
