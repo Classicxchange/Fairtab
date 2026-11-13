@@ -178,6 +178,7 @@ function jumpTo(id: string) {
 const NAV = [
   { id: 'bills', label: 'Bills' },
   { id: 'send', label: 'Send' },
+  { id: 'receive', label: 'Receive' },
   { id: 'swap', label: 'Swap' },
   { id: 'commit', label: 'Commit' },
   { id: 'fairid', label: 'FairID' },
@@ -208,17 +209,17 @@ export function LandingPage({ onGetStarted, signedIn = false, dark, onToggleDark
             <span className="display text-xl font-bold tracking-tight" style={{ color: 'var(--ink)' }}>Fairtab</span>
           </button>
 
-          <nav aria-label="Fairtab features" className="mx-auto hidden items-center gap-1 lg:flex">
+          <nav aria-label="Fairtab features" className="mx-auto hidden items-center gap-1 xl:flex">
             {NAV.map(({ id, label }) => (
               <a key={id} href={`#${id}`} onClick={e => { e.preventDefault(); jumpTo(id) }}
-                className="rounded-lg px-3.5 py-2 text-[15px] font-medium transition-colors hover:opacity-70" style={{ color: 'var(--ink-2)' }}>
+                className="rounded-lg px-3 py-2 text-[14.5px] font-medium transition-colors hover:opacity-70" style={{ color: 'var(--ink-2)' }}>
                 {label}
               </a>
             ))}
-            <a href="/help" className="rounded-lg px-3.5 py-2 text-[15px] font-medium transition-colors hover:opacity-70" style={{ color: 'var(--ink-2)' }}>FAQ</a>
+            <a href="/help" className="rounded-lg px-3 py-2 text-[14.5px] font-medium transition-colors hover:opacity-70" style={{ color: 'var(--ink-2)' }}>FAQ</a>
           </nav>
 
-          <div className="ml-auto flex items-center gap-2 lg:ml-0">
+          <div className="ml-auto flex items-center gap-2 xl:ml-0">
             <a href="https://x.com/fairtab_xyz" target="_blank" rel="noopener noreferrer" aria-label="Fairtab on X" title="Fairtab on X"
               className="hidden size-10 items-center justify-center rounded-xl transition-opacity hover:opacity-70 sm:flex" style={{ color: 'var(--ink)' }}>
               <XLogo />
@@ -234,7 +235,7 @@ export function LandingPage({ onGetStarted, signedIn = false, dark, onToggleDark
               {cta} <ArrowRight className="size-4" />
             </button>
             <button onClick={() => setMenu(m => !m)} aria-label={menu ? 'Close menu' : 'Open menu'} aria-expanded={menu}
-              className="flex size-10 items-center justify-center rounded-xl lg:hidden"
+              className="flex size-10 items-center justify-center rounded-xl xl:hidden"
               style={{ background: 'var(--surface-strong)', border: '1px solid var(--border)', color: 'var(--ink-2)' }}>
               {menu ? <CloseIcon className="size-5" /> : <Menu className="size-5" />}
             </button>
@@ -242,7 +243,7 @@ export function LandingPage({ onGetStarted, signedIn = false, dark, onToggleDark
         </div>
 
         {menu && (
-          <div className="border-t px-5 pb-5 pt-3 lg:hidden" style={{ borderColor: 'var(--border)' }}>
+          <div className="border-t px-5 pb-5 pt-3 xl:hidden" style={{ borderColor: 'var(--border)' }}>
             <div className="mx-auto grid max-w-6xl grid-cols-2 gap-2">
               {NAV.map(({ id, label }) => (
                 <a key={id} href={`#${id}`} onClick={e => { e.preventDefault(); setMenu(false); jumpTo(id) }}
