@@ -66,6 +66,8 @@ const mainnetConfig = createConfig(
   getDefaultConfig({
     appName: 'Fairtab',
     walletConnectProjectId: wcProjectId,
+    // The Aave Account sign-in option is not used by Fairtab and throws an unhandled error on every page load
+    enableAaveAccount: false,
     chains: [arcMainnetChain, base, mainnet],
     transports: {
       [arcMainnetChain.id]: http('https://rpc.mainnet.arc.io'),
@@ -79,6 +81,8 @@ const testnetConfig = createConfig(
   getDefaultConfig({
     appName: 'Fairtab',
     walletConnectProjectId: wcProjectId,
+    // The Aave Account sign-in option is not used by Fairtab and throws an unhandled error on every page load
+    enableAaveAccount: false,
     chains: [arcTestnetChain, baseSepolia, arbitrumSepolia, sepolia, mainnet],
     transports: {
       [arcTestnetChain.id]:  http('https://rpc.testnet.arc.io'),
