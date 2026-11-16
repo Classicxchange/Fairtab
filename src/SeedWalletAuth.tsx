@@ -304,7 +304,7 @@ function PasswordInput({
         onChange={e => onChange(e.target.value)}
         onKeyDown={e => e.key === 'Enter' && onEnter?.()}
         placeholder={placeholder ?? 'Password'}
-        className="w-full rounded-xl px-4 py-3 pr-11 text-sm outline-none"
+        className="w-full rounded-xl px-4 py-3 pr-11 text-base sm:text-sm outline-none"
         style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(90,160,255,0.14)', color: 'var(--ink)' }}
         autoComplete="new-password"
       />
@@ -698,7 +698,7 @@ export function SeedWalletAuth({ session, onSignedIn, onSignOut, uid }: Props) {
               value={importInput}
               onChange={e => setImportInput(e.target.value)}
               placeholder="word1 word2 word3 …"
-              className="w-full rounded-xl px-4 py-3 text-sm outline-none resize-none font-mono"
+              className="w-full rounded-xl px-4 py-3 text-base sm:text-sm outline-none resize-none font-mono"
               style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(90,160,255,0.14)', color: 'var(--ink)' }}
               autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
             />

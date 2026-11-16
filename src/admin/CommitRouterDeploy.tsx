@@ -195,19 +195,19 @@ export function CommitRouterDeploySection({ adminAddress }: { adminAddress: stri
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>{asset} token address</label>
-          <input value={usdc} disabled={lock} onChange={e => { setUsdc(e.target.value.trim()); setChecks([]) }} className="mono rounded-xl px-4 py-2.5 text-sm outline-none" style={input} />
+          <input value={usdc} disabled={lock} onChange={e => { setUsdc(e.target.value.trim()); setChecks([]) }} className="mono rounded-xl px-4 py-2.5 text-base sm:text-sm outline-none" style={input} />
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Fee recipient (you choose, no default)</label>
-          <input value={recipient} disabled={lock} onChange={e => { setRecipient(e.target.value.trim()); setChecks([]) }} placeholder="0x… wallet that receives every fee" className="mono rounded-xl px-4 py-2.5 text-sm outline-none" style={input} />
+          <input value={recipient} disabled={lock} onChange={e => { setRecipient(e.target.value.trim()); setChecks([]) }} placeholder="0x… wallet that receives every fee" className="mono rounded-xl px-4 py-2.5 text-base sm:text-sm outline-none" style={input} />
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Fee in basis points (23 = 0.23%, max 100)</label>
-          <input value={bpsText} disabled={lock} onChange={e => { setBpsText(e.target.value); setChecks([]) }} inputMode="numeric" className="rounded-xl px-4 py-2.5 text-sm outline-none" style={input} />
+          <input value={bpsText} disabled={lock} onChange={e => { setBpsText(e.target.value); setChecks([]) }} inputMode="numeric" className="rounded-xl px-4 py-2.5 text-base sm:text-sm outline-none" style={input} />
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Allowed vaults (one address per line)</label>
-          <textarea value={vaultsText} disabled={lock} onChange={e => { setVaultsText(e.target.value); setChecks([]) }} rows={3} className="mono rounded-xl px-4 py-2.5 text-xs outline-none" style={input} />
+          <textarea value={vaultsText} disabled={lock} onChange={e => { setVaultsText(e.target.value); setChecks([]) }} rows={3} className="mono rounded-xl px-4 py-2.5 text-base sm:text-xs outline-none" style={input} />
         </div>
         <button onClick={() => { void runChecks() }} disabled={checking || deploying} className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-50" style={{ background: 'var(--accent-fill)', color: '#fff' }}>
           {checking ? <><Loader2 className="size-4 animate-spin" /> Checking…</> : <><ShieldCheck className="size-4" /> Check these settings</>}
@@ -221,7 +221,7 @@ export function CommitRouterDeploySection({ adminAddress }: { adminAddress: stri
       <div className="p-5 rounded-2xl flex flex-col gap-3" style={card}>
         <p className="text-sm font-bold" style={{ color: 'var(--ink)' }}>Deploy</p>
         <p className="text-xs" style={{ color: 'var(--muted)' }}>Type <span className="mono font-bold">DEPLOY</span> to confirm. Your wallet will then ask you to sign from {adminAddress.slice(0, 8)}…{adminAddress.slice(-6)}.</p>
-        <input value={confirmText} onChange={e => setConfirmText(e.target.value)} placeholder="DEPLOY" className="mono rounded-xl px-4 py-2.5 text-sm outline-none" style={input} />
+        <input value={confirmText} onChange={e => setConfirmText(e.target.value)} placeholder="DEPLOY" className="mono rounded-xl px-4 py-2.5 text-base sm:text-sm outline-none" style={input} />
         <button onClick={() => { void handleDeploy() }} disabled={!canDeploy} className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-40" style={{ background: 'var(--accent-fill)', color: '#fff' }}>
           {deploying ? <><Loader2 className="size-4 animate-spin" /> {stage || 'Working…'}</> : <><Rocket className="size-4" /> Deploy Commit router</>}
         </button>

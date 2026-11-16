@@ -275,7 +275,7 @@ function PasswordInput({ value, onChange, placeholder, onEnter }: {
         onChange={e => onChange(e.target.value)}
         onKeyDown={e => e.key === 'Enter' && onEnter?.()}
         placeholder={placeholder ?? 'Password'}
-        className="w-full rounded-xl px-4 py-3 pr-11 text-sm outline-none"
+        className="w-full rounded-xl px-4 py-3 pr-11 text-base sm:text-sm outline-none"
         style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)', color: 'var(--ink)' }}
         autoComplete="current-password"
       />
@@ -353,7 +353,7 @@ export function TOTPSetup({ onDone }: { onDone: () => void }) {
               </p>
               <input value={email} onChange={e => setEmail(e.target.value)} type="email"
                 placeholder="you@gmail.com"
-                className="w-full rounded-xl px-4 py-3 text-sm outline-none"
+                className="w-full rounded-xl px-4 py-3 text-base sm:text-sm outline-none"
                 style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)', color: 'var(--ink)' }} />
             </div>
             <div>
@@ -523,7 +523,7 @@ export function EmailRecoverySetup({ onDone }: { onDone: () => void }) {
         <p className="text-xs font-medium mb-1.5" style={{ color: 'var(--muted)' }}>Email address (label only)</p>
         <input value={email} onChange={e => setEmail(e.target.value)} type="email"
           placeholder="you@gmail.com"
-          className="w-full rounded-xl px-4 py-3 text-sm outline-none"
+          className="w-full rounded-xl px-4 py-3 text-base sm:text-sm outline-none"
           style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)', color: 'var(--ink)' }} />
       </div>
       <div>
@@ -830,7 +830,7 @@ export function ForgotPhraseFlow({ onRecovered, onCancel }: ForgotPhraseProps) {
                 onKeyDown={e => e.key === 'Enter' && void handleEmail()}
                 type={showKey ? 'text' : 'password'}
                 placeholder="Paste recovery key"
-                className="w-full rounded-xl px-4 py-3 pr-11 mono text-xs outline-none"
+                className="w-full rounded-xl px-4 py-3 pr-11 mono text-base sm:text-xs outline-none"
                 style={{ background: 'var(--surface-muted)', border: `1px solid ${err ? 'var(--danger)' : 'var(--border)'}`, color: 'var(--ink)', letterSpacing: '0.04em' }}
               />
               <button type="button" onClick={() => setShowKey(s => !s)}

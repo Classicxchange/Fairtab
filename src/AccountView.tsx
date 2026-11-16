@@ -461,7 +461,7 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
             type="email" value={email} onChange={e => setEmail(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') void handleEmailSignIn() }}
             placeholder="you@example.com" autoFocus
-            className="rounded-xl px-4 py-3 text-sm outline-none"
+            className="rounded-xl px-4 py-3 text-base sm:text-sm outline-none"
             style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)', color: 'var(--ink)' }}
           />
         </div>

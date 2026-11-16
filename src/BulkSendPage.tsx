@@ -258,14 +258,14 @@ export function BulkSendPage() {
           <div className="flex items-center gap-2 rounded-xl px-3 py-2.5" style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)' }}>
             <input value={sameAmount} inputMode="decimal" placeholder="Amount for each wallet"
               onChange={e => setSameAmount(e.target.value.replace(/[^0-9.]/g, ''))} disabled={sending}
-              className="min-w-0 flex-1 bg-transparent text-sm outline-none" style={{ color: 'var(--ink)' }} />
+              className="min-w-0 flex-1 bg-transparent text-base sm:text-sm outline-none" style={{ color: 'var(--ink)' }} />
             <span className="text-xs font-semibold" style={{ color: 'var(--muted)' }}>USDC</span>
           </div>
         )}
 
         <textarea value={text} onChange={e => setText(e.target.value)} disabled={sending} rows={7} spellCheck={false}
           placeholder={mode === 'lines' ? '0x1234… 5\n@tunde 12.50\n0xabcd…, 3' : '0x1234…\n@tunde\n0xabcd…'}
-          className="w-full rounded-xl px-3 py-2.5 font-mono text-xs outline-none resize-y"
+          className="w-full rounded-xl px-3 py-2.5 font-mono text-base sm:text-xs outline-none resize-y"
           style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)', color: 'var(--ink)' }} />
         <div className="flex items-center justify-between gap-2">
           <p className="text-[11px]" style={{ color: 'var(--subtle)' }}>

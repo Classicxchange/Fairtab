@@ -511,14 +511,14 @@ function ReceiveView({ unifiedAddress }: { unifiedAddress?: `0x${string}` }) {
             <input inputMode="decimal" value={reqAmount}
               onChange={e => setReqAmount(e.target.value.replace(/[^0-9.]/g, ''))}
               placeholder="0.00"
-              className="w-full bg-transparent text-sm font-semibold tabular-nums outline-none placeholder:opacity-30"
+              className="w-full bg-transparent text-base sm:text-sm font-semibold tabular-nums outline-none placeholder:opacity-30"
               style={{ color: 'var(--ink)' }} />
           </div>
           <div className="flex-1 rounded-xl px-3 py-2.5" style={glass.inner}>
             <p className="text-xs mb-1" style={{ color: 'var(--subtle)' }}>Memo</p>
             <input value={reqMemo} onChange={e => setReqMemo(e.target.value)} maxLength={60}
               placeholder="e.g. October rent"
-              className="w-full bg-transparent text-sm outline-none placeholder:opacity-30"
+              className="w-full bg-transparent text-base sm:text-sm outline-none placeholder:opacity-30"
               style={{ color: 'var(--ink)' }} />
           </div>
         </div>

@@ -225,7 +225,7 @@ export function VeltraChat({ address, onOpenBill, onGo }: {
                   onChange={e => setText(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') void submit() }}
                   placeholder="Ask Veltra or describe what you want to do"
-                  className="min-w-0 flex-1 rounded-xl px-3 py-2.5 text-sm outline-none"
+                  className="min-w-0 flex-1 rounded-xl px-3 py-2.5 text-base sm:text-sm outline-none"
                   style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)', color: 'var(--ink)' }}
                 />
                 <button onClick={() => { void submit() }} disabled={busy || !text.trim()} aria-label="Send message"

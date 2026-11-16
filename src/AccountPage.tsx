@@ -168,7 +168,7 @@ function SeedPhraseRevealer({ onSignOut: _onSignOut, uid }: { onSignOut: () => v
         value={pw}
         onChange={e => { setPw(e.target.value); setErr(null) }}
         onKeyDown={e => e.key === 'Enter' && void handleReveal()}
-        className="w-full rounded-xl px-4 py-3 text-sm outline-none"
+        className="w-full rounded-xl px-4 py-3 text-base sm:text-sm outline-none"
         style={{ background: 'var(--surface-muted)', border: `1px solid ${err ? 'var(--danger)' : 'var(--border)'}`, color: 'var(--ink)' }}
       />
       {err && <p className="text-xs" style={{ color: 'var(--danger)' }}>{err}</p>}
@@ -258,7 +258,7 @@ function PrivateKeyRevealer({ uid }: { uid?: string }) {
         value={pw}
         onChange={e => { setPw(e.target.value); setErr(null) }}
         onKeyDown={e => e.key === 'Enter' && void handleReveal()}
-        className="w-full rounded-xl px-4 py-3 text-sm outline-none"
+        className="w-full rounded-xl px-4 py-3 text-base sm:text-sm outline-none"
         style={{ background: 'var(--surface-muted)', border: `1px solid ${err ? 'var(--danger)' : 'var(--border)'}`, color: 'var(--ink)' }}
       />
       {err && <p className="text-xs" style={{ color: 'var(--danger)' }}>{err}</p>}
@@ -343,7 +343,7 @@ function ChangePassword({ uid }: { uid?: string }) {
           <p className="text-xs mb-1.5 font-medium" style={{ color: 'var(--muted)' }}>{label}</p>
           <input type="password" value={val} onChange={e => { set(e.target.value); setErr(null) }}
             placeholder="••••••••"
-            className="w-full rounded-xl px-4 py-3 text-sm outline-none"
+            className="w-full rounded-xl px-4 py-3 text-base sm:text-sm outline-none"
             style={{ background: 'var(--surface-muted)', border: `1px solid ${err ? 'var(--danger)' : 'var(--border)'}`, color: 'var(--ink)' }} />
         </div>
       ))}

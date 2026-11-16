@@ -267,7 +267,7 @@ function BillsSection() {
       <input
         value={search} onChange={e => setSearch(e.target.value)}
         placeholder="Filter by bill ID…"
-        className="rounded-xl px-4 py-2.5 text-sm outline-none"
+        className="rounded-xl px-4 py-2.5 text-base sm:text-sm outline-none"
         style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)', color: 'var(--ink)' }}
       />
       <div className="flex flex-col gap-2">
@@ -442,7 +442,7 @@ function DeploySection({ adminAddress }: { adminAddress: string }) {
                 value={usdcOverride}
                 onChange={e => setUsdcOverride(e.target.value)}
                 placeholder={`Default canonical: ${USDC_ADDRESS}`}
-                className="rounded-xl px-4 py-2.5 text-sm mono outline-none w-full"
+                className="rounded-xl px-4 py-2.5 text-base sm:text-sm mono outline-none w-full"
                 style={inputStyle}
               />
               <p className="text-xs" style={{ color: 'var(--subtle)' }}>
@@ -751,11 +751,11 @@ function ManageSection() {
         <div className="flex flex-col gap-2">
           <input value={recoverToken} onChange={e => setRecoverToken(e.target.value)}
             placeholder="Token contract address (e.g. USDC 0x3600…)"
-            className="rounded-xl px-4 py-2.5 text-sm mono outline-none"
+            className="rounded-xl px-4 py-2.5 text-base sm:text-sm mono outline-none"
             style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)', color: 'var(--ink)' }} />
           <input value={recoverTo} onChange={e => setRecoverTo(e.target.value)}
             placeholder="Recipient address"
-            className="rounded-xl px-4 py-2.5 text-sm mono outline-none"
+            className="rounded-xl px-4 py-2.5 text-base sm:text-sm mono outline-none"
             style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)', color: 'var(--ink)' }} />
         </div>
         <button onClick={handleRecoverToken}

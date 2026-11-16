@@ -314,7 +314,7 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
               value={to}
               onChange={e => { setTo(e.target.value) }}
               placeholder="0x… address or @fairid"
-              className="mono flex-1 bg-transparent text-sm outline-none placeholder:opacity-30"
+              className="mono flex-1 bg-transparent text-base sm:text-sm outline-none placeholder:opacity-30"
               style={{ color: toValid || !to || (looksLikeName && resolving) ? 'var(--ink)' : 'var(--danger)' }}
             />
             {to && toValid && (
@@ -402,7 +402,7 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
         </p>
         <input value={memo} onChange={e => setMemo(e.target.value)} maxLength={80}
           placeholder="e.g. Rent – October, dinner, etc."
-          className="w-full bg-transparent text-sm outline-none placeholder:opacity-30"
+          className="w-full bg-transparent text-base sm:text-sm outline-none placeholder:opacity-30"
           style={{ color: 'var(--ink)' }} />
       </div>
 

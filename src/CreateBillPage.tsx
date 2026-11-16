@@ -538,7 +538,7 @@ export function CreateBillPage({ onClose, onCreated, onSuccess, seedSession, onU
                         <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Deadline</p>
                       </div>
                       <input type="date" value={deadline} onChange={e => setDeadline(e.target.value)}
-                        className="w-full bg-transparent text-sm outline-none" style={{ color: 'var(--ink)', colorScheme: 'dark' }} />
+                        className="w-full bg-transparent text-base sm:text-sm outline-none" style={{ color: 'var(--ink)', colorScheme: 'dark' }} />
                     </div>
 
                     {/* Cancel quorum */}
@@ -552,7 +552,7 @@ export function CreateBillPage({ onClose, onCreated, onSuccess, seedSession, onU
                           const v = parseInt(e.target.value) || minCancelThreshold
                           setCancelThreshold(String(Math.max(minCancelThreshold, Math.min(rows.length, v))))
                         }}
-                        className="w-full bg-transparent text-sm font-semibold tabular-nums outline-none" style={{ color: 'var(--ink)' }} />
+                        className="w-full bg-transparent text-base sm:text-sm font-semibold tabular-nums outline-none" style={{ color: 'var(--ink)' }} />
                       <p className="text-xs mt-0.5" style={{ color: 'var(--subtle)' }}>
                         of {rows.length} needed · min {minCancelThreshold}
                       </p>
@@ -571,7 +571,7 @@ export function CreateBillPage({ onClose, onCreated, onSuccess, seedSession, onU
                       <span className="text-sm font-medium" style={{ color: 'var(--ink-2)' }}>Repeat every</span>
                       <input disabled={!recurring} type="number" min={1} value={recurDays}
                         onChange={e => setRecurDays(e.target.value)}
-                        className="w-14 rounded-xl px-2 py-1 text-center text-sm font-semibold tabular-nums outline-none disabled:opacity-40"
+                        className="w-14 rounded-xl px-2 py-1 text-center text-base sm:text-sm font-semibold tabular-nums outline-none disabled:opacity-40"
                         style={{ background: 'var(--surface)', color: 'var(--ink)', border: '1px solid var(--border)' }} />
                       <span className="text-sm" style={{ color: 'var(--muted)' }}>days</span>
                     </div>
@@ -614,7 +614,7 @@ export function CreateBillPage({ onClose, onCreated, onSuccess, seedSession, onU
                   <p className="text-xs mb-3" style={{ color: 'var(--subtle)' }}>The wallet that receives all payments (e.g. landlord)</p>
                   <input value={payee} onChange={e => setPayee(e.target.value.trim())}
                     placeholder="0x… landlord or payee"
-                    className="mono w-full bg-transparent text-sm outline-none placeholder:opacity-30"
+                    className="mono w-full bg-transparent text-base sm:text-sm outline-none placeholder:opacity-30"
                     style={{ color: payee && !isAddress(payee) ? 'var(--danger)' : 'var(--ink)' }} />
                   {payee && !isAddress(payee) && (
                     <p className="text-xs mt-1.5 flex items-center gap-1" style={{ color: 'var(--danger)' }}>
@@ -657,7 +657,7 @@ export function CreateBillPage({ onClose, onCreated, onSuccess, seedSession, onU
                         ) : (
                           <input value={row.address} onChange={e => updateRow(i, 'address', e.target.value.trim())}
                             placeholder={`0x… wallet ${i + 1}`}
-                            className="mono w-full min-w-0 bg-transparent text-xs outline-none placeholder:opacity-30"
+                            className="mono w-full min-w-0 bg-transparent text-base sm:text-xs outline-none placeholder:opacity-30"
                             style={{ color: row.address && !isAddress(row.address) ? 'var(--danger)' : 'var(--ink)' }} />
                         )}
                       </div>
@@ -665,7 +665,7 @@ export function CreateBillPage({ onClose, onCreated, onSuccess, seedSession, onU
                         <input inputMode="decimal" value={row.value}
                           onChange={e => updateRow(i, 'value', e.target.value.replace(/[^0-9.]/g, ''))}
                           placeholder={usePercentages ? '5000' : '0.00'}
-                          className="w-full bg-transparent text-right text-sm font-semibold tabular-nums outline-none placeholder:opacity-30"
+                          className="w-full bg-transparent text-right text-base sm:text-sm font-semibold tabular-nums outline-none placeholder:opacity-30"
                           style={{ color: 'var(--ink)' }} />
                         <p className="text-right text-xs" style={{ color: 'var(--subtle)' }}>
                           {usePercentages ? 'bps' : 'USDC'}

@@ -111,7 +111,7 @@ export function FairIDCard({ address }: { address: string }) {
           <div className="flex items-center gap-2 rounded-xl px-3 py-2.5" style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)' }}>
             <span className="text-sm font-semibold" style={{ color: 'var(--subtle)' }}>@</span>
             <input value={input} onChange={e => setInput(e.target.value)} maxLength={21} placeholder="yourname"
-              className="flex-1 min-w-0 bg-transparent text-sm outline-none" style={{ color: 'var(--ink)' }} />
+              className="flex-1 min-w-0 bg-transparent text-base sm:text-sm outline-none" style={{ color: 'var(--ink)' }} />
             {checking && <Loader2 className="size-4 animate-spin" style={{ color: 'var(--subtle)' }} />}
           </div>
           <p className="text-xs" style={{ color: input && (!nameValid || available === false) ? 'var(--danger)' : available ? 'var(--success)' : 'var(--subtle)' }}>
@@ -149,7 +149,7 @@ export function FairIDCard({ address }: { address: string }) {
             <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Move to another wallet</p>
             <div className="flex gap-2">
               <input value={moveTo} onChange={e => setMoveTo(e.target.value.trim())} placeholder="0x… new wallet"
-                className="mono flex-1 min-w-0 rounded-xl px-3 py-2.5 text-xs outline-none" style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)', color: 'var(--ink)' }} />
+                className="mono flex-1 min-w-0 rounded-xl px-3 py-2.5 text-base sm:text-xs outline-none" style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)', color: 'var(--ink)' }} />
               <button disabled={busy || !isAddress(moveTo)} onClick={() => run('Transfer offered. The other wallet must accept it.', 'proposeTransfer', [moveTo])}
                 className="shrink-0 rounded-xl px-3.5 text-xs font-bold disabled:opacity-40" style={{ background: 'var(--accent-fill)', color: '#fff' }}>Offer</button>
             </div>
@@ -174,7 +174,7 @@ export function FairIDCard({ address }: { address: string }) {
         <summary className="cursor-pointer text-xs font-semibold" style={{ color: 'var(--muted)' }}>Accept a FairID someone sent you</summary>
         <div className="mt-2 flex gap-2">
           <input value={acceptFrom} onChange={e => setAcceptFrom(e.target.value.trim())} placeholder="0x… wallet that sent it"
-            className="mono flex-1 min-w-0 rounded-xl px-3 py-2.5 text-xs outline-none" style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)', color: 'var(--ink)' }} />
+            className="mono flex-1 min-w-0 rounded-xl px-3 py-2.5 text-base sm:text-xs outline-none" style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)', color: 'var(--ink)' }} />
           <button disabled={busy || !isAddress(acceptFrom) || !!myName} onClick={() => run('FairID accepted', 'acceptTransfer', [acceptFrom])}
             className="shrink-0 flex items-center gap-1 rounded-xl px-3.5 text-xs font-bold disabled:opacity-40" style={{ background: 'var(--accent-fill)', color: '#fff' }}>
             <CheckCircle2 className="size-3.5" /> Accept

@@ -220,15 +220,15 @@ export function FairIdDeploySection({ adminAddress }: { adminAddress: string }) 
       <div className="p-5 rounded-2xl flex flex-col gap-4" style={card}>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>USDC token address</label>
-          <input value={usdc} onChange={e => { setUsdc(e.target.value.trim()); setChecks([]) }} disabled={checking || deploying || !!deployed} className="mono rounded-xl px-4 py-2.5 text-sm outline-none" style={input} />
+          <input value={usdc} onChange={e => { setUsdc(e.target.value.trim()); setChecks([]) }} disabled={checking || deploying || !!deployed} className="mono rounded-xl px-4 py-2.5 text-base sm:text-sm outline-none" style={input} />
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Fee recipient (you choose, no default)</label>
-          <input value={recipient} onChange={e => { setRecipient(e.target.value.trim()); setChecks([]) }} placeholder="0x… wallet that receives every fee" disabled={checking || deploying || !!deployed} className="mono rounded-xl px-4 py-2.5 text-sm outline-none" style={input} />
+          <input value={recipient} onChange={e => { setRecipient(e.target.value.trim()); setChecks([]) }} placeholder="0x… wallet that receives every fee" disabled={checking || deploying || !!deployed} className="mono rounded-xl px-4 py-2.5 text-base sm:text-sm outline-none" style={input} />
         </div>
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Claim fee (USDC)</label>
-          <input value={feeText} onChange={e => { setFeeText(e.target.value); setChecks([]) }} inputMode="decimal" disabled={checking || deploying || !!deployed} className="rounded-xl px-4 py-2.5 text-sm outline-none" style={input} />
+          <input value={feeText} onChange={e => { setFeeText(e.target.value); setChecks([]) }} inputMode="decimal" disabled={checking || deploying || !!deployed} className="rounded-xl px-4 py-2.5 text-base sm:text-sm outline-none" style={input} />
         </div>
         <div className="rounded-xl px-4 py-3 text-xs mono break-all" style={{ background: 'var(--surface-muted)', color: 'var(--muted)' }}>
           constructor(usdc_ = {usdc || '…'}, feeRecipient_ = {recipient || '…'}, claimFee_ = {feeOk ? `${feeRaw.toString()} base units (${formatUnits(feeRaw, 6)} USDC)` : 'invalid'})
@@ -251,7 +251,7 @@ export function FairIdDeploySection({ adminAddress }: { adminAddress: string }) 
         <p className="text-xs" style={{ color: 'var(--muted)' }}>
           Type <span className="mono font-bold">DEPLOY</span> to confirm. Your wallet will then ask you to sign the deployment from {adminAddress.slice(0, 8)}…{adminAddress.slice(-6)}.
         </p>
-        <input value={confirmText} onChange={e => setConfirmText(e.target.value)} placeholder="DEPLOY" disabled={checking || deploying || !!deployed} className="mono rounded-xl px-4 py-2.5 text-sm outline-none" style={input} />
+        <input value={confirmText} onChange={e => setConfirmText(e.target.value)} placeholder="DEPLOY" disabled={checking || deploying || !!deployed} className="mono rounded-xl px-4 py-2.5 text-base sm:text-sm outline-none" style={input} />
         <button onClick={() => { void handleDeploy() }} disabled={!canDeploy}
           className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold disabled:opacity-40" style={{ background: 'var(--accent-fill)', color: '#fff' }}>
           {deploying ? <><Loader2 className="size-4 animate-spin" /> {stage || 'Working…'}</> : <><Rocket className="size-4" /> Deploy FairID</>}

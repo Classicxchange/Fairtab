@@ -772,13 +772,13 @@ export function BillDetailPage({ bill: initialBill, myParticipantStatus: initial
                       </div>
                       <input value={newParticipantAddr} onChange={e => setNewParticipantAddr(e.target.value.trim())}
                         placeholder="Wallet address (0x…)"
-                        className="mono w-full rounded-xl px-3 py-2.5 text-xs outline-none"
+                        className="mono w-full rounded-xl px-3 py-2.5 text-base sm:text-xs outline-none"
                         style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)', color: 'var(--ink)' }} />
                       <div className="flex gap-2">
                         <input inputMode="decimal" value={newParticipantAmt}
                           onChange={e => setNewParticipantAmt(e.target.value.replace(/[^0-9.]/g, ''))}
                           placeholder="Share amount (USDC)"
-                          className="flex-1 rounded-xl px-3 py-2.5 text-xs outline-none"
+                          className="flex-1 rounded-xl px-3 py-2.5 text-base sm:text-xs outline-none"
                           style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)', color: 'var(--ink)' }} />
                         <button onClick={handleAddParticipant} disabled={addPartPending || addPartConfirming}
                           className="rounded-xl px-4 py-2 text-xs font-bold disabled:opacity-40 flex items-center gap-1.5 transition-all active:scale-95"
