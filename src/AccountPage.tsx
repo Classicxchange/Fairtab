@@ -503,6 +503,8 @@ interface AccountPageProps {
   onSignOut: () => void
 }
 
+import { useFairIdName } from '@/useFairIdName'
+
 export function AccountPage({ address, seedSession, socialSession, wagmiAddress, onSignOut }: AccountPageProps) {
   const [copied, setCopied] = useState(false)
   const disconnectAll = useDisconnectAll()
@@ -529,6 +531,7 @@ export function AccountPage({ address, seedSession, socialSession, wagmiAddress,
     : <Fingerprint className="size-4" style={{ color: 'var(--accent)' }} />
 
   const explorerUrl = buildAddressExplorerUrl(CHAIN_ID, address)
+  const fairId = useFairIdName(address)
 
   const copyAddress = useCallback(() => {
     void navigator.clipboard.writeText(address)
@@ -552,13 +555,13 @@ export function AccountPage({ address, seedSession, socialSession, wagmiAddress,
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <p className="text-sm font-bold" style={{ color: 'var(--ink)' }}>Wallet connected</p>
+              <p className="text-sm font-bold truncate" style={{ color: 'var(--ink)' }}>{fairId ?? 'Wallet connected'}</p>
               <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
                 style={{ background: 'var(--success-bg)', color: 'var(--success)' }}>
                 {IS_MAINNET ? 'Mainnet' : 'Testnet'}
               </span>
             </div>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>{methodLabel}</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>{fairId ? `FairID · ${methodLabel}` : methodLabel}</p>
           </div>
           <div className="size-8 rounded-xl flex items-center justify-center"
             style={{ background: 'var(--accent-light)' }}>

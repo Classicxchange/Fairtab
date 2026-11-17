@@ -26,11 +26,14 @@ interface Props {
   onSignOut: () => void
 }
 
+import { useFairIdName } from '@/useFairIdName'
+
 export function WalletDropdown({ address, onGoToAccount, onHelp, onAddFunds, onSignOut }: Props) {
   const [open, setOpen]   = useState(false)
   const [copied, setCopied] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const disconnectAll = useDisconnectAll()
+  const fairId = useFairIdName(address)
 
   // Close on outside click
   useEffect(() => {
@@ -67,7 +70,9 @@ export function WalletDropdown({ address, onGoToAccount, onHelp, onAddFunds, onS
         }}
       >
         <span className="size-2 rounded-full shrink-0" style={{ background: 'var(--success)' }} />
-        <span className="mono text-xs">{short}</span>
+        {fairId
+          ? <span className="text-sm font-semibold max-w-[9rem] truncate">{fairId}</span>
+          : <span className="mono text-xs">{short}</span>}
         <ChevronDown
           className="size-3.5 transition-transform"
           style={{
@@ -101,9 +106,10 @@ export function WalletDropdown({ address, onGoToAccount, onHelp, onAddFunds, onS
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-semibold" style={{ color: 'var(--muted)' }}>
-                    {IS_MAINNET ? 'Arc Mainnet' : 'Arc Testnet'}
+                    {fairId ? `FairID · ${IS_MAINNET ? 'Arc Mainnet' : 'Arc Testnet'}` : (IS_MAINNET ? 'Arc Mainnet' : 'Arc Testnet')}
                   </p>
-                  <p className="mono text-xs truncate" style={{ color: 'var(--ink-2)' }}>{address}</p>
+                  {fairId && <p className="display text-base font-bold truncate" style={{ color: 'var(--ink)' }}>{fairId}</p>}
+                  <p className={fairId ? 'mono text-[11px] truncate' : 'mono text-xs truncate'} style={{ color: fairId ? 'var(--subtle)' : 'var(--ink-2)' }}>{address}</p>
                 </div>
               </div>
               <div className="flex gap-2">

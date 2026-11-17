@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { restoreCircleSession, clearCredential } from '@/CircleWalletAuth'
 import { type SeedWalletSession, clearSeedWallet, hasSeedWallet, getSeedWalletAddress } from '@/SeedWalletAuth'
 import { type AccountSession, loadGoogleSession, clearGoogleSession, saveSession, isOAuthReturn } from '@/AccountView'
+import { useFairIdName } from '@/useFairIdName'
 import { WalletDropdown } from '@/WalletDropdown'
 import { AccountPage, recordSignInTime } from '@/AccountPage'
 import { SignInPage } from '@/SignInPage'
@@ -200,6 +201,7 @@ function BalanceCard({ address, onSend, onReceive }: {
     query: { enabled: !!address }, chainId: CHAIN_ID,
   })
 
+  const fairId = useFairIdName(address)
   if (!address) return null
 
   const balStr = balance !== undefined ? fmt(balance) : '—'
@@ -241,9 +243,11 @@ function BalanceCard({ address, onSend, onReceive }: {
             </div>
           )
         }
-        <p className="mono text-xs mt-1.5 truncate" style={{ color: 'rgba(255,255,255,0.45)' }}>
-          {address.slice(0, 10)}…{address.slice(-8)}
-        </p>
+        {fairId
+          ? <p className="text-sm font-semibold mt-1.5 truncate" style={{ color: 'rgba(255,255,255,0.8)' }}>{fairId}</p>
+          : <p className="mono text-xs mt-1.5 truncate" style={{ color: 'rgba(255,255,255,0.45)' }}>
+              {address.slice(0, 10)}…{address.slice(-8)}
+            </p>}
       </div>
 
       {/* Actions */}
