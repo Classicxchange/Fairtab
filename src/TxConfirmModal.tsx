@@ -18,6 +18,8 @@ export interface TxDetail {
   amount?: string
   /** Optional truncated recipient / contract label, e.g. "Bill contract" or "0x1234…5678" */
   to?: string
+  /** True when `to` is a FairID name rather than an address (shown without monospace) */
+  toIsName?: boolean
   /** Optional extra rows: [{label, value}] */
   rows?: { label: string; value: string }[]
   /** Danger/warning note shown in a red box */
@@ -177,7 +179,7 @@ export function TxConfirmModal({ open, detail, fromAddress, isPending, onConfirm
                 style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)' }}>
                 <Row label="Action" value={detail.action} />
                 <Row label="From" value={fmtAddr(fromAddress)} mono />
-                {detail.to && <Row label="To" value={detail.to} mono />}
+                {detail.to && <Row label="To" value={detail.to} mono={!detail.toIsName} />}
                 <Row label="Network" value={IS_MAINNET ? 'Arc Mainnet' : 'Arc Testnet'} accent />
                 {/* Gas fee row — estimated or fallback */}
                 <div className="flex items-center justify-between gap-3">

@@ -175,7 +175,7 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
           <p className="display text-3xl font-bold mb-1" style={{ color: 'var(--ink)', letterSpacing: '-0.04em' }}>
             {amount} USDC sent
           </p>
-          <p className="text-sm" style={{ color: 'var(--muted)' }}>to {resolvedOwner ? `@${handle}` : `${toAddr.slice(0,6)}…${toAddr.slice(-4)}`}</p>
+          <p className="text-sm" style={{ color: 'var(--muted)' }}>to {resolvedOwner ? handle : `${toAddr.slice(0,6)}…${toAddr.slice(-4)}`}</p>
           {memo && <p className="text-sm mt-1 italic" style={{ color: 'var(--subtle)' }}>"{memo}"</p>}
         </div>
         {sendHash && (
@@ -225,7 +225,7 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
           <div className="px-6 py-4 flex flex-col gap-3" style={{ borderTop: '1px solid var(--border)' }}>
             <div className="flex items-start justify-between gap-3">
               <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>To</span>
-              <span className="mono text-sm text-right break-all" style={{ color: 'var(--ink)' }}>{resolvedOwner ? `@${handle} · ${toAddr}` : toAddr}</span>
+              <span className={resolvedOwner ? 'text-sm font-semibold text-right break-all' : 'mono text-sm text-right break-all'} style={{ color: 'var(--ink)' }}>{resolvedOwner ? handle : toAddr}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Network</span>
@@ -330,16 +330,16 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
             </button>
           </div>
           {resolvedOwner && (
-            <p className="mono text-xs mt-1.5 break-all" style={{ color: 'var(--success)' }}>
-              @{handle} → {resolvedOwner}
+            <p className="text-xs mt-1.5 flex items-center gap-1 font-semibold" style={{ color: 'var(--success)' }}>
+              <CheckCircle2 className="size-3" /> FairID {handle}
             </p>
           )}
           {looksLikeName && resolving && (
-            <p className="text-xs mt-1.5" style={{ color: 'var(--muted)' }}>Looking up @{handle}…</p>
+            <p className="text-xs mt-1.5" style={{ color: 'var(--muted)' }}>Looking up {handle}…</p>
           )}
           {to && !toValid && !(looksLikeName && resolving) && (
             <p className="text-xs mt-1.5 flex items-center gap-1" style={{ color: 'var(--danger)' }}>
-              <AlertTriangle className="size-3" /> {looksLikeName ? `No FairID named @${handle}` : 'Invalid address'}
+              <AlertTriangle className="size-3" /> {looksLikeName ? `No FairID named ${handle}` : 'Invalid address'}
             </p>
           )}
         </div>
@@ -431,7 +431,8 @@ export function SendPage({ unifiedAddress, seedSession, onUpgradeSeedSession, go
           detail={{
             action: 'Send USDC',
             amount: `${amount} USDC`,
-            to: toAddr.length > 10 ? `${toAddr.slice(0, 8)}…${toAddr.slice(-6)}` : toAddr,
+            to: resolvedOwner ? handle : (toAddr.length > 10 ? `${toAddr.slice(0, 8)}…${toAddr.slice(-6)}` : toAddr),
+            toIsName: !!resolvedOwner,
             rows: [
               ...(memo ? [{ label: 'Memo', value: memo }] : []),
             ],
