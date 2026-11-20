@@ -13,6 +13,11 @@
       "source": "/terms",
       "destination": "/terms.html",
       "permanent": false
+    },
+    {
+      "source": "/docs",
+      "destination": "/docs.html",
+      "permanent": false
     }
   ],
   "rewrites": [

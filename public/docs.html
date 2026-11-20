@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Docs | Fairtab</title>
+<meta name="description" content="Technical documentation for Fairtab: contracts, addresses, fees, FairID, Commit, Swap, Bulk send and security.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="canonical" href="https://fairtab.online/docs">
+<meta property="og:type" content="website"><meta property="og:site_name" content="Fairtab"><meta property="og:title" content="Fairtab technical documentation"><meta property="og:description" content="Contracts, addresses, fees, FairID, Commit, Swap, Bulk send and security."><meta property="og:url" content="https://fairtab.online/docs"><meta property="og:image" content="https://fairtab.online/og-image.jpg?v=2">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6f8ff;--card:#fff;--ink:#0b1437;--ink2:#2c3659;--muted:#5b6585;--line:#dfe5f7;--accent:#2447d0;--accent-bg:#eaf0ff;--code:#eef1fb}
+@media (prefers-color-scheme:dark){:root{--bg:#070d26;--card:#0d1638;--ink:#eef2ff;--ink2:#c9d2f2;--muted:#93a0cc;--line:#1d2a5c;--accent:#7da0ff;--accent-bg:#13235e;--code:#111c47}}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 'DM Sans',system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+h1,h2,h3{font-family:'Space Grotesk','DM Sans',system-ui,sans-serif;letter-spacing:-.02em;line-height:1.2;color:var(--ink)}
+a{color:var(--accent);text-underline-offset:3px}
+header{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.bar{max-width:1120px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:16px}
+.brand{display:flex;align-items:center;gap:10px;font:700 18px 'Space Grotesk',sans-serif;color:var(--ink);text-decoration:none}
+.brand img{width:30px;height:30px;border-radius:9px}
+.tag{font:600 12px 'DM Sans';padding:3px 9px;border-radius:99px;background:var(--accent-bg);color:var(--accent)}
+.sp{flex:1}.bar a.btn{font-weight:600;font-size:14px;text-decoration:none;padding:8px 14px;border-radius:10px;border:1px solid var(--line);color:var(--ink)}
+.bar a.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.wrap{max-width:1120px;margin:0 auto;padding:28px 20px 80px;display:grid;grid-template-columns:230px minmax(0,1fr);gap:44px}
+nav.toc{position:sticky;top:78px;align-self:start;max-height:calc(100dvh - 100px);overflow:auto;font-size:14px}
+nav.toc p{margin:0 0 8px;font:700 11px 'DM Sans';letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+nav.toc a{display:block;padding:5px 10px;border-radius:8px;color:var(--ink2);text-decoration:none}
+nav.toc a:hover{background:var(--accent-bg);color:var(--accent)}
+main{min-width:0}main h1{font-size:40px;margin:0 0 8px}main .lead{font-size:18px;color:var(--muted);margin:0 0 28px}
+section{padding-top:26px;margin-top:10px;border-top:1px solid var(--line)}section:first-of-type{border-top:0}
+h2{font-size:26px;margin:0 0 12px}h3{font-size:18px;margin:22px 0 8px}p,li{color:var(--ink2)}li{margin:4px 0}
+code{font:13px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--code);padding:2px 6px;border-radius:6px;word-break:break-all}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;margin:14px 0}
+.note{background:var(--accent-bg);border-radius:12px;padding:12px 16px;color:var(--ink2);margin:14px 0}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--card);margin:14px 0}
+table{border-collapse:collapse;width:100%;font-size:14px}th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);background:var(--code)}tr:last-child td{border-bottom:0}
+footer{border-top:1px solid var(--line);padding:26px 20px;text-align:center;color:var(--muted);font-size:14px}footer a{margin:0 8px}
+@media(max-width:860px){.wrap{grid-template-columns:1fr;gap:12px}nav.toc{position:static;max-height:none;display:flex;flex-wrap:wrap;gap:4px;border-bottom:1px solid var(--line);padding-bottom:12px}nav.toc p{width:100%}main h1{font-size:32px}}
+</style></head><body>
+<header><div class="bar"><a class="brand" href="/"><img src="/logo.svg" alt="">Fairtab</a><span class="tag">Docs</span><span class="sp"></span><a class="btn" href="https://github.com/Classicxchange/Fairtab" target="_blank" rel="noopener noreferrer">GitHub</a><a class="btn pri" href="/">Open Fairtab</a></div></header>
+<div class="wrap"><nav class="toc" aria-label="Documentation sections"><p>On this page</p><a href="#overview">Overview</a><a href="#network">Network and addresses</a><a href="#architecture">Architecture</a><a href="#bills">Bills contract</a><a href="#send">Send, Receive and Bulk send</a><a href="#swap">Swap</a><a href="#commit">Commit (yield vaults)</a><a href="#fairid">FairID</a><a href="#veltra">Veltra assistant</a><a href="#wallets">Wallets and sessions</a><a href="#fees">Fees</a><a href="#security">Security and audits</a><a href="#links">Deep links</a><a href="#source">Source and legal</a></nav><main>
+<section id="overview"><h1>Fairtab technical documentation</h1>
+<p class="lead">How Fairtab works under the hood: the contracts, the addresses, the fees and the security model.</p>
+<p>Fairtab is a non-custodial app on <strong>Arc</strong>, Circle's blockchain where USDC is the native gas token. It lets groups split bills in USDC, and it adds Send, Bulk send, Receive, Swap, Commit (yield vaults), FairID names and an AI assistant called Veltra. Fairtab never holds your keys or your funds. Everything below is also visible in the public repository.</p>
+<div class="note">Last updated November 20, 2026. Addresses on this page are for <strong>Arc Mainnet</strong>. Mainnet uses real funds, and onchain transactions cannot be reversed.</div></section>
+
+<section id="network"><h2>Network and addresses</h2>
+<div class="tw"><table><tr><th>Item</th><th>Value</th></tr>
+<tr><td>Network</td><td>Arc Mainnet, chain ID <code>5042</code></td></tr>
+<tr><td>RPC</td><td><code>https://rpc.mainnet.arc.io</code></td></tr>
+<tr><td>Explorer</td><td><a href="https://explorer.arc.io" target="_blank" rel="noopener noreferrer">explorer.arc.io</a></td></tr>
+<tr><td>USDC (ERC-20 interface, 6 decimals)</td><td><a href="https://explorer.arc.io/address/0x3600000000000000000000000000000000000000" target="_blank" rel="noopener noreferrer"><code>0x3600000000000000000000000000000000000000</code></a></td></tr>
+<tr><td>EURC (6 decimals)</td><td><a href="https://explorer.arc.io/address/0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1" target="_blank" rel="noopener noreferrer"><code>0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1</code></a></td></tr>
+<tr><td>Bills contract (HouseholdBillSplitter)</td><td><a href="https://explorer.arc.io/address/0xcd1dcf79d9bbf3246a21da10aecabde66fb47d08" target="_blank" rel="noopener noreferrer"><code>0xcd1dcf79d9bbf3246a21da10aecabde66fb47d08</code></a></td></tr>
+<tr><td>FairID registry</td><td><a href="https://explorer.arc.io/address/0x7B8574866272b19aA4cBF95033f1399f636bef3F" target="_blank" rel="noopener noreferrer"><code>0x7B8574866272b19aA4cBF95033f1399f636bef3F</code></a></td></tr>
+<tr><td>Commit router, USDC vaults</td><td><a href="https://explorer.arc.io/address/0xAa75fD6De58DbfeF9F0AA72e5C8a03F8E0C9491D" target="_blank" rel="noopener noreferrer"><code>0xAa75fD6De58DbfeF9F0AA72e5C8a03F8E0C9491D</code></a></td></tr>
+<tr><td>Commit router, EURC vaults</td><td><a href="https://explorer.arc.io/address/0x5B0B86786b1bcc319b6eC3d5F9244a5d54775201" target="_blank" rel="noopener noreferrer"><code>0x5B0B86786b1bcc319b6eC3d5F9244a5d54775201</code></a></td></tr>
+<tr><td>Batch contract (Arc Multicall3From)</td><td><a href="https://explorer.arc.io/address/0x522fAf9A91c41c443c66765030741e4AaCe147D0" target="_blank" rel="noopener noreferrer"><code>0x522fAf9A91c41c443c66765030741e4AaCe147D0</code></a></td></tr></table></div>
+<p>On Arc, USDC is both the gas token and an ERC-20. Fairtab always reads and sends USDC through the ERC-20 interface with 6 decimals. Arc Testnet (chain ID <code>5042002</code>) is also supported for testing, with its own contract addresses.</p></section>
+
+<section id="architecture"><h2>Architecture</h2>
+<ul><li><strong>Web app:</strong> React and Vite, with wagmi and viem for wallets and chain reads. It runs in the browser and talks to Arc directly.</li>
+<li><strong>Serverless functions:</strong> small endpoints on Vercel under <code>/api</code>. They call Circle's wallet service, Morpho's public API and the AI model provider. They keep no database and store nothing about you.</li>
+<li><strong>Contracts:</strong> three small contract sets, all independent: the bills contract, the FairID registry and the Commit routers. None of them is upgradeable.</li>
+<li><strong>Third parties:</strong> Circle (wallets, swap), Google (sign-in), Morpho and the vault curators (yield), an AI model provider (Veltra), and the Arc RPC.</li></ul></section>
+
+<section id="bills"><h2>Bills contract</h2>
+<p>One shared contract holds every bill. A bill has a total, a payee, a list of participants with their shares, a deadline and a cancel-vote threshold.</p>
+<h3>Lifecycle</h3>
+<ol><li><strong>Create:</strong> <code>createBill(totalAmount, label, payee, participants, amounts, usePercentages, deadline, recurring, recurInterval, cancelThreshold)</code>. Amounts can be fixed or percentages (basis points that sum to 10,000). Up to 20 participants.</li>
+<li><strong>Invite and accept:</strong> everyone except the creator starts as pending and must call <code>acceptInvite</code> before paying. They can also <code>rejectInvite</code>. An invite expires after 24 hours (<code>expireInvite</code>).</li>
+<li><strong>Pay:</strong> each participant calls <code>pay(billId, amount)</code>, in one or several parts, until their share is covered.</li>
+<li><strong>Settle:</strong> when every share is paid, the bill settles and the payee is paid. If a direct payment to the payee fails, the payee can <code>claimPayout</code>.</li>
+<li><strong>Recurring bills:</strong> a settled recurring bill creates the next one after the interval. Participants must accept again.</li></ol>
+<h3>When things go wrong</h3>
+<ul><li><strong>Cancel:</strong> participants vote with <code>voteCancel</code>. When the votes reach the threshold (at least 51% of eligible voters), the bill is cancelled and contributors use <code>claimRefund</code>.</li>
+<li><strong>Deadline:</strong> a bill that is not fully paid by its deadline lets contributors use <code>claimExpiredRefund</code>. A bill lasts at most 90 days.</li>
+<li><strong>Stuck payout:</strong> after a 7-day grace period contributors can vote to redirect a payout that cannot be delivered (<code>votePayoutRedirect</code>, quorum 51% of contributors). After 91 days <code>reclaimStuckPayout</code> returns the funds.</li></ul>
+<h3>Owner powers</h3>
+<p>The contract has an owner (two-step ownership). The only owner action is <code>recoverToken</code>, which recovers tokens sent to the contract by mistake. The code does not allow it to take money that belongs to open bills or unclaimed payouts. There is no pause, no fee and no upgrade.</p></section>
+
+<section id="send"><h2>Send, Receive and Bulk send</h2>
+<ul><li><strong>Send:</strong> a plain USDC transfer from your wallet to an address or a FairID name. The name is looked up onchain at that moment. No Fairtab fee.</li>
+<li><strong>Receive:</strong> shows your address and builds a payment link with an optional amount and memo.</li>
+<li><strong>Bulk send:</strong> pays many wallets in one transaction using Arc's built-in <code>Multicall3From</code> contract, so every transfer is sent from your own wallet. Fairtab first simulates the transfers and skips recipients that cannot receive. It sends in batches of 50 and accepts up to 200 recipients. Bulk send needs a regular (EOA) wallet, not a smart-contract wallet. No Fairtab fee.</li></ul></section>
+
+<section id="swap"><h2>Swap</h2>
+<p>Swaps use Circle's swap service (App Kit) on Arc. Supported tokens on Arc today are <strong>USDC, EURC and cirBTC</strong>. Quotes are requested without a wallet prompt and refresh every 15 seconds. You pick a slippage limit (0.5%, 1% or 3%), approve the exact amount, then confirm the swap. Prices come from Circle and the liquidity providers behind it. Fairtab adds no fee.</p></section>
+
+<section id="commit"><h2>Commit (yield vaults)</h2>
+<p>Commit lets you put idle USDC or EURC into lending vaults built on <strong>Morpho Vault V2</strong> (ERC-4626). Each vault is run by a third-party curator. Fairtab only provides the screen and the fee router. Yield is variable and not guaranteed, and withdrawals depend on how much the vault holds in cash at that moment.</p>
+<div class="tw"><table><tr><th>Vault</th><th>Curator</th><th>Token</th><th>Address</th></tr><tr><td>Gauntlet USDC Balanced</td><td>Gauntlet</td><td>USDC</td><td><a href="https://explorer.arc.io/address/0x10AF7238C6355Aa8dDB5eD60E2e9b55a72827B51" target="_blank" rel="noopener noreferrer"><code>0x10AF7238C6355Aa8dDB5eD60E2e9b55a72827B51</code></a></td></tr><tr><td>Bitwise Premium RWA USDC</td><td>Bitwise</td><td>USDC</td><td><a href="https://explorer.arc.io/address/0x7610094B846657dCF166D59e42973db52c7015F9" target="_blank" rel="noopener noreferrer"><code>0x7610094B846657dCF166D59e42973db52c7015F9</code></a></td></tr><tr><td>Steakhouse Prime USDC</td><td>Steakhouse Financial</td><td>USDC</td><td><a href="https://explorer.arc.io/address/0xbeef0016cb2Fd5C352ea7CA08a9f54739DFa7298" target="_blank" rel="noopener noreferrer"><code>0xbeef0016cb2Fd5C352ea7CA08a9f54739DFa7298</code></a></td></tr><tr><td>Galaxy USDC</td><td>Galaxy Curation</td><td>USDC</td><td><a href="https://explorer.arc.io/address/0x8E357432CC12ff425c36432F312968aEb16112AF" target="_blank" rel="noopener noreferrer"><code>0x8E357432CC12ff425c36432F312968aEb16112AF</code></a></td></tr><tr><td>Gauntlet USDC Prime</td><td>Gauntlet</td><td>USDC</td><td><a href="https://explorer.arc.io/address/0xdECcd53BE5453215821184824B519E04C7e00bC7" target="_blank" rel="noopener noreferrer"><code>0xdECcd53BE5453215821184824B519E04C7e00bC7</code></a></td></tr><tr><td>Keyrock Prime USDC</td><td>Keyrock</td><td>USDC</td><td><a href="https://explorer.arc.io/address/0x5bEfAb92a5A3D60F578Cb51EEb4e4FD50a1e3123" target="_blank" rel="noopener noreferrer"><code>0x5bEfAb92a5A3D60F578Cb51EEb4e4FD50a1e3123</code></a></td></tr><tr><td>Steakhouse Prime EURC</td><td>Steakhouse Financial</td><td>EURC</td><td><a href="https://explorer.arc.io/address/0xbeef00be37BdE921BAE06fad223125BAB16c41D1" target="_blank" rel="noopener noreferrer"><code>0xbeef00be37BdE921BAE06fad223125BAB16c41D1</code></a></td></tr><tr><td>Gauntlet EURC Prime</td><td>Gauntlet</td><td>EURC</td><td><a href="https://explorer.arc.io/address/0x05863F54B05e96092069eF30c9Ca6060336e50B9" target="_blank" rel="noopener noreferrer"><code>0x05863F54B05e96092069eF30c9Ca6060336e50B9</code></a></td></tr><tr><td>Galaxy EURC</td><td>Galaxy Curation</td><td>EURC</td><td><a href="https://explorer.arc.io/address/0x389abDf4355e0cF4f19298179991705a98f21c18" target="_blank" rel="noopener noreferrer"><code>0x389abDf4355e0cF4f19298179991705a98f21c18</code></a></td></tr></table></div>
+<h3>How a commit works</h3>
+<ol><li>You approve the exact amount for the router that matches the token.</li>
+<li>You call <code>commit(vault, assets, minShares)</code> on the router. In one transaction it sends the fee (0.23%) to the fee wallet and deposits the rest into the vault with the vault shares minted straight to you.</li>
+<li>X.</li>
+<li>You withdraw directly from the vault with your own wallet. Withdrawing is free.</li></ol>
+<p>The routers have no owner, no setters and cannot be upgraded. The fee, the fee wallet and the list of vaults are fixed when they are deployed. The app limits a deposit to 0.10 to 1,000 units of the token. This is an app-level limit, not a contract rule.</p></section>
+
+<section id="fairid"><h2>FairID</h2>
+<p>FairID is a small registry contract that links a short name to a wallet, so people can pay <code>tunde</code> instead of a long address.</p>
+<ul><li><strong>Rules:</strong> 3 to 20 characters from <code>a-z</code>, <code>0-9</code> and underscore. First come, first served. One name per wallet.</li>
+<li><strong>Claim:</strong> costs a one-time <strong>1 USDC</strong>, paid directly from you to the fee wallet. The registry holds no funds.</li>
+<li><strong>Release:</strong> you can give a name up. For 30 days afterwards only the previous owner can claim it again.</li>
+<li><strong>Transfer:</strong> moving a name takes two steps: the owner calls <code>proposeTransfer</code>, then the new wallet calls <code>acceptTransfer</code>. Nobody can push a name onto another wallet.</li>
+<li><strong>Lookup:</strong> <code>resolve(name)</code> returns the wallet and <code>nameOf(wallet)</code> returns the name.</li></ul></section>
+
+<section id="veltra"><h2>Veltra assistant</h2>
+<p>Veltra is Fairtab's AI assistant. It answers questions and prepares a bill draft, a send, a bulk send or a swap, or opens a screen. It <strong>never signs, approves or sends anything</strong>. You review and confirm every transaction on the normal screen.</p>
+<ul><li>It uses a third-party AI model through a Fairtab server function. The text you type is sent there, so never type keys, PINs or recovery phrases.</li>
+<li>Code, not the model, checks every result: an address or FairID name is accepted only if you typed it, amounts must be valid, split amounts are calculated by code, and anything else is dropped.</li>
+<li>It is rate limited and can be wrong. Always read the review screen.</li></ul></section>
+
+<section id="wallets"><h2>Wallets and sessions</h2>
+<ul><li><strong>Google sign-in:</strong> creates a Circle user-controlled wallet. It uses multi-party computation and is protected by your own PIN. Wallets are regular (EOA) accounts, and Fairtab never sees your key or PIN.</li>
+<li><strong>External wallets:</strong> MetaMask, OKX, WalletConnect and others connect through standard wallet connections.</li>
+<li><strong>Sessions:</strong> Circle's login token lasts about 60 minutes. Fairtab keeps it in the browser for up to 55 minutes, then you sign in again and get the same wallet.</li>
+<li><strong>What the browser stores:</strong> your session, theme, unfinished drafts, and the bills you have already seen. There is no Fairtab database.</li></ul></section>
+
+<section id="fees"><h2>Fees</h2>
+<div class="tw"><table><tr><th>Action</th><th>Fairtab fee</th></tr>
+<tr><td>Create, pay and settle bills</td><td>None</td></tr>
+<tr><td>Send, Bulk send, Receive</td><td>None</td></tr>
+<tr><td>Swap</td><td>None from Fairtab. Circle's swap service quotes its own fee.</td></tr>
+<tr><td>Commit</td><td>0.23% of the amount, once, at commit time. Withdrawing is free.</td></tr>
+<tr><td>Claim a FairID</td><td>1 USDC, once, non-refundable</td></tr></table></div>
+<p>Every transaction also pays a small network fee in USDC.</p></section>
+
+<section id="security"><h2>Security and audits</h2>
+<ul><li><strong>Non-custodial:</strong> Fairtab never holds your keys or funds.</li>
+<li><strong>Contract design:</strong> the bills contract, FairID and the routers are not upgradeable. FairID and the routers have no owner and cannot change their fees or lists.</li>
+<li><strong>Testing:</strong> the contracts are covered by 233 automated tests, including fuzz and invariant tests, plus static analysis and structured reviews. <strong>They have not had an independent third-party audit.</strong> Treat them accordingly and only use amounts you can afford to lose.</li>
+<li><strong>Known limits of the bills contract:</strong> if a participant rejects or an invite expires after others have paid, a bill can stay open until its deadline or a cancel vote. Details are in the public repository.</li>
+<li><strong>Website:</strong> secrets are never committed. The site sends security headers that block framing and content sniffing.</li>
+<li><strong>Report a problem:</strong> email <a href="mailto:contact@fairtab.online">contact@fairtab.online</a> with the steps to reproduce. Please do not post vulnerabilities publicly before we can fix them.</li></ul></section>
+
+<section id="links"><h2>Deep links</h2>
+<div class="tw"><table><tr><th>Link</th><th>Opens</th></tr>
+<tr><td><code>/bill/&lt;id&gt;?contract=&lt;address&gt;</code></td><td>A bill</td></tr>
+<tr><td><code>/app/send?to=&lt;address or name&gt;&amp;amount=&lt;n&gt;</code></td><td>Send with details filled in</td></tr>
+<tr><td><code>/app/swap?from=USDC&amp;to=EURC&amp;amount=&lt;n&gt;</code></td><td>Swap with details filled in</td></tr>
+<tr><td><code>/app/bulk</code>, <code>/app/receive</code>, <code>/app/commit</code>, <code>/app/account</code></td><td>The matching screen</td></tr></table></div></section>
+
+<section id="source"><h2>Source and legal</h2>
+<ul><li>Source code: <a href="https://github.com/Classicxchange/Fairtab" target="_blank" rel="noopener noreferrer">github.com/Classicxchange/Fairtab</a></li>
+<li><a href="/privacy">Privacy Policy</a> and <a href="/terms">Terms of Service</a></li>
+<li>Updates: <a href="https://x.com/fairtab_xyz" target="_blank" rel="noopener noreferrer">@fairtab_xyz on X</a></li></ul>
+<p style="color:var(--muted);font-size:14px">This page describes how Fairtab works and is not financial, legal or tax advice.</p></section>
+</main></div>
+<footer><a href="/">Home</a><a href="/help">Help</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></footer>
+</body></html>

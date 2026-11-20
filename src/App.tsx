@@ -38,7 +38,7 @@ import {
   Send, QrCode, Link2, ReceiptText, ChartCandlestick,
   Sun, Moon, CircleUserRound, TrendingUp, ArrowLeftRight,
   List, PenLine, ArrowDownCircle, CircleCheckBig,
-  Bell, ChevronLeft, ChevronRight,
+  Bell, ChevronLeft, ChevronRight, BookOpen,
   ChevronRight as ChevronRightIcon, AtSign, LifeBuoy,
 } from 'lucide-react'
 import { VeltraIcon } from '@/VeltraMark'
@@ -1273,6 +1273,7 @@ export default function App() {
               { title: 'Account', items: [
                 { key: 'account', label: 'Account', icon: CircleUserRound, active: tab === 'account', go: () => setTab('account') },
                 { key: 'help', label: 'Help', icon: LifeBuoy, active: false, go: () => { void navigate('/help') } },
+                { key: 'docs', label: 'Docs', icon: BookOpen, active: false, go: () => { window.location.assign('/docs') } },
               ] },
             ]).map((group, gi) => (
               <div key={gi} className="flex flex-col gap-0.5">
