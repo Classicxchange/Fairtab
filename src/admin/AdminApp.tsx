@@ -1,6 +1,6 @@
 /**
  * Fairtab Admin Panel — /auth/admin
- * Only accessible to whitelisted admin addresses via MetaMask.
+ * Only accessible to whitelisted admin addresses, from any wallet (MetaMask, OKX, WalletConnect and others).
  * Not linked from the public frontend.
  */
 import { useState, useCallback, useMemo } from 'react'
@@ -812,7 +812,7 @@ function NotAdmin() {
       <div className="text-center">
         <h1 className="text-2xl font-bold" style={{ color: 'var(--ink)', letterSpacing: '-0.04em' }}>Access denied</h1>
         <p className="text-sm mt-2 max-w-xs" style={{ color: 'var(--muted)' }}>
-          This page is restricted to authorised admin wallets. Connect with a whitelisted address via MetaMask.
+          This page is restricted to authorised admin wallets. Connect a whitelisted address from any wallet (MetaMask, OKX, WalletConnect and others). The address you are connected with is not on the admin list.
         </p>
       </div>
       <ConnectKitButton />
