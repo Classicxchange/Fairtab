@@ -134,6 +134,47 @@ export function isOAuthReturn(): boolean {
   return !!getCookie('fairtab_dt') && /(?:^|[#&?])(id_token|code|state)=/.test(params)
 }
 
+// ── Quick self-check shown when Circle's sign-in helper does not answer ─────────
+// The SDK reports only "Failed to receive deviceId". This checks the three things that
+// usually cause it, so the user (and support) can see which one it is.
+const CIRCLE_FRAME_URL = 'https://pw-auth.circle.com'
+
+async function circleFrameReport(): Promise<string> {
+  const lines: string[] = []
+  const t0 = performance.now()
+  try {
+    await fetch(CIRCLE_FRAME_URL + '/', { mode: 'no-cors', cache: 'no-store' })
+    lines.push(`1. Circle reachable: yes (${Math.round(performance.now() - t0)} ms)`)
+  } catch {
+    lines.push('1. Circle reachable: NO (the request was blocked or failed)')
+  }
+
+  const frame = await new Promise<string>(resolve => {
+    const f = document.createElement('iframe')
+    f.style.display = 'none'
+    let loaded = false
+    const finish = (m: string) => { window.removeEventListener('message', onMsg); f.remove(); resolve(m) }
+    const onMsg = (e: MessageEvent) => {
+      const d = e.data as { onFrameReady?: boolean; deviceId?: string } | null
+      if (e.origin === CIRCLE_FRAME_URL && (d?.onFrameReady || d?.deviceId)) finish('2. Circle frame answered: yes')
+    }
+    window.addEventListener('message', onMsg)
+    f.onload = () => { loaded = true }
+    f.src = `${CIRCLE_FRAME_URL}/device-id?origin=${window.location.protocol}//${window.location.host}`
+    document.body.appendChild(f)
+    setTimeout(() => finish(loaded
+      ? '2. Circle frame answered: NO (it loaded but stayed silent)'
+      : '2. Circle frame answered: NO (it did not load)'), 8000)
+  })
+  lines.push(frame)
+
+  let storage = 'yes'
+  try { localStorage.setItem('__t', '1'); localStorage.removeItem('__t') } catch { storage = 'NO' }
+  lines.push(`3. Browser storage: ${storage}, cookies: ${navigator.cookieEnabled ? 'yes' : 'NO'}, secure page: ${window.isSecureContext ? 'yes' : 'NO'}, inside a frame: ${window.top !== window.self ? 'YES' : 'no'}`)
+  lines.push(`4. Browser: ${navigator.userAgent.slice(0, 110)}`)
+  return lines.join('\n')
+}
+
 // ── Google icon ───────────────────────────────────────────────────────────────
 function GoogleIcon({ size = 20 }: { size?: number }) {
   return (
@@ -163,6 +204,7 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
   const [error, setError]     = useState<string | null>(null)
   const [email, setEmail]     = useState('')
   const [loadMsg, setLoadMsg] = useState(returningFromGoogle ? 'Completing Google sign-in…' : '')
+  const [diag, setDiag] = useState<string | null>(null)
 
   // If Google sent us back but the sign-in never completes, let the user try again.
   useEffect(() => {
@@ -308,7 +350,7 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
   const handleGoogleSignIn = useCallback(async () => {
     const sdk = sdkRef.current
     if (!sdk || !circleAppId || !googleClientId) return
-    setStep('loading'); setLoadMsg('Connecting to Google…'); setError(null)
+    setStep('loading'); setLoadMsg('Connecting to Google…'); setError(null); setDiag(null)
     try {
       // Always ask Circle for the live device id: a saved one can be stale (cleared
       // browser storage, new browser profile) and Circle then reports it as not found.
@@ -355,7 +397,11 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
       const { SocialLoginProvider } = await import('@circle-fin/w3s-pw-web-sdk/dist/src/types')
       void freshSdk.performLogin(SocialLoginProvider.GOOGLE)
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      const msg = e instanceof Error ? e.message : String(e)
+      setError(/deviceId/i.test(msg)
+        ? "Circle's sign-in helper did not respond in this browser. The quick check below shows why."
+        : msg)
+      if (/deviceId/i.test(msg)) { setDiag('Running a quick check…'); void circleFrameReport().then(setDiag) }
       setStep('choose')
     }
   }, [finishInit])
@@ -507,6 +553,16 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
           style={{ background: 'rgba(240,98,146,0.06)', border: '1px solid rgba(240,98,146,0.18)' }}>
           <AlertTriangle className="size-3.5 shrink-0 mt-0.5" style={{ color: 'var(--danger)' }} />
           <p className="text-xs" style={{ color: 'var(--danger)' }}>{error}</p>
+        </div>
+      )}
+      {diag && (
+        <div className="rounded-xl p-3 flex flex-col gap-2" style={{ background: 'var(--surface-muted)', border: '1px solid var(--border)' }}>
+          <pre className="mono text-[11px] whitespace-pre-wrap break-all" style={{ color: 'var(--ink-2)' }}>{diag}</pre>
+          <button type="button" onClick={() => { void navigator.clipboard?.writeText(diag) }}
+            className="self-start text-[11px] font-semibold rounded-lg px-2.5 py-1"
+            style={{ background: 'var(--surface-strong)', color: 'var(--ink-2)', border: '1px solid var(--border)' }}>
+            Copy details
+          </button>
         </div>
       )}
 
