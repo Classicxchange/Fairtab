@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo, useEffect, useRef, lazy, Suspense } fro
 import { useNavigate, useLocation } from 'react-router-dom'
 import { restoreCircleSession, clearCredential } from '@/CircleWalletAuth'
 import { type SeedWalletSession, clearSeedWallet, hasSeedWallet, getSeedWalletAddress } from '@/SeedWalletAuth'
-import { type AccountSession, loadGoogleSession, clearGoogleSession, saveSession, isOAuthReturn } from '@/AccountView'
+import { type AccountSession, loadGoogleSession, clearGoogleSession, saveSession, isOAuthReturn, takeReturnToAdmin } from '@/AccountView'
 import { useFairIdName } from '@/useFairIdName'
 import { WalletDropdown } from '@/WalletDropdown'
 import { AccountPage, recordSignInTime } from '@/AccountPage'
@@ -1149,6 +1149,9 @@ export default function App() {
                 // Circle wallets (userToken present) have no local seed wallet to restore.
                 if (!identity.userToken) setSeedSession(wallet)
                 recordSignInTime()
+                // A sign-in started from the admin page goes back there.
+                const backToAdmin = takeReturnToAdmin()
+                if (backToAdmin) { window.location.assign(backToAdmin); return }
                 void navigate('/app', { replace: true })
               }}
               onCircleConnected={addr => setCircleAddress(addr)}

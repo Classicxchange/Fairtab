@@ -88,6 +88,25 @@ export function loadGoogleSession(): (StoredSession & { userToken?: string; encr
   } catch { return null }
 }
 
+// ── Return to the admin page after a Google sign-in started there ───────────
+// Google sends the browser back to the site root, so the admin page leaves a short-lived
+// note and the app reads it once the sign-in finishes. Only the admin path is allowed.
+const RETURN_KEY = 'fairtab_return_to'
+
+export function markReturnToAdmin() {
+  try { localStorage.setItem(RETURN_KEY, JSON.stringify({ path: '/auth/admin', exp: Date.now() + 10 * 60 * 1000 })) } catch { /* ignore */ }
+}
+
+export function takeReturnToAdmin(): string | null {
+  try {
+    const raw = localStorage.getItem(RETURN_KEY)
+    if (!raw) return null
+    localStorage.removeItem(RETURN_KEY)
+    const v = JSON.parse(raw) as { path?: string; exp?: number }
+    return v.path === '/auth/admin' && (v.exp ?? 0) > Date.now() ? v.path : null
+  } catch { return null }
+}
+
 export function clearGoogleSession() {
   localStorage.removeItem(SESSION_KEY)
   try { localStorage.removeItem(TOKENS_KEY) } catch { /* ignore */ }

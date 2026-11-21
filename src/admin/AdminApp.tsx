@@ -3,8 +3,9 @@
  * Only accessible to whitelisted admin addresses, from any wallet (MetaMask, OKX, WalletConnect and others).
  * Not linked from the public frontend.
  */
-import { useState, useCallback, useMemo } from 'react'
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useAccount, useConfig, useConnect, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi'
+import { disconnect as disconnectWallet } from 'wagmi/actions'
 import { ConnectKitButton } from 'connectkit'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -21,6 +22,8 @@ import {
 import { FairIdDeploySection, FairIdDashboardCard } from '@/admin/FairIdDeploy'
 import { CommitRouterDeploySection, CommitRouterDashboardCard } from '@/admin/CommitRouterDeploy'
 import { arcMainnetChain, arcTestnetChain, IS_MAINNET } from '@/config'
+import { AccountView, circleConfigured, loadGoogleSession, clearGoogleSession, markReturnToAdmin, type AccountSession } from '@/AccountView'
+import { circleConnector, setCircleAuth, onCircleSessionExpired } from '@/circleWallet'
 import { buildTxExplorerUrl, buildAddressExplorerUrl } from '@/onchain-facts'
 import { formatUsdc } from '@/onchain-money'
 import artifact from '../../contracts/out/HouseholdBillSplitter.sol/HouseholdBillSplitter.json'
@@ -801,7 +804,7 @@ function ManageSection() {
 }
 
 // ─── Auth gate ────────────────────────────────────────────────────────────────
-function NotAdmin() {
+function NotAdmin({ circleSlot }: { circleSlot?: React.ReactNode }) {
   return (
     <div className="min-h-dvh flex flex-col items-center justify-center gap-6 px-4"
       style={{ background: 'var(--bg)' }}>
@@ -816,18 +819,102 @@ function NotAdmin() {
         </p>
       </div>
       <ConnectKitButton />
+      {circleSlot && (
+        <>
+          <div className="flex items-center gap-3 w-full max-w-xs">
+            <div className="h-px flex-1" style={{ background: 'var(--border)' }} />
+            <span className="text-[11px]" style={{ color: 'var(--subtle)' }}>or use your Circle wallet</span>
+            <div className="h-px flex-1" style={{ background: 'var(--border)' }} />
+          </div>
+          <div className="w-full max-w-xs">{circleSlot}</div>
+        </>
+      )}
       <a href="/" className="text-xs" style={{ color: 'var(--muted)', textDecoration: 'none' }}>← Back to Fairtab</a>
+    </div>
+  )
+}
+
+// A Circle wallet sends transactions to existing contracts only, so it cannot deploy a new one.
+function BrowserWalletNotice({ onSignOut }: { onSignOut: () => void }) {
+  return (
+    <div className="rounded-2xl p-6 flex flex-col gap-3" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+      <p className="text-sm font-bold" style={{ color: 'var(--ink)' }}>This tool needs a browser wallet</p>
+      <p className="text-sm" style={{ color: 'var(--muted)' }}>
+        Deploying a new contract is not possible from a Circle wallet. Sign out of the Circle wallet, then connect MetaMask, OKX or another browser wallet to use Deploy, FairID and Commit.
+      </p>
+      <button onClick={onSignOut} className="self-start rounded-xl px-4 py-2 text-xs font-semibold"
+        style={{ background: 'var(--surface-muted)', color: 'var(--ink-2)', border: '1px solid var(--border)' }}>
+        Sign out of Circle wallet
+      </button>
     </div>
   )
 }
 
 // ─── Main AdminApp ────────────────────────────────────────────────────────────
 export default function AdminApp() {
-  const { address } = useAccount()
+  const { address, connector } = useAccount()
+  const wagmiConfig = useConfig()
+  const { connectAsync } = useConnect()
   const isAdmin = !!address && ADMIN_ADDRESSES.includes(address.toLowerCase())
+  const isCircle = connector?.id === 'circle-wallet'
   const [section, setSection] = useState<AdminSection>('dashboard')
 
-  if (!isAdmin) return <NotAdmin />
+  // ── Circle wallet (Google sign-in) ──
+  // A Circle sign-in made earlier in this browser is offered as a button. Nothing connects
+  // until the admin chooses it, so it never replaces a browser wallet on its own.
+  const [session, setSession] = useState<AccountSession | null>(() => {
+    const s = loadGoogleSession()
+    return s?.address && s.userToken ? (s) : null
+  })
+  const [circleActive, setCircleActive] = useState(false)
+
+  const signOutCircle = useCallback(() => {
+    setCircleAuth(null)
+    Array.from(wagmiConfig.state.connections.values())
+      .filter(c => c.connector.id === 'circle-wallet')
+      .forEach(c => { void disconnectWallet(wagmiConfig, { connector: c.connector }) })
+    clearGoogleSession()
+    setSession(null)
+    setCircleActive(false)
+  }, [wagmiConfig])
+
+  useEffect(() => {
+    if (!circleActive || !session?.address || !session.userToken) return
+    const addr = session.address as `0x${string}`
+    setCircleAuth({ address: addr, userToken: session.userToken, encryptionKey: session.encryptionKey })
+    const conns = Array.from(wagmiConfig.state.connections.values())
+    conns.filter(c => c.connector.id !== 'circle-wallet')
+      .forEach(c => { void disconnectWallet(wagmiConfig, { connector: c.connector }) })
+    const already = conns.some(c => c.connector.id === 'circle-wallet' && c.accounts[0]?.toLowerCase() === addr.toLowerCase())
+    if (!already) void connectAsync({ connector: circleConnector() }).catch(() => undefined)
+  }, [circleActive, session, wagmiConfig, connectAsync])
+
+  useEffect(() => {
+    if (!circleActive) return
+    onCircleSessionExpired(() => {
+      toast.error('Your Circle sign-in expired. Please sign in again.')
+      signOutCircle()
+    })
+    return () => onCircleSessionExpired(null)
+  }, [circleActive, signOutCircle])
+
+  // Google sends the browser back to the site root after sign-in; leave a note so the app returns here.
+  const needsCircleSignIn = circleConfigured && !address && !session
+  useEffect(() => { if (needsCircleSignIn) markReturnToAdmin() }, [needsCircleSignIn])
+
+  if (!isAdmin) {
+    const circleSlot = !circleConfigured ? null : session ? (
+      <button onClick={() => setCircleActive(true)}
+        className="w-full rounded-xl px-4 py-3 text-sm font-semibold"
+        style={{ background: 'var(--accent-fill)', color: '#fff' }}>
+        Continue with Circle wallet {fmtAddr(session.address)}
+      </button>
+    ) : (
+      <AccountView session={null} onSignedIn={s => { setSession(s); setCircleActive(true) }} onSignOut={signOutCircle} />
+    )
+    return <NotAdmin circleSlot={circleSlot} />
+  }
+  const needsBrowserWallet = isCircle && (section === 'deploy' || section === 'fairid' || section === 'router')
 
   const navItems: Array<{ id: AdminSection; label: string; icon: React.ElementType }> = [
     { id: 'dashboard', label: 'Dashboard',  icon: LayoutDashboard },
@@ -860,6 +947,12 @@ export default function AdminApp() {
             style={{ background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success-bg)' }}>
             Admin · {address ? fmtAddr(address) : '—'}
           </span>
+          {isCircle && (
+            <button onClick={signOutCircle} className="text-xs font-semibold rounded-xl px-3 py-1.5"
+              style={{ background: 'var(--surface-muted)', color: 'var(--ink-2)', border: '1px solid var(--border)' }}>
+              Sign out
+            </button>
+          )}
           <a href="/" className="text-xs font-semibold rounded-xl px-3 py-1.5"
             style={{ background: 'var(--surface-muted)', color: 'var(--ink-2)', textDecoration: 'none', border: '1px solid var(--border)' }}>
             ← App
@@ -898,6 +991,7 @@ export default function AdminApp() {
 
         {/* Content */}
         <main className="flex-1 min-w-0 pb-24 md:pb-0">
+          {needsBrowserWallet ? <BrowserWalletNotice onSignOut={signOutCircle} /> : (
           <AnimatePresence mode="wait">
             {section === 'dashboard' && address && <DashboardSection key="dashboard" adminAddress={address} />}
             {section === 'bills'     && <BillsSection     key="bills" />}
@@ -906,6 +1000,7 @@ export default function AdminApp() {
             {section === 'router'    && address && <CommitRouterDeploySection key="router" adminAddress={address} />}
             {section === 'manage'    && <ManageSection    key="manage" />}
           </AnimatePresence>
+          )}
         </main>
       </div>
     </div>
