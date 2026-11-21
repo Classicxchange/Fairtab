@@ -4,7 +4,6 @@
  * requiring any login (needed for Google OAuth brand verification).
  */
 
-import { supportMailto } from '@/support'
 import { useState, type ComponentType, type ReactNode } from 'react'
 import {
   Sun, Moon, ArrowRight, Receipt, Send, HandCoins, AtSign, TrendingUp, ArrowDownUp, KeyRound, Check, Bell, Wallet, Mail, Menu, X as CloseIcon,
@@ -372,7 +371,7 @@ export function LandingPage({ onGetStarted, signedIn = false, dark, onToggleDark
         <a href="/privacy" className="underline">Privacy Policy</a>
         <a href="/terms" className="underline">Terms of Service</a>
         <a href="/help" className="underline">Help</a>
-        <a href={supportMailto()} className="underline">Contact support</a>
+        <a href="/help#contact" className="underline">Contact support</a>
         <a href="/docs" className="underline">Docs</a>
         <a
           href="https://x.com/fairtab_xyz"
