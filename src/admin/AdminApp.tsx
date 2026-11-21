@@ -13,7 +13,7 @@ import {
   Loader2, CheckCircle2, XCircle,
   ExternalLink, Copy, ChevronDown, ChevronUp,
   RefreshCw, Trash2, DollarSign, Activity,
-  Terminal, Package,
+  Terminal, Package, Sun, Moon,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -22,7 +22,7 @@ import {
 import { FairIdDeploySection, FairIdDashboardCard } from '@/admin/FairIdDeploy'
 import { CommitRouterDeploySection, CommitRouterDashboardCard } from '@/admin/CommitRouterDeploy'
 import { arcMainnetChain, arcTestnetChain, IS_MAINNET } from '@/config'
-import { AccountView, circleConfigured, loadGoogleSession, clearGoogleSession, markReturnToAdmin, type AccountSession } from '@/AccountView'
+import { AccountView, circleConfigured, loadAdminSession, clearAdminSession, markReturnToAdmin, type AccountSession } from '@/AccountView'
 import { circleConnector, setCircleAuth, onCircleSessionExpired } from '@/circleWallet'
 import { buildTxExplorerUrl, buildAddressExplorerUrl } from '@/onchain-facts'
 import { formatUsdc } from '@/onchain-money'
@@ -803,11 +803,43 @@ function ManageSection() {
   )
 }
 
+// ─── Light / dark mode (shares the main app's saved choice) ─────────
+function useAdminTheme() {
+  const [dark, setDark] = useState<boolean>(() => {
+    const stored = localStorage.getItem('fairtab_theme')
+    if (stored) return stored === 'dark'
+    return window.matchMedia('(prefers-color-scheme: dark)').matches
+  })
+  const toggle = useCallback(() => {
+    setDark(d => {
+      const next = !d
+      document.documentElement.classList.toggle('dark', next)
+      localStorage.setItem('fairtab_theme', next ? 'dark' : 'light')
+      return next
+    })
+  }, [])
+  useEffect(() => { document.documentElement.classList.toggle('dark', dark) }, [dark])
+  return { dark, toggle }
+}
+
+function ThemeToggle({ dark, onToggle }: { dark: boolean; onToggle: () => void }) {
+  return (
+    <button type="button" onClick={onToggle} aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+      className="flex size-8 items-center justify-center rounded-xl"
+      style={{ background: 'var(--surface-muted)', color: 'var(--ink-2)', border: '1px solid var(--border)' }}>
+      {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
+    </button>
+  )
+}
+
 // ─── Auth gate ────────────────────────────────────────────────────────────────
-function NotAdmin({ circleSlot }: { circleSlot?: React.ReactNode }) {
+function NotAdmin({ circleSlot, circleLabel, dark, onToggleTheme }: {
+  circleSlot?: React.ReactNode; circleLabel?: string; dark: boolean; onToggleTheme: () => void
+}) {
   return (
     <div className="min-h-dvh flex flex-col items-center justify-center gap-6 px-4"
       style={{ background: 'var(--bg)' }}>
+      <div className="fixed right-4 top-4"><ThemeToggle dark={dark} onToggle={onToggleTheme} /></div>
       <div className="flex size-16 items-center justify-center rounded-2xl"
         style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger)' }}>
         <Shield className="size-8" style={{ color: 'var(--danger)' }} />
@@ -823,7 +855,7 @@ function NotAdmin({ circleSlot }: { circleSlot?: React.ReactNode }) {
         <>
           <div className="flex items-center gap-3 w-full max-w-xs">
             <div className="h-px flex-1" style={{ background: 'var(--border)' }} />
-            <span className="text-[11px]" style={{ color: 'var(--subtle)' }}>or use your Circle wallet</span>
+            <span className="text-[11px]" style={{ color: 'var(--subtle)' }}>{circleLabel ?? 'or use your Circle wallet'}</span>
             <div className="h-px flex-1" style={{ background: 'var(--border)' }} />
           </div>
           <div className="w-full max-w-xs">{circleSlot}</div>
@@ -862,10 +894,8 @@ export default function AdminApp() {
   // ── Circle wallet (Google sign-in) ──
   // A Circle sign-in made earlier in this browser is offered as a button. Nothing connects
   // until the admin chooses it, so it never replaces a browser wallet on its own.
-  const [session, setSession] = useState<AccountSession | null>(() => {
-    const s = loadGoogleSession()
-    return s?.address && s.userToken ? (s) : null
-  })
+  const [session, setSession] = useState<AccountSession | null>(() => loadAdminSession())
+  const { dark, toggle: toggleTheme } = useAdminTheme()
   const [circleActive, setCircleActive] = useState(false)
 
   const signOutCircle = useCallback(() => {
@@ -873,7 +903,7 @@ export default function AdminApp() {
     Array.from(wagmiConfig.state.connections.values())
       .filter(c => c.connector.id === 'circle-wallet')
       .forEach(c => { void disconnectWallet(wagmiConfig, { connector: c.connector }) })
-    clearGoogleSession()
+    clearAdminSession()
     setSession(null)
     setCircleActive(false)
   }, [wagmiConfig])
@@ -898,21 +928,30 @@ export default function AdminApp() {
     return () => onCircleSessionExpired(null)
   }, [circleActive, signOutCircle])
 
-  // Google sends the browser back to the site root after sign-in; leave a note so the app returns here.
-  const needsCircleSignIn = circleConfigured && !address && !session
-  useEffect(() => { if (needsCircleSignIn) markReturnToAdmin() }, [needsCircleSignIn])
-
   if (!isAdmin) {
-    const circleSlot = !circleConfigured ? null : session ? (
+    // Signed in with a Circle wallet that is not on the admin list: offer a way out.
+    const circleSlot = !circleConfigured ? null : isCircle ? (
+      <div className="flex flex-col gap-2 rounded-2xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <p className="text-xs" style={{ color: 'var(--muted)' }}>
+          Connected with Circle wallet <span className="mono">{address ? fmtAddr(address) : ''}</span>
+        </p>
+        <button onClick={signOutCircle} className="w-full rounded-xl px-4 py-2.5 text-sm font-semibold"
+          style={{ background: 'var(--accent-fill)', color: '#fff' }}>
+          Disconnect Circle wallet
+        </button>
+      </div>
+    ) : session ? (
       <button onClick={() => setCircleActive(true)}
         className="w-full rounded-xl px-4 py-3 text-sm font-semibold"
         style={{ background: 'var(--accent-fill)', color: '#fff' }}>
         Continue with Circle wallet {fmtAddr(session.address)}
       </button>
     ) : (
-      <AccountView session={null} onSignedIn={s => { setSession(s); setCircleActive(true) }} onSignOut={signOutCircle} />
+      <AccountView session={null} adminMode onBeforeGoogle={markReturnToAdmin}
+        onSignedIn={s => { setSession(s); setCircleActive(true) }} onSignOut={signOutCircle} />
     )
-    return <NotAdmin circleSlot={circleSlot} />
+    return <NotAdmin circleSlot={circleSlot} circleLabel={isCircle ? 'not an admin wallet' : undefined}
+      dark={dark} onToggleTheme={toggleTheme} />
   }
   const needsBrowserWallet = isCircle && (section === 'deploy' || section === 'fairid' || section === 'router')
 
@@ -943,6 +982,7 @@ export default function AdminApp() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <ThemeToggle dark={dark} onToggle={toggleTheme} />
           <span className="mono text-xs px-3 py-1.5 rounded-full"
             style={{ background: 'var(--success-bg)', color: 'var(--success)', border: '1px solid var(--success-bg)' }}>
             Admin · {address ? fmtAddr(address) : '—'}

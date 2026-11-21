@@ -97,6 +97,45 @@ export function markReturnToAdmin() {
   try { localStorage.setItem(RETURN_KEY, JSON.stringify({ path: '/auth/admin', exp: Date.now() + 10 * 60 * 1000 })) } catch { /* ignore */ }
 }
 
+/** True while a sign-in started on the admin page is waiting to finish (without consuming the note). */
+export function isReturningToAdmin(): boolean {
+  try {
+    const raw = localStorage.getItem(RETURN_KEY)
+    if (!raw) return false
+    const v = JSON.parse(raw) as { path?: string; exp?: number }
+    return v.path === '/auth/admin' && (v.exp ?? 0) > Date.now()
+  } catch { return false }
+}
+
+// The admin page keeps its own Circle sign-in, separate from the main app's, so signing in
+// on the admin page never signs anyone in on the main page (and signing out is independent).
+const ADMIN_SESSION_KEY = 'fairtab_admin_circle_v1'
+
+export function saveAdminSession(s: AccountSession) {
+  if (!s.userToken || !s.encryptionKey) return
+  try {
+    localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({
+      address: s.address, username: s.username, email: s.email, method: s.method,
+      userToken: s.userToken, encryptionKey: s.encryptionKey, exp: Date.now() + TOKEN_LIFETIME_MS,
+    }))
+  } catch { /* ignore */ }
+}
+
+export function loadAdminSession(): AccountSession | null {
+  try {
+    const raw = localStorage.getItem(ADMIN_SESSION_KEY)
+    if (!raw) return null
+    const v = JSON.parse(raw) as AccountSession & { exp: number }
+    if (!v.address || v.exp < Date.now()) return null
+    const { exp: _exp, ...session } = v
+    return session
+  } catch { return null }
+}
+
+export function clearAdminSession() {
+  try { localStorage.removeItem(ADMIN_SESSION_KEY) } catch { /* ignore */ }
+}
+
 export function takeReturnToAdmin(): string | null {
   try {
     const raw = localStorage.getItem(RETURN_KEY)
@@ -192,12 +231,16 @@ interface AccountViewProps {
   session: AccountSession | null
   onSignedIn: (s: AccountSession) => void
   onSignOut: () => void
+  /** Used on the admin page: keep this sign-in out of the main app's storage. */
+  adminMode?: boolean
+  /** Called just before the user is sent to Google (the admin page leaves its return note here). */
+  onBeforeGoogle?: () => void
 }
 
 type Step = 'choose' | 'email-input' | 'loading' | 'done'
 
 // ── Main component ─────────────────────────────────────────────────────────────
-export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps) {
+export function AccountView({ session, onSignedIn, onSignOut, adminMode, onBeforeGoogle }: AccountViewProps) {
   const sdkRef = useRef<W3SSdkType | null>(null)
   const returningFromGoogle = useRef(!session && isOAuthReturn()).current
   const [step, setStep]       = useState<Step>(session ? 'done' : returningFromGoogle ? 'loading' : 'choose')
@@ -275,8 +318,13 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
         userToken,
         encryptionKey: encKey,
       }
-      saveSession({ address: sess.address, username: sess.username, email: sess.email, method: sess.method })
-      saveTokens(sess.address, userToken, encKey)
+      if (adminMode || isReturningToAdmin()) {
+        // Started on the admin page: keep it out of the main app's storage.
+        saveAdminSession(sess)
+      } else {
+        saveSession({ address: sess.address, username: sess.username, email: sess.email, method: sess.method })
+        saveTokens(sess.address, userToken, encKey)
+      }
       onSignedIn(sess)
       setStep('done')
       toast.success(`Wallet ready — ${walletAddress.slice(0, 6)}…${walletAddress.slice(-4)}`)
@@ -284,7 +332,7 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
       setError(e instanceof Error ? e.message : String(e))
       setStep('choose')
     }
-  }, [onSignedIn])
+  }, [onSignedIn, adminMode])
 
   // ── SDK init — runs once ────────────────────────────────────────────────────
   useEffect(() => {
@@ -351,6 +399,7 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
     const sdk = sdkRef.current
     if (!sdk || !circleAppId || !googleClientId) return
     setStep('loading'); setLoadMsg('Connecting to Google…'); setError(null); setDiag(null)
+    onBeforeGoogle?.()
     try {
       // Always ask Circle for the live device id: a saved one can be stale (cleared
       // browser storage, new browser profile) and Circle then reports it as not found.
@@ -404,7 +453,7 @@ export function AccountView({ session, onSignedIn, onSignOut }: AccountViewProps
       if (/deviceId/i.test(msg)) { setDiag('Running a quick check…'); void circleFrameReport().then(setDiag) }
       setStep('choose')
     }
-  }, [finishInit])
+  }, [finishInit, onBeforeGoogle])
 
   // ── Email OTP: request OTP then open Circle's hosted OTP UI ───────────────
   const handleEmailSignIn = useCallback(async () => {

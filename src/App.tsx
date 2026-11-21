@@ -1143,15 +1143,16 @@ export default function App() {
               }
               onSeedSignedIn={s => { setSeedSession(s); recordSignInTime(); void navigate('/app', { replace: true }) }}
               onSocialSignedIn={(identity, wallet) => {
+                // A sign-in started on the admin page belongs to the admin page only:
+                // go back there without signing in on the main app.
+                const backToAdmin = takeReturnToAdmin()
+                if (backToAdmin) { window.location.assign(backToAdmin); return }
                 const fullSession = { ...identity, address: wallet.address }
                 saveSession(fullSession)
                 setSocialSession(fullSession)
                 // Circle wallets (userToken present) have no local seed wallet to restore.
                 if (!identity.userToken) setSeedSession(wallet)
                 recordSignInTime()
-                // A sign-in started from the admin page goes back there.
-                const backToAdmin = takeReturnToAdmin()
-                if (backToAdmin) { window.location.assign(backToAdmin); return }
                 void navigate('/app', { replace: true })
               }}
               onCircleConnected={addr => setCircleAddress(addr)}
