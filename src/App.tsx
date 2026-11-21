@@ -11,6 +11,7 @@ import { LandingPage } from '@/LandingPage'
 import { VeltraChat } from '@/VeltraChat'
 import { BulkSendPage } from '@/BulkSendPage'
 import { HelpPage } from '@/HelpPage'
+import { SupportPage } from '@/SupportPage'
 import { AddFundsSheet } from '@/AddFundsSheet'
 import { RemindersBell } from '@/RemindersBell'
 import { buildNotices, type BillSnapshot } from '@/reminders'
@@ -40,7 +41,6 @@ import {
   List, PenLine, ArrowDownCircle, CircleCheckBig,
   Bell, ChevronLeft, ChevronRight, BookOpen,
   ChevronRight as ChevronRightIcon, AtSign, LifeBuoy,
-  Mail,
 } from 'lucide-react'
 import { VeltraIcon } from '@/VeltraMark'
 import { TokenUSDC } from '@web3icons/react'
@@ -1121,9 +1121,16 @@ export default function App() {
         </div>
       )}
 
+      {/* ── Veltra Support ── public, no sign-in needed ── */}
+      {location.pathname === '/support' && (
+        <div className="fixed inset-0 z-50 overflow-y-auto" style={{ background: 'var(--bg)' }}>
+          <SupportPage onBack={() => { void navigate(address ? '/app' : '/') }} />
+        </div>
+      )}
+
       {/* ── Sign-in page gate ── shown when no wallet is connected ─ */}
       <AnimatePresence>
-        {!address && redirectChecked && !showLanding && location.pathname !== '/help' && (
+        {!address && redirectChecked && !showLanding && location.pathname !== '/help' && location.pathname !== '/support' && (
           <motion.div
             key="signin-page"
             initial={{ opacity: 0 }}
@@ -1229,6 +1236,7 @@ export default function App() {
                 address={address}
                 onGoToAccount={() => setTab('account')}
                 onHelp={() => { void navigate('/help') }}
+                onSupport={() => { void navigate('/support') }}
                 onAddFunds={() => setShowFunds(true)}
                 onSignOut={() => {
                   const uid = socialSession?.googleUid
@@ -1279,7 +1287,7 @@ export default function App() {
                 { key: 'account', label: 'Account', icon: CircleUserRound, active: tab === 'account', go: () => setTab('account') },
                 { key: 'help', label: 'Help', icon: LifeBuoy, active: false, go: () => { void navigate('/help') } },
                 { key: 'docs', label: 'Docs', icon: BookOpen, active: false, go: () => { window.location.assign('/docs') } },
-                { key: 'support', label: 'Contact support', icon: Mail, active: false, go: () => { void navigate('/help#contact') } },
+                { key: 'support', label: 'Support', icon: VeltraIcon, active: false, go: () => { void navigate('/support') } },
               ] },
             ]).map((group, gi) => (
               <div key={gi} className="flex flex-col gap-0.5">
@@ -1332,6 +1340,12 @@ export default function App() {
                   <span className="text-[10px] font-semibold">{label}</span>
                 </button>
               ))}
+              <button onClick={() => { void navigate('/support') }}
+                className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2.5 text-xs font-semibold transition-all rounded-xl"
+                style={{ background: 'transparent', color: 'var(--subtle)' }}>
+                <LifeBuoy className="size-4" />
+                <span className="text-[10px] font-semibold">Support</span>
+              </button>
             </div>
 
             {isTradeTab && (

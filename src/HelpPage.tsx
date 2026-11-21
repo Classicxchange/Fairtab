@@ -2,9 +2,9 @@
  * HelpPage: plain-language guide to Fairtab. Public (no sign-in needed).
  */
 
-import { useEffect, useState } from 'react'
-import { ChevronDown, ArrowLeft, Wallet, Receipt, Users, ShieldCheck, Coins, Mail, Copy, Check } from 'lucide-react'
-import { SUPPORT_EMAIL, supportMailto, gmailCompose } from '@/support'
+import { useState } from 'react'
+import { ChevronDown, ArrowLeft, Wallet, Receipt, Users, ShieldCheck, Coins, ArrowRight } from 'lucide-react'
+import { VeltraBadge } from '@/VeltraMark'
 
 interface Props {
   onBack: () => void
@@ -102,19 +102,6 @@ const FAQ: { q: string; a: string }[] = [
 
 export function HelpPage({ onBack }: Props) {
   const [open, setOpen] = useState<number | null>(0)
-  const [copied, setCopied] = useState(false)
-
-  // Links like /help#contact jump straight to the support section.
-  useEffect(() => {
-    if (window.location.hash === '#contact') {
-      window.setTimeout(() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
-    }
-  }, [])
-
-  const copyEmail = () => {
-    const done = () => { setCopied(true); window.setTimeout(() => setCopied(false), 2000) }
-    if (navigator.clipboard?.writeText) void navigator.clipboard.writeText(SUPPORT_EMAIL).then(done, () => undefined)
-  }
 
   return (
     <div className="min-h-dvh" style={{ background: 'var(--bg)' }}>
@@ -171,34 +158,16 @@ export function HelpPage({ onBack }: Props) {
           })}
         </div>
 
-        <h2 id="contact" className="display mt-10 mb-3 scroll-mt-28 text-xl font-bold" style={{ color: 'var(--ink)' }}>Contact support</h2>
-        <div className="flex items-start gap-3 rounded-2xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <Mail className="mt-0.5 size-4 shrink-0" style={{ color: 'var(--accent)' }} />
-          <div className="min-w-0 text-sm leading-relaxed" style={{ color: 'var(--ink-2)' }}>
-            <p>Email us and we will get back to you:</p>
-            <p className="mono mt-1 break-all text-sm font-semibold select-all" style={{ color: 'var(--ink)' }}>{SUPPORT_EMAIL}</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button type="button" onClick={copyEmail}
-                className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold"
-                style={{ background: 'var(--accent-fill)', color: '#fff' }}>
-                {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />} {copied ? 'Copied' : 'Copy email'}
-              </button>
-              <a href={gmailCompose()} target="_blank" rel="noopener noreferrer"
-                className="inline-flex items-center rounded-xl px-3 py-2 text-xs font-semibold"
-                style={{ background: 'var(--surface-muted)', color: 'var(--ink-2)', border: '1px solid var(--border)' }}>
-                Open in Gmail
-              </a>
-              <a href={supportMailto()}
-                className="inline-flex items-center rounded-xl px-3 py-2 text-xs font-semibold"
-                style={{ background: 'var(--surface-muted)', color: 'var(--ink-2)', border: '1px solid var(--border)' }}>
-                Open my email app
-              </a>
-            </div>
-            <p className="mt-3" style={{ color: 'var(--muted)' }}>
-              Tell us what you were trying to do, what happened, and your wallet address if it helps. Never send your PIN, security answers, seed phrase or private key. We will never ask for them.
-            </p>
+        <h2 className="display mt-10 mb-3 text-xl font-bold" style={{ color: 'var(--ink)' }}>Need more help?</h2>
+        <a href="/support" className="flex items-center gap-3 rounded-2xl p-4"
+          style={{ background: 'var(--surface)', border: '1px solid var(--border)', textDecoration: 'none' }}>
+          <VeltraBadge size={40} />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold" style={{ color: 'var(--ink)' }}>Veltra Support</p>
+            <p className="text-sm" style={{ color: 'var(--muted)' }}>Ask a quick question, or email the team.</p>
           </div>
-        </div>
+          <ArrowRight className="size-4 shrink-0" style={{ color: 'var(--subtle)' }} />
+        </a>
 
         <p className="mt-8 text-sm" style={{ color: 'var(--muted)' }}>
           Still stuck? Message us on{' '}

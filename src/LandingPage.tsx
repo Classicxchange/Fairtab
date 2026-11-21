@@ -218,6 +218,7 @@ export function LandingPage({ onGetStarted, signedIn = false, dark, onToggleDark
             ))}
             <a href="/help" className="rounded-lg px-3 py-2 text-[14.5px] font-medium transition-colors hover:opacity-70" style={{ color: 'var(--ink-2)' }}>FAQ</a>
             <a href="/docs" className="rounded-lg px-3 py-2 text-[14.5px] font-medium transition-colors hover:opacity-70" style={{ color: 'var(--ink-2)' }}>Docs</a>
+            <a href="/support" className="rounded-lg px-3 py-2 text-[14.5px] font-medium transition-colors hover:opacity-70" style={{ color: 'var(--ink-2)' }}>Support</a>
           </nav>
 
           <div className="ml-auto flex items-center gap-2 xl:ml-0">
@@ -254,6 +255,7 @@ export function LandingPage({ onGetStarted, signedIn = false, dark, onToggleDark
               ))}
               <a href="/help" className="rounded-xl px-4 py-3 text-[15px] font-semibold" style={{ background: 'var(--surface-strong)', border: '1px solid var(--border)', color: 'var(--ink)' }}>FAQ</a>
               <a href="/docs" className="rounded-xl px-4 py-3 text-[15px] font-semibold" style={{ background: 'var(--surface-strong)', border: '1px solid var(--border)', color: 'var(--ink)' }}>Docs</a>
+              <a href="/support" className="rounded-xl px-4 py-3 text-[15px] font-semibold" style={{ background: 'var(--surface-strong)', border: '1px solid var(--border)', color: 'var(--ink)' }}>Support</a>
               <a href="https://x.com/fairtab_xyz" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-xl px-4 py-3 text-[15px] font-semibold"
                 style={{ background: 'var(--surface-strong)', border: '1px solid var(--border)', color: 'var(--ink)' }}><XLogo size={15} /> Follow on X</a>
             </div>
@@ -371,7 +373,7 @@ export function LandingPage({ onGetStarted, signedIn = false, dark, onToggleDark
         <a href="/privacy" className="underline">Privacy Policy</a>
         <a href="/terms" className="underline">Terms of Service</a>
         <a href="/help" className="underline">Help</a>
-        <a href="/help#contact" className="underline">Contact support</a>
+        <a href="/support" className="underline">Contact support</a>
         <a href="/docs" className="underline">Docs</a>
         <a
           href="https://x.com/fairtab_xyz"

@@ -9,7 +9,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Copy, CheckCircle2, LogOut, Settings, ChevronDown,
-  Wallet, ExternalLink, HelpCircle, Coins,
+  Wallet, ExternalLink, HelpCircle, LifeBuoy, Coins,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useDisconnectAll } from '@/useDisconnectAll'
@@ -22,13 +22,14 @@ interface Props {
   address: string
   onGoToAccount: () => void
   onHelp?: () => void
+  onSupport?: () => void
   onAddFunds?: () => void
   onSignOut: () => void
 }
 
 import { useFairIdName } from '@/useFairIdName'
 
-export function WalletDropdown({ address, onGoToAccount, onHelp, onAddFunds, onSignOut }: Props) {
+export function WalletDropdown({ address, onGoToAccount, onHelp, onSupport, onAddFunds, onSignOut }: Props) {
   const [open, setOpen]   = useState(false)
   const [copied, setCopied] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -177,6 +178,18 @@ export function WalletDropdown({ address, onGoToAccount, onHelp, onAddFunds, onS
                 >
                   <HelpCircle className="size-4 shrink-0" style={{ color: 'var(--subtle)' }} />
                   Help
+                </button>
+              )}
+              {onSupport && (
+                <button
+                  onClick={() => { setOpen(false); onSupport() }}
+                  className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all text-left"
+                  style={{ color: 'var(--ink-2)' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-muted)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <LifeBuoy className="size-4 shrink-0" style={{ color: 'var(--subtle)' }} />
+                  Support
                 </button>
               )}
               <button
