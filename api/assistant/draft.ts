@@ -270,6 +270,9 @@ async function refreshFeeVaults(): Promise<void> {
   }
 }
 
+// Keep in sync with src/support.ts
+const SUPPORT_EMAIL = 'contact@fairtab.online'
+
 function fairtabFacts(): string {
   const fairId = (process.env.VITE_FAIRID_MAINNET_ADDRESS ?? '').trim()
   const router = (process.env.VITE_COMMIT_ROUTER_ADDRESS ?? '').trim()
@@ -331,6 +334,7 @@ function fairtabFacts(): string {
   "VELTRA (you):",
   "Veltra is the Fairtab assistant. It answers questions and prepares a bill draft, a send or a swap, or opens a screen. It never signs or sends anything; the user reviews and confirms on the normal screen. It only uses wallet addresses and names the user typed, and amounts are calculated by code. It runs on a third-party AI service, so its answers are not financial advice.",
   "",
+  'Support: people can email Fairtab support at ' + SUPPORT_EMAIL + ', read the Help page in the app, or message @fairtab_xyz on X. Never ask anyone for a PIN, security answers, seed phrase or private key.',
   'Contract addresses on Arc Mainnet (chain ID 5042, explorer https://explorer.arc.io). Copy them exactly when asked:',
   `Bill contract (HouseholdBillSplitter, the active one): ${BILL_CONTRACT_MAINNET}. Older versions are retired; never point people to them.`,
   'USDC token: 0x3600000000000000000000000000000000000000. EURC token: 0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1. cirBTC token: 0x171A4217b86A807A64eB94757Db6849fb4bDbAA0.',
@@ -367,7 +371,7 @@ function chatSystemPrompt(today: string): string {
     'You can: answer questions about Fairtab and about the Arc blockchain using ONLY the facts below, and prepare actions for the user to review.',
     'You can NEVER sign, send, approve or move money. Every action only opens a screen where the user reviews and confirms.',
     'Never ask for or accept private keys, seed phrases, PINs or passwords. If the user shares one, tell them to stop and keep it private.',
-    'Do not give financial, legal or tax advice, and do not promise yield or prices. If you do not know something, say so and suggest the Help page.',
+    'Do not give financial, legal or tax advice, and do not promise yield or prices. If you do not know something, say so and suggest the Help page, or emailing Fairtab support at ' + SUPPORT_EMAIL + '.',
     'If the request is not about Fairtab, the Arc blockchain, Circle\'s stablecoins (USDC, EURC) or money movement in Fairtab, politely decline in one sentence.',
     'Never invent or change wallet addresses. For sends and bills only use addresses or @names exactly as the user typed them. You may state the Fairtab contract addresses listed in FACTS, copied exactly, when the user asks for them.',
     '',

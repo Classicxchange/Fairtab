@@ -3,7 +3,8 @@
  */
 
 import { useState } from 'react'
-import { ChevronDown, ArrowLeft, Wallet, Receipt, Users, ShieldCheck, Coins } from 'lucide-react'
+import { ChevronDown, ArrowLeft, Wallet, Receipt, Users, ShieldCheck, Coins, Mail } from 'lucide-react'
+import { SUPPORT_EMAIL, supportMailto } from '@/support'
 
 interface Props {
   onBack: () => void
@@ -155,6 +156,21 @@ export function HelpPage({ onBack }: Props) {
               </div>
             )
           })}
+        </div>
+
+        <h2 className="display mt-10 mb-3 text-xl font-bold" style={{ color: 'var(--ink)' }}>Contact support</h2>
+        <div className="flex items-start gap-3 rounded-2xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <Mail className="mt-0.5 size-4 shrink-0" style={{ color: 'var(--accent)' }} />
+          <div className="text-sm leading-relaxed" style={{ color: 'var(--ink-2)' }}>
+            <p>
+              Email us at{' '}
+              <a href={supportMailto()} className="font-semibold underline" style={{ color: 'var(--accent)' }}>{SUPPORT_EMAIL}</a>
+              {' '}and we will get back to you.
+            </p>
+            <p className="mt-2" style={{ color: 'var(--muted)' }}>
+              Tell us what you were trying to do, what happened, and your wallet address if it helps. Never send your PIN, security answers, seed phrase or private key. We will never ask for them.
+            </p>
+          </div>
         </div>
 
         <p className="mt-8 text-sm" style={{ color: 'var(--muted)' }}>

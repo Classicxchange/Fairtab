@@ -14,6 +14,7 @@ import { HelpPage } from '@/HelpPage'
 import { AddFundsSheet } from '@/AddFundsSheet'
 import { RemindersBell } from '@/RemindersBell'
 import { buildNotices, type BillSnapshot } from '@/reminders'
+import { supportMailto } from '@/support'
 import { circleConnector, setCircleAuth, onCircleSessionExpired } from '@/circleWallet'
 import { SendPage } from '@/SendPage'
 import { CommitPage } from '@/CommitPage'
@@ -40,6 +41,7 @@ import {
   List, PenLine, ArrowDownCircle, CircleCheckBig,
   Bell, ChevronLeft, ChevronRight, BookOpen,
   ChevronRight as ChevronRightIcon, AtSign, LifeBuoy,
+  Mail,
 } from 'lucide-react'
 import { VeltraIcon } from '@/VeltraMark'
 import { TokenUSDC } from '@web3icons/react'
@@ -1278,6 +1280,7 @@ export default function App() {
                 { key: 'account', label: 'Account', icon: CircleUserRound, active: tab === 'account', go: () => setTab('account') },
                 { key: 'help', label: 'Help', icon: LifeBuoy, active: false, go: () => { void navigate('/help') } },
                 { key: 'docs', label: 'Docs', icon: BookOpen, active: false, go: () => { window.location.assign('/docs') } },
+                { key: 'support', label: 'Contact support', icon: Mail, active: false, go: () => { window.location.href = supportMailto() } },
               ] },
             ]).map((group, gi) => (
               <div key={gi} className="flex flex-col gap-0.5">
